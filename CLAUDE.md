@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ce dépôt est le **frontend web** de Konkouré (TanStack Start, issu de Lovable). **Supabase a été entièrement retiré** : le seul backend est l'API AdonisJS du dépôt voisin `D:/Projects/konkoure-rh-api` (spécifications : `konkoure-rh-api/docs/backend/`, contrat d'API : `06-api-reference.md`). Ne jamais réintroduire `@supabase/*`, `createServerFn` ni un accès direct à une base. L'ancien code Supabase et les server functions Lovable sont archivés, pour référence uniquement, dans `konkoure-rh-api/docs/legacy-supabase/`.
 
-Ce dossier a son propre dépôt git (branche `main`), distinct du dépôt parent `D:/Projects`.
+Ce dossier a son propre dépôt git (branche `main`).
 
 ## Commandes
 
