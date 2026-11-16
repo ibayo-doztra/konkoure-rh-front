@@ -1,9 +1,8 @@
 // Shapes consumed by the frontend session layer.
 //
-// ⚠️ PROPOSED CONTRACT — `GET /api/v1/me` is only described in prose in
-// konkoure-rh-api/docs/backend/06-api-reference.md ("profil, organisation active,
-// rôles, employé lié, abonnement, modules, super-admin"). This exact shape must be
-// validated and written into 06-api-reference.md before the backend implements it.
+// Contract: konkoure-rh-api/docs/backend/06-api-reference.md §2 (`GET /me`).
+// Until the HR and billing modules ship, the API returns `employee: null`,
+// `subscription: null`, `modules: []` and `plan: null`.
 import type { AppRole } from "@/lib/permissions";
 
 export interface AuthUser {
@@ -24,7 +23,7 @@ export interface MeOrganization {
   logoUrl: string | null;
   defaultLanguage: string;
   defaultCurrency: string;
-  plan: string;
+  plan: string | null;
   performanceModel: "classic" | "sap";
   roles: AppRole[];
 }
@@ -47,7 +46,6 @@ export interface Me {
   user: AuthUser;
   isPlatformAdmin: boolean;
   organizations: MeOrganization[];
-  activeOrganizationId: string | null;
   employee: { id: string; firstName: string | null; lastName: string | null } | null;
   subscription: MeSubscription | null;
   /** Effective modules computed server-side (entitlements); the client only hides UI. */
