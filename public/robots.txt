@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /onboarding/
+Disallow: /rh/
+Disallow: /employes/
+Disallow: /mcp
+Disallow: /.mcp/
+Disallow: /.well-known/
+Disallow: /api/
+
+Sitemap: https://konkoure.lovable.app/sitemap.xml

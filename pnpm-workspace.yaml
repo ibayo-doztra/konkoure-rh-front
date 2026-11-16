@@ -1,0 +1,26 @@
+allowBuilds:
+  esbuild: true
+  workerd: true
+# Équivalent de l ancien bunfig.toml : n installer que des versions publiées depuis au moins 24 h.
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@lovable.dev/vite-tanstack-config"
+
+# Anciennement overrides/resolutions dans package.json.
+overrides:
+  # Ciblé par majeure : minimatch@3 et @5 exigent l'API CJS de brace-expansion 1.x / 2.x.
+  "brace-expansion@<2": "^1.1.19"
+  "brace-expansion@>=2 <3": "^2.1.4"
+  "brace-expansion@>=3": "^5.0.9"
+  "uuid": "^14.0.1"
+  "js-yaml": "^4.3.2"
+  "fast-uri": "^3.1.6"
+  "ip-address": "^10.4.0"
+  "hono": "^4.13.5"
+  "@hono/node-server": "^2.1.0"
+  "sharp": "^0.35.4"
+  "undici": "^7.29.0"
+
+# La config Lovable déduplique @tanstack/* depuis la racine du projet (pensée pour un node_modules plat).
+publicHoistPattern:
+  - "@tanstack/*"
