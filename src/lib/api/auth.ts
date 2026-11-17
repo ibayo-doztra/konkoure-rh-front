@@ -51,6 +51,9 @@ export interface InvitationPreview {
   organizationName: string;
   email: string;
   role: string;
+  expiresAt: string;
+  /** An account already exists: `password` is then its current password (06 §1). */
+  accountExists: boolean;
 }
 
 export function getInvitation(token: string) {

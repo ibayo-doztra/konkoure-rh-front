@@ -221,6 +221,22 @@ export default {
     passwordMismatch: "Passwords do not match.",
     submitPassword: "Set my password",
     passwordSetSuccess: "Password set, welcome to Konkouré!",
+    invitationJoin: 'You are invited to join {{organization}} as "{{role}}".',
+    newAccountIntro: "Choose your personal password to create your account ({{email}}).",
+    existingAccountIntro:
+      "A Konkouré account already exists for {{email}}. Enter its current password to accept the invitation.",
+    fullName: "Full name",
+    currentPassword: "Current password",
+    submitJoin: "Join the organization",
+    joinedSuccess: "Invitation accepted, welcome to {{organization}}!",
+    roles: {
+      owner: "Owner",
+      hr_admin: "HR administrator",
+      manager: "Manager",
+      employee: "Employee",
+      recruiter: "Recruiter",
+      security_agent: "Security agent",
+    },
   },
   onboarding: {
     defaultModule: "This module",
