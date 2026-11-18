@@ -21,7 +21,7 @@ pnpm install
 pnpm dev             # vite dev
 pnpm build           # build de production (Cloudflare Workers via wrangler.jsonc)
 pnpm build:dev       # build en mode development
-pnpm lint            # eslint . (inclut prettier via eslint-plugin-prettier)
+pnpm lint            # eslint . (inclut prettier ; dette gelée dans eslint-suppressions.json)
 pnpm format          # prettier --write .
 pnpm exec tsc --noEmit  # vérification de types (aucun script dédié)
 pnpm exec tsc --noEmit -p e2e  # vérification de types des tests e2e
@@ -30,6 +30,12 @@ pnpm test:e2e:ui     # mode interactif de Playwright
 ```
 
 Particularité pnpm à conserver : `publicHoistPattern: "@tanstack/*"` est nécessaire : la config Lovable déduplique `@tanstack/*` depuis la racine, sinon le build échoue (« failed to resolve import "@tanstack/query-core" »).
+
+## CI
+
+`.github/workflows/ci.yml` s'exécute sur chaque PR et sur les push vers `main` et `develop`. Le job `quality` lance lint, types, build et audit (non bloquant). Le job `e2e` lance Playwright contre la branche de `konkoure-rh-api` qui correspond à la cible (`develop` ou `main`).
+
+`eslint-suppressions.json` gèle les erreurs de lint historiques : seules les nouvelles bloquent. Après avoir corrigé un fichier, réduire le gel avec `pnpm exec eslint . --prune-suppressions`. Ne pas y ajouter de nouvelles erreurs.
 
 ## Tests e2e
 
