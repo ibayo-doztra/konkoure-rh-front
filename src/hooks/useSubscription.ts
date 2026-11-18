@@ -8,7 +8,7 @@ export interface SubscriptionState {
   maxEmployes: number;
   creditsIa: number;
   modules: string[];
-  statut: "trialing" | "active" | "past_due" | "canceled";
+  statut: "trialing" | "active" | "past_due" | "suspended" | "canceled" | "expired";
   periodeFin: string | null;
   cycle: "mensuel" | "annuel";
   prixGnf: number;
@@ -23,10 +23,10 @@ export interface SubscriptionState {
 }
 
 const FALLBACK: SubscriptionState = {
-  planCode: "gratuit",
+  planCode: "free",
   planName: "Gratuit",
-  maxEmployes: 5,
-  creditsIa: 50,
+  maxEmployes: 10,
+  creditsIa: 20,
   modules: FREE_AFTER_TRIAL_MODULES,
   statut: "trialing",
   periodeFin: null,
@@ -57,10 +57,10 @@ export function useSubscription() {
       modules: me.modules,
       statut: sub.status,
       periodeFin: sub.currentPeriodEnd,
-      cycle: sub.cycle,
+      cycle: sub.cycle === "yearly" ? "annuel" : "mensuel",
       prixGnf: sub.priceGnf,
       planEffective: sub.planEffective,
-      graceCanceled: sub.planCode !== "gratuit" && sub.status === "canceled" && sub.planEffective,
+      graceCanceled: sub.planCode !== "free" && sub.status === "canceled" && sub.planEffective,
       trialActive: sub.trialEndsAt !== null && new Date(sub.trialEndsAt).getTime() > Date.now(),
       trialEndsAt: sub.trialEndsAt,
     };

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { APP_URL, createOwner, open, signIn } from "./support/app";
+import { APP_URL, createOwner, invite, open, signIn } from "./support/app";
+import { PASSWORD } from "./support/settings";
 
 test("la déconnexion avec un jeton expiré ferme vraiment la session", async ({ page, request }) => {
   const owner = await createOwner(request);
@@ -57,4 +58,40 @@ test("deux onglets rechargés ensemble gardent la session", async ({ context, pa
   await third.goto("/app");
   await expect(third).toHaveURL(APP_URL);
   await expect(third.locator("#main-content")).toBeVisible();
+});
+
+test("un membre de deux organisations passe de l'une à l'autre", async ({
+  page,
+  request,
+  isMobile,
+}) => {
+  test.skip(isMobile, "La barre latérale est repliée sur mobile.");
+  const member = await createOwner(request);
+  const other = await createOwner(request);
+  const link = await invite(request, other, member.email);
+
+  await open(page, link);
+  await page.locator("#pwd").fill(PASSWORD);
+  await page.getByRole("button", { name: "Rejoindre l'organisation" }).click();
+  await expect(page).toHaveURL(APP_URL);
+
+  const switcher = page.getByRole("combobox", { name: "Changer d'organisation" });
+  await expect(switcher).toBeVisible();
+  const before = (await switcher.textContent())?.trim();
+  const target = before === member.organizationName ? other : member;
+
+  const reloaded = page.waitForRequest(
+    (req) =>
+      req.url().endsWith("/api/v1/me") &&
+      req.headers()["x-organization-id"] === target.organizationId,
+  );
+  await switcher.click();
+  await page.getByRole("option", { name: target.organizationName }).click();
+  await reloaded;
+  await expect(switcher).toHaveText(target.organizationName);
+
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Changer d'organisation" })).toHaveText(
+    target.organizationName,
+  );
 });

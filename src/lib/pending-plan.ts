@@ -1,7 +1,7 @@
 // Mémorise l'offre choisie depuis la landing pour reprendre le paiement
 // après inscription / création de l'organisation.
 export type PendingCycle = "mensuel" | "annuel";
-export type PendingPlanCode = "essentiel" | "professionnel" | "entreprise";
+export type PendingPlanCode = "starter" | "pro" | "enterprise";
 
 const KEY = "konkoure.pendingPlan";
 
@@ -27,7 +27,7 @@ export function takePendingPlan(): PendingPlan | null {
     sessionStorage.removeItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingPlan;
-    if (!["essentiel", "professionnel", "entreprise"].includes(parsed.plan)) return null;
+    if (!["starter", "pro", "enterprise"].includes(parsed.plan)) return null;
     return { plan: parsed.plan, cycle: parsed.cycle === "annuel" ? "annuel" : "mensuel" };
   } catch {
     return null;

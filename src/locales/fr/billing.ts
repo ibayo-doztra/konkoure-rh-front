@@ -6,6 +6,7 @@ export default {
     statusTrialing: "Période d'essai",
     statusActive: "Actif",
     statusPastDue: "Paiement en retard",
+    statusSuspended: "Suspendu",
     statusCanceled: "Annulé",
     statusExpired: "Offre expirée",
     canceledUntil: "Annulé — accès jusqu'au {{date}}",

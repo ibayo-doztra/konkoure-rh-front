@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getPlatformAdminStatus } from "@/lib/api/legacy-functions";
@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOrg } from "@/hooks/useOrg";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { canAccess } from "@/lib/permissions";
@@ -70,7 +71,8 @@ type Group = { label: string; icon: LucideIcon; items: Item[] };
 export function AppSidebar() {
   const { t } = useTranslation();
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const { org } = useOrg();
+  const navigate = useNavigate();
+  const { org, organizations, selectOrganization } = useOrg();
   const { user, loading: authLoading } = useAuth();
   const { role } = useRole();
   const { hasModule } = useSubscription();
@@ -338,6 +340,25 @@ export function AppSidebar() {
             <Logo variant="full" onClick={handleNavClick} className="min-w-0 [&_img]:h-[22px]" />
           )}
         </div>
+        {!collapsed && organizations.length > 1 && org && (
+          <Select
+            value={org.id}
+            onValueChange={(id) => {
+              void selectOrganization(id).then(() => navigate({ to: "/app" }));
+            }}
+          >
+            <SelectTrigger aria-label={t("sidebar.switchOrganization")} className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {organizations.map((organization) => (
+                <SelectItem key={organization.id} value={organization.id}>
+                  {organization.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </SidebarHeader>
       <SidebarContent>
         {/* Main */}

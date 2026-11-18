@@ -104,7 +104,7 @@ function VerifyEmailGate({ email }: { email: string }) {
 function OrganizationForm({ submitted }: { submitted: RefObject<boolean> }) {
   const { t } = useTranslation();
   const { reload } = useAuth();
-  const { refresh } = useOrg();
+  const { selectOrganization } = useOrg();
   const nav = useNavigate();
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("fr");
@@ -163,7 +163,7 @@ function OrganizationForm({ submitted }: { submitted: RefObject<boolean> }) {
     }
 
     setLoading(false);
-    await refresh();
+    await selectOrganization(newOrgId);
     toast.success(t("onboarding.created"));
     if (claimed) {
       nav({ to: "/app/billing" });

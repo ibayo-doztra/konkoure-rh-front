@@ -40,7 +40,7 @@ export const Route = createFileRoute("/paiement/")({
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
-    plan: PLAN_CODES.includes(search.plan as PlanCode) ? (search.plan as PlanCode) : "essentiel",
+    plan: PLAN_CODES.includes(search.plan as PlanCode) ? (search.plan as PlanCode) : "starter",
     cycle: search.cycle === "annuel" ? ("annuel" as Cycle) : ("mensuel" as Cycle),
   }),
   component: PublicCheckoutPage,

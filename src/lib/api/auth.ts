@@ -4,8 +4,9 @@ import type { AuthTokens, Me, MeOrganization } from "@/lib/api/types";
 
 export const meQueryKey = ["me"] as const;
 
+/** `subscription`, `modules` and `employee` are those of the organization sent in the header. */
 export function fetchMe(): Promise<Me> {
-  return api.get<Me>("/me");
+  return api.get<Me>("/me", undefined, { withOrganization: true });
 }
 
 export async function login(input: { email: string; password: string; rememberDevice?: boolean }) {

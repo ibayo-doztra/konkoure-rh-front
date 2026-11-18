@@ -494,6 +494,7 @@ const fr = {
   },
   sidebar: {
     skipToContent: "Aller au contenu",
+    switchOrganization: "Changer d'organisation",
     generalSettings: "Paramètres généraux",
     socialNetworks: "Réseaux sociaux",
     platform: "Plateforme",
@@ -1011,6 +1012,7 @@ const en: typeof fr = {
   },
   sidebar: {
     skipToContent: "Skip to content",
+    switchOrganization: "Switch organization",
     generalSettings: "General settings",
     socialNetworks: "Social networks",
     platform: "Platform",

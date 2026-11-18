@@ -90,7 +90,7 @@ function PaymentTrackingPage() {
         {t("paiement.notPaidYet")}{" "}
         <Link
           to="/paiement"
-          search={{ plan: "essentiel", cycle: "mensuel" }}
+          search={{ plan: "starter", cycle: "mensuel" }}
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           {t("paiement.choosePlan")}

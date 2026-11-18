@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 type Cycle = "mensuel" | "annuel";
-type PlanCode = "essentiel" | "professionnel" | "entreprise";
+type PlanCode = "starter" | "pro" | "enterprise";
 type Method = "orange_money" | "mtn_momo" | "card";
 
 interface PlanRow {
@@ -38,7 +38,7 @@ interface PlanRow {
   sort_order: number;
 }
 
-const PLAN_CODES: PlanCode[] = ["essentiel", "professionnel", "entreprise"];
+const PLAN_CODES: PlanCode[] = ["starter", "pro", "enterprise"];
 
 function useMethods(t: (k: string) => string): { value: Method; label: string; hint: string }[] {
   return [
@@ -72,7 +72,7 @@ export const Route = createFileRoute("/_authenticated/app/billing/checkout")({
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
-    plan: PLAN_CODES.includes(search.plan as PlanCode) ? (search.plan as PlanCode) : "essentiel",
+    plan: PLAN_CODES.includes(search.plan as PlanCode) ? (search.plan as PlanCode) : "starter",
     cycle: search.cycle === "annuel" ? ("annuel" as Cycle) : ("mensuel" as Cycle),
   }),
   component: CheckoutPage,

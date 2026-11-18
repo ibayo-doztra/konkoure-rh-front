@@ -37,6 +37,8 @@ export default defineConfig({
         WEB_APP_URL: WEB_URL,
         CORS_ORIGINS: WEB_URL,
         DB_DATABASE: "konkoure_e2e",
+        // The API runs under its real database role, so row-level security applies.
+        DB_APP_ROLE: "konkoure_app",
         LIMITER_STORE: "memory",
         LOG_LEVEL: "warn",
         MAIL_MAILER: "resend",

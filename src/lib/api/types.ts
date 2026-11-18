@@ -1,8 +1,7 @@
 // Shapes consumed by the frontend session layer.
 //
 // Contract: konkoure-rh-api/docs/backend/06-api-reference.md §2 (`GET /me`).
-// Until the HR and billing modules ship, the API returns `employee: null`,
-// `subscription: null`, `modules: []` and `plan: null`.
+// Until the HR module ships, the API returns `employee: null`.
 import type { AppRole } from "@/lib/permissions";
 
 export interface AuthUser {
@@ -33,9 +32,9 @@ export interface MeSubscription {
   planName: string;
   maxEmployees: number;
   aiCreditsPerMonth: number;
-  status: "trialing" | "active" | "past_due" | "canceled";
+  status: "trialing" | "active" | "past_due" | "suspended" | "canceled" | "expired";
   currentPeriodEnd: string | null;
-  cycle: "mensuel" | "annuel";
+  cycle: "monthly" | "yearly";
   priceGnf: number;
   trialEndsAt: string | null;
   /** Paid plan still effective (including cancellation until period end). */
