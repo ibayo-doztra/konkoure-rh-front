@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          # Its automatic cache needs pnpm, which corepack only provides afterwards.
+          package-manager-cache: false
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
