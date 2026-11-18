@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm exec tsc --noEmit -p e2e
+      - run: pnpm build
+        env:
+          VITE_API_URL: http://localhost:3334
+      # Known findings have no compatible fix yet: reported without blocking.
+      - run: pnpm audit --audit-level=high --prod
+        continue-on-error: true
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: konkoure-rh-front
+      # The API branch matching the target: develop with develop, main with main.
+      - uses: actions/checkout@v5
+        with:
+          repository: ibayo-doztra/konkoure-rh-api
+          ref: ${{ github.base_ref || github.ref_name }}
+          path: konkoure-rh-api
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: corepack enable
+      - name: Install the API
+        working-directory: konkoure-rh-api
+        run: |
+          pnpm install --frozen-lockfile
+          cp .env.example .env
+          {
+            echo 'APP_KEY=ci-only-key-not-used-outside-this-workflow'
+            echo 'DB_PASSWORD=postgres'
+          } >> .env
+      - name: Install the frontend
+        working-directory: konkoure-rh-front
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run the end-to-end tests
+        working-directory: konkoure-rh-front
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            konkoure-rh-front/playwright-report
+            konkoure-rh-front/test-results
+          retention-days: 7
