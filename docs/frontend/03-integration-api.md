@@ -9,7 +9,7 @@
 6. Les fichiers (CV, avatars, logos) passent par des URLs signées émises par l'API.
 
 ## Correspondance des fonctions serveur actuelles → endpoints
-Les chemins exacts font foi dans `docs/backend/06-api-reference.md` ; ajouter tout endpoint manquant là-bas avant de l'utiliser.
+Les chemins exacts font foi dans `docs/backend/06-api-reference.md` ; ajouter tout endpoint manquant là-bas avant de l'utiliser. Les chemins `/v1/...` ci-dessous sont historiques : les routes métier sont sous `/api/v1/org/*`.
 
 | Fichier actuel | Fonction | Endpoint cible |
 |---|---|---|
