@@ -18,13 +18,13 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: i18n.t("auth.loginMetaTitle") },
-      { name: "description", content: "Connectez-vous à votre espace Konkouré pour gérer recrutement, performance et pointage de vos équipes." },
+      { name: "description", content: i18n.t("auth.loginMetaDescription") },
       { property: "og:title", content: i18n.t("auth.loginMetaTitle") },
-      { property: "og:description", content: "Accédez à votre compte Konkouré SIRH." },
-      { property: "og:url", content: "https://konkoure.lovable.app/login" },
+      { property: "og:description", content: i18n.t("auth.loginMetaDescription") },
+      { property: "og:url", content: "https://konkoure.doztra.cloud/login" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://konkoure.lovable.app/login" }],
+    links: [{ rel: "canonical", href: "https://konkoure.doztra.cloud/login" }],
   }),
   component: LoginPage,
 });
@@ -82,7 +82,13 @@ function LoginPage() {
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t("common.email")}</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -91,7 +97,12 @@ function LoginPage() {
                   {t("auth.forgotLink")}
                 </Link>
               </div>
-              <PasswordInput id="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput
+                id="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "…" : t("auth.submitLogin")}

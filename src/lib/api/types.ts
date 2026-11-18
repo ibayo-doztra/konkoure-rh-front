@@ -12,7 +12,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   emailVerified: boolean;
   preferredLanguage: "fr" | "en" | null;
-  /** Invited account that must set its own password before using the app. */
+  /** Imported account that must reset its password (`users.must_reset_password`). */
   mustChangePassword: boolean;
 }
 

@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { PasswordStrength, scorePassword } from "@/components/auth/PasswordStrength";
+import {
+  meetsPasswordPolicy,
+  PASSWORD_MIN_LENGTH,
+  PasswordStrength,
+} from "@/components/auth/PasswordStrength";
 import { Logo } from "@/components/brand/Logo";
 import { toast } from "sonner";
 import i18n, { authErrorKey } from "@/lib/i18n";
@@ -16,11 +20,11 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: i18n.t("auth.resetMetaTitle") },
-      { name: "description", content: "Réinitialisez votre mot de passe Konkouré et reprenez la main sur votre espace RH." },
-      { property: "og:url", content: "https://konkoure.lovable.app/reset-password" },
+      { name: "description", content: i18n.t("auth.resetMetaDescription") },
+      { property: "og:url", content: "https://konkoure.doztra.cloud/reset-password" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://konkoure.lovable.app/reset-password" }],
+    links: [{ rel: "canonical", href: "https://konkoure.doztra.cloud/reset-password" }],
   }),
   component: ResetPage,
 });
@@ -35,9 +39,9 @@ function ResetPage() {
   const recovery = token !== null;
   const [loading, setLoading] = useState(false);
 
-  const strength = scorePassword(newPwd);
+  const validPassword = meetsPasswordPolicy(newPwd);
   const mismatch = confirmPwd.length > 0 && confirmPwd !== newPwd;
-  const canUpdate = !loading && strength >= 2 && newPwd === confirmPwd && newPwd.length >= 8;
+  const canUpdate = !loading && validPassword && newPwd === confirmPwd;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -63,7 +67,7 @@ function ResetPage() {
       toast.error(t("auth.passwordMismatch"));
       return;
     }
-    if (strength < 2) {
+    if (!validPassword) {
       toast.error(t("auth.passwordTooWeak"));
       return;
     }
@@ -93,23 +97,48 @@ function ResetPage() {
             <form onSubmit={updatePwd} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="newp">{t("auth.newPassword")}</Label>
-                <PasswordInput id="newp" required minLength={8} value={newPwd} onChange={(e) => setNewPwd(e.target.value)} />
+                <PasswordInput
+                  id="newp"
+                  required
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={128}
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                />
                 <PasswordStrength value={newPwd} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confp">{t("auth.confirmPassword")}</Label>
-                <PasswordInput id="confp" required value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} aria-invalid={mismatch || undefined} />
-                {mismatch && <p className="text-xs text-destructive">{t("auth.passwordMismatch")}</p>}
+                <PasswordInput
+                  id="confp"
+                  required
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  aria-invalid={mismatch || undefined}
+                />
+                {mismatch && (
+                  <p className="text-xs text-destructive">{t("auth.passwordMismatch")}</p>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={!canUpdate}>{t("auth.updatePassword")}</Button>
+              <Button type="submit" className="w-full" disabled={!canUpdate}>
+                {t("auth.updatePassword")}
+              </Button>
             </form>
           ) : (
             <form onSubmit={sendReset} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t("common.email")}</Label>
-                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>{t("auth.sendResetLink")}</Button>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {t("auth.sendResetLink")}
+              </Button>
             </form>
           )}
         </CardContent>

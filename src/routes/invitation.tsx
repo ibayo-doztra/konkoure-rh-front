@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { PasswordStrength, scorePassword } from "@/components/auth/PasswordStrength";
+import { meetsPasswordPolicy, PasswordStrength } from "@/components/auth/PasswordStrength";
 import { Logo } from "@/components/brand/Logo";
 import i18n, { authErrorKey } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -69,10 +69,9 @@ function InvitationPage() {
   }, []);
 
   const existing = invitation?.accountExists ?? false;
-  const strength = scorePassword(pwd);
   const mismatch = !existing && confirm.length > 0 && confirm !== pwd;
   const canSubmit =
-    !saving && (existing ? pwd.length > 0 : pwd.length >= 10 && strength >= 2 && pwd === confirm);
+    !saving && (existing ? pwd.length > 0 : meetsPasswordPolicy(pwd) && pwd === confirm);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

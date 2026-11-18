@@ -18,6 +18,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated.app'
 import { Route as EmployesIdRouteImport } from './routes/employes.$id'
 import { Route as KonkoureofficeIndexRouteImport } from './routes/konkoureoffice.index'
@@ -115,6 +116,11 @@ const SignupRoute = SignupRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -434,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
@@ -497,6 +504,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
   '/konkoureoffice/journal': typeof KonkoureofficeJournalRoute
@@ -561,6 +569,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
@@ -627,6 +636,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/app'
     | '/employes/$id'
     | '/konkoureoffice/demandes'
@@ -690,6 +700,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/employes/$id'
     | '/konkoureoffice/demandes'
     | '/konkoureoffice/journal'
@@ -753,6 +764,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/_authenticated/app'
     | '/employes/$id'
     | '/konkoureoffice/demandes'
@@ -819,6 +831,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   EmployesIdRoute: typeof EmployesIdRoute
   OnboardingOrganizationRoute: typeof OnboardingOrganizationRoute
   PaiementRetourRoute: typeof PaiementRetourRoute
@@ -896,6 +909,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -1427,6 +1447,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   EmployesIdRoute: EmployesIdRoute,
   OnboardingOrganizationRoute: OnboardingOrganizationRoute,
   PaiementRetourRoute: PaiementRetourRoute,

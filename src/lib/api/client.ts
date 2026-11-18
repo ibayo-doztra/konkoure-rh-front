@@ -212,11 +212,14 @@ export async function apiRequest<T>(
 
   const error = await toApiError(res);
 
+  // `/auth/*` calls are public, where a 401 means bad credentials, except this one.
+  const usesSession = !path.startsWith("/auth/") || path === "/auth/resend-verification";
+
   // Expired access token: refresh once, then replay. Never loop (04-auth-rbac §1).
-  if (res.status === 401 && !retried && !path.startsWith("/auth/")) {
+  if (res.status === 401 && !retried && usesSession) {
     if (await refreshSession()) return apiRequest<T>(path, opts, true);
   }
-  if (res.status === 401 && !path.startsWith("/auth/")) emit("unauthorized", error);
+  if (res.status === 401 && usesSession) emit("unauthorized", error);
   if (error.code === "E_MODULE_NOT_INCLUDED") emit("module-forbidden", error);
   throw error;
 }
