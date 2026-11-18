@@ -1,11 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/lib/format";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  deleteOrganization,
+  updateOrganization,
+  uploadOrganizationLogo,
+} from "@/lib/api/organization";
 import { pendingQuery } from "@/lib/api/pending";
-import { uploadOrgLogo } from "@/lib/api/legacy-functions";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +22,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { Loader2, Upload, Trash2, Target, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogActions, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useConfirm } from "@/hooks/useConfirm";
 
 export const Route = createFileRoute("/_authenticated/app/settings/")({
   component: SettingsPage,
 });
 
+/** Formats accepted by `POST /org/logo`; the API checks the real file signature. */
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 function SettingsPage() {
   const { t } = useTranslation();
@@ -31,6 +40,7 @@ function SettingsPage() {
   ];
   const { org, refresh } = useOrg();
   const { user } = useAuth();
+  const { roles } = useRole();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
@@ -55,25 +65,33 @@ function SettingsPage() {
     if (!org || next === perfModel) return;
     setSavingPerf(true);
     setPerfModel(next);
-    const { error } = await pendingQuery("PATCH /org");
-    setSavingPerf(false);
-    if (error) {
+    try {
+      await updateOrganization({ performanceModel: next });
+      toast.success(t("settings.performanceModelUpdated"));
+      await refresh();
+    } catch (error) {
       setPerfModel(perfModel);
-      toast.error(error.message);
-      return;
+      toast.error(apiErrorMessage(error));
+    } finally {
+      setSavingPerf(false);
     }
-    toast.success(t("settings.performanceModelUpdated"));
-    await refresh();
   };
 
   const onSave = async () => {
     if (!org) return;
     setSaving(true);
-    const { error } = await pendingQuery("PATCH /org");
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(t("settings.saved"));
-    await refresh();
+    try {
+      await updateOrganization({
+        name: name.trim(),
+        defaultLanguage: language === "en" ? "en" : "fr",
+      });
+      toast.success(t("settings.saved"));
+      await refresh();
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onPickFile = () => fileInput.current?.click();
@@ -82,38 +100,19 @@ function SettingsPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !org) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("settings.selectImage")); return; }
+    if (!LOGO_TYPES.includes(file.type)) { toast.error(t("settings.selectImage")); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error(t("settings.imageTooLarge")); return; }
     setUploading(true);
     try {
-      const buf = await file.arrayBuffer();
-      let binary = "";
-      const bytes = new Uint8Array(buf);
-      const chunk = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
-      }
-      const base64 = btoa(binary);
-      const res = await uploadOrgLogo({
-        data: {
-          organizationId: org.id,
-          filename: file.name,
-          contentType: file.type,
-          base64,
-        },
-      });
-      setLogoUrl(res.publicUrl);
+      const updated = await uploadOrganizationLogo(file);
+      setLogoUrl(updated.logoUrl);
       toast.success(t("settings.logoUploaded"));
-    } catch (err: any) {
-      toast.error(err?.message ?? t("settings.logoUploadFailed"));
+      await refresh();
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
     } finally {
       setUploading(false);
     }
-  };
-
-  const onRemoveLogo = () => {
-    setLogoUrl(null);
-    toast.message(t("settings.logoRemoved"));
   };
 
   return (
@@ -134,16 +133,11 @@ function SettingsPage() {
                 )}
               </div>
               <div className="flex flex-col gap-2">
-                <input ref={fileInput} type="file" accept="image/*" onChange={onUpload} className="hidden" />
+                <input ref={fileInput} type="file" accept={LOGO_TYPES.join(",")} onChange={onUpload} className="hidden" />
                 <Button variant="outline" size="sm" onClick={onPickFile} disabled={uploading}>
                   {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                   {logoUrl ? t("settings.replaceLogo") : t("settings.uploadLogo")}
                 </Button>
-                {logoUrl && (
-                  <Button variant="ghost" size="sm" onClick={onRemoveLogo} className="text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />{t("settings.removeLogo")}
-                  </Button>
-                )}
               </div>
             </div>
 
@@ -241,8 +235,77 @@ function SettingsPage() {
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </CardContent>
         </Card>
+
+        {roles.includes("owner") && org && <DeleteOrganizationCard name={org.name} />}
       </div>
     </div>
+  );
+}
+
+function DeleteOrganizationCard({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const { refresh } = useOrg();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+    setConfirmName("");
+  };
+
+  const onDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteOrganization(confirmName);
+      toast.success(t("settings.orgDeleted"));
+      queryClient.clear();
+      // Selects another organization, or leads to onboarding when none is left.
+      await refresh();
+      await navigate({ to: "/app", replace: true });
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Card className="border-destructive/40 md:col-span-2">
+      <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-semibold">{t("settings.dangerTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("settings.dangerDesc")}</p>
+        </div>
+        <Button variant="destructive" className="shrink-0" onClick={() => onOpenChange(true)}>
+          {t("settings.deleteOrg")}
+        </Button>
+      </CardContent>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("settings.deleteOrg")}</DialogTitle></DialogHeader>
+          <DialogBody>
+            <div className="space-y-2">
+              <Label htmlFor="delete-org-name">{t("settings.deleteOrgConfirmLabel", { name })}</Label>
+              <Input
+                id="delete-org-name"
+                autoComplete="off"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+              />
+            </div>
+            <DialogActions>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
+              <Button variant="destructive" disabled={confirmName !== name || deleting} onClick={() => void onDelete()}>
+                {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("settings.deleteOrgConfirm")}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 

@@ -4,9 +4,6 @@
 // replacing these imports with a real `src/lib/api/<domain>.ts` module.
 import { pendingFn } from "@/lib/api/pending";
 
-// Organization / onboarding
-export const uploadOrgLogo = pendingFn("POST /org/logo");
-
 // HR — employees, invitations, badges
 export const createEmployee = pendingFn("POST /org/employees");
 export const importEmployees = pendingFn("POST /org/employees/import/commit");

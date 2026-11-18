@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | "E_UNAUTHORIZED"
   | "E_TOKEN_EXPIRED"
   | "E_FORBIDDEN"
+  | "E_EMAIL_NOT_VERIFIED"
   | "E_MODULE_NOT_INCLUDED"
   | "E_SUBSCRIPTION_INACTIVE"
   | "E_NOT_FOUND"
@@ -56,6 +57,13 @@ export class ApiError extends Error {
 
 export function isApiError(e: unknown, code?: ApiErrorCode): e is ApiError {
   return e instanceof ApiError && (code === undefined || e.code === code);
+}
+
+/** Message to show the user: the API translates it through `Accept-Language`. */
+export function apiErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return i18n.t("auth.errors.generic");
+  if (error.code === "E_NETWORK") return i18n.t("auth.errors.network");
+  return error.details[0]?.message || error.message;
 }
 
 export interface Paginated<T> {

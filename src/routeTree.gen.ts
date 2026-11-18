@@ -39,6 +39,7 @@ import { Route as ResourcesOnboardingGuideAfricaRouteImport } from './routes/res
 import { Route as RhDepartementsRouteImport } from './routes/rh.departements'
 import { Route as RhEmployesRouteImport } from './routes/rh.employes'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated.app.index'
+import { Route as AuthenticatedAppAccountRouteImport } from './routes/_authenticated.app.account'
 import { Route as AuthenticatedAppContractsRouteImport } from './routes/_authenticated.app.contracts'
 import { Route as AuthenticatedAppDepartmentsRouteImport } from './routes/_authenticated.app.departments'
 import { Route as AuthenticatedAppEmployeesRouteImport } from './routes/_authenticated.app.employees'
@@ -60,6 +61,7 @@ import { Route as AuthenticatedAppPerformanceOkrsRouteImport } from './routes/_a
 import { Route as AuthenticatedAppRecruitmentCandidatesRouteImport } from './routes/_authenticated.app.recruitment.candidates'
 import { Route as AuthenticatedAppSettingsIndexRouteImport } from './routes/_authenticated.app.settings.index'
 import { Route as AuthenticatedAppSettingsIntegrationsRouteImport } from './routes/_authenticated.app.settings.integrations'
+import { Route as AuthenticatedAppSettingsMembersRouteImport } from './routes/_authenticated.app.settings.members'
 import { Route as AuthenticatedAppSettingsPlatformRouteImport } from './routes/_authenticated.app.settings.platform'
 import { Route as AuthenticatedAppTalents9boxRouteImport } from './routes/_authenticated.app.talents.9box'
 import { Route as AuthenticatedAppTalentsSkillsRouteImport } from './routes/_authenticated.app.talents.skills'
@@ -228,6 +230,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppAccountRoute = AuthenticatedAppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppContractsRoute =
   AuthenticatedAppContractsRouteImport.update({
     id: '/contracts',
@@ -352,6 +359,12 @@ const AuthenticatedAppSettingsIntegrationsRoute =
     path: '/settings/integrations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppSettingsMembersRoute =
+  AuthenticatedAppSettingsMembersRouteImport.update({
+    id: '/settings/members',
+    path: '/settings/members',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppSettingsPlatformRoute =
   AuthenticatedAppSettingsPlatformRouteImport.update({
     id: '/settings/platform',
@@ -460,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice/': typeof KonkoureofficeIndexRoute
   '/paiement/': typeof PaiementIndexRoute
+  '/app/account': typeof AuthenticatedAppAccountRoute
   '/app/contracts': typeof AuthenticatedAppContractsRoute
   '/app/departments': typeof AuthenticatedAppDepartmentsRoute
   '/app/employees': typeof AuthenticatedAppEmployeesRouteWithChildren
@@ -478,6 +492,7 @@ export interface FileRoutesByFullPath {
   '/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
   '/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
+  '/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
   '/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
@@ -523,6 +538,7 @@ export interface FileRoutesByTo {
   '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice': typeof KonkoureofficeIndexRoute
   '/paiement': typeof PaiementIndexRoute
+  '/app/account': typeof AuthenticatedAppAccountRoute
   '/app/contracts': typeof AuthenticatedAppContractsRoute
   '/app/departments': typeof AuthenticatedAppDepartmentsRoute
   '/app/module-indisponible': typeof AuthenticatedAppModuleIndisponibleRoute
@@ -540,6 +556,7 @@ export interface FileRoutesByTo {
   '/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
   '/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
+  '/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
   '/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
@@ -589,6 +606,7 @@ export interface FileRoutesById {
   '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice/': typeof KonkoureofficeIndexRoute
   '/paiement/': typeof PaiementIndexRoute
+  '/_authenticated/app/account': typeof AuthenticatedAppAccountRoute
   '/_authenticated/app/contracts': typeof AuthenticatedAppContractsRoute
   '/_authenticated/app/departments': typeof AuthenticatedAppDepartmentsRoute
   '/_authenticated/app/employees': typeof AuthenticatedAppEmployeesRouteWithChildren
@@ -607,6 +625,7 @@ export interface FileRoutesById {
   '/_authenticated/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/_authenticated/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
   '/_authenticated/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
+  '/_authenticated/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
   '/_authenticated/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/_authenticated/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/_authenticated/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
@@ -656,6 +675,7 @@ export interface FileRouteTypes {
     | '/rh/employes'
     | '/konkoureoffice/'
     | '/paiement/'
+    | '/app/account'
     | '/app/contracts'
     | '/app/departments'
     | '/app/employees'
@@ -674,6 +694,7 @@ export interface FileRouteTypes {
     | '/app/performance/okrs'
     | '/app/recruitment/candidates'
     | '/app/settings/integrations'
+    | '/app/settings/members'
     | '/app/settings/platform'
     | '/app/talents/9box'
     | '/app/talents/skills'
@@ -719,6 +740,7 @@ export interface FileRouteTypes {
     | '/rh/employes'
     | '/konkoureoffice'
     | '/paiement'
+    | '/app/account'
     | '/app/contracts'
     | '/app/departments'
     | '/app/module-indisponible'
@@ -736,6 +758,7 @@ export interface FileRouteTypes {
     | '/app/performance/okrs'
     | '/app/recruitment/candidates'
     | '/app/settings/integrations'
+    | '/app/settings/members'
     | '/app/settings/platform'
     | '/app/talents/9box'
     | '/app/talents/skills'
@@ -784,6 +807,7 @@ export interface FileRouteTypes {
     | '/rh/employes'
     | '/konkoureoffice/'
     | '/paiement/'
+    | '/_authenticated/app/account'
     | '/_authenticated/app/contracts'
     | '/_authenticated/app/departments'
     | '/_authenticated/app/employees'
@@ -802,6 +826,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/performance/okrs'
     | '/_authenticated/app/recruitment/candidates'
     | '/_authenticated/app/settings/integrations'
+    | '/_authenticated/app/settings/members'
     | '/_authenticated/app/settings/platform'
     | '/_authenticated/app/talents/9box'
     | '/_authenticated/app/talents/skills'
@@ -1058,6 +1083,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/account': {
+      id: '/_authenticated/app/account'
+      path: '/account'
+      fullPath: '/app/account'
+      preLoaderRoute: typeof AuthenticatedAppAccountRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/contracts': {
       id: '/_authenticated/app/contracts'
       path: '/contracts'
@@ -1205,6 +1237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSettingsIntegrationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/settings/members': {
+      id: '/_authenticated/app/settings/members'
+      path: '/settings/members'
+      fullPath: '/app/settings/members'
+      preLoaderRoute: typeof AuthenticatedAppSettingsMembersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/settings/platform': {
       id: '/_authenticated/app/settings/platform'
       path: '/settings/platform'
@@ -1316,6 +1355,7 @@ const AuthenticatedAppEmployeesRouteWithChildren =
   )
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAccountRoute: typeof AuthenticatedAppAccountRoute
   AuthenticatedAppContractsRoute: typeof AuthenticatedAppContractsRoute
   AuthenticatedAppDepartmentsRoute: typeof AuthenticatedAppDepartmentsRoute
   AuthenticatedAppEmployeesRoute: typeof AuthenticatedAppEmployeesRouteWithChildren
@@ -1331,6 +1371,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppPerformanceOkrsRoute: typeof AuthenticatedAppPerformanceOkrsRoute
   AuthenticatedAppRecruitmentCandidatesRoute: typeof AuthenticatedAppRecruitmentCandidatesRoute
   AuthenticatedAppSettingsIntegrationsRoute: typeof AuthenticatedAppSettingsIntegrationsRoute
+  AuthenticatedAppSettingsMembersRoute: typeof AuthenticatedAppSettingsMembersRoute
   AuthenticatedAppSettingsPlatformRoute: typeof AuthenticatedAppSettingsPlatformRoute
   AuthenticatedAppTalents9boxRoute: typeof AuthenticatedAppTalents9boxRoute
   AuthenticatedAppTalentsSkillsRoute: typeof AuthenticatedAppTalentsSkillsRoute
@@ -1350,6 +1391,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAccountRoute: AuthenticatedAppAccountRoute,
   AuthenticatedAppContractsRoute: AuthenticatedAppContractsRoute,
   AuthenticatedAppDepartmentsRoute: AuthenticatedAppDepartmentsRoute,
   AuthenticatedAppEmployeesRoute: AuthenticatedAppEmployeesRouteWithChildren,
@@ -1371,6 +1413,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
     AuthenticatedAppRecruitmentCandidatesRoute,
   AuthenticatedAppSettingsIntegrationsRoute:
     AuthenticatedAppSettingsIntegrationsRoute,
+  AuthenticatedAppSettingsMembersRoute: AuthenticatedAppSettingsMembersRoute,
   AuthenticatedAppSettingsPlatformRoute: AuthenticatedAppSettingsPlatformRoute,
   AuthenticatedAppTalents9boxRoute: AuthenticatedAppTalents9boxRoute,
   AuthenticatedAppTalentsSkillsRoute: AuthenticatedAppTalentsSkillsRoute,

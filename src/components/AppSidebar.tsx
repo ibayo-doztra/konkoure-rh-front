@@ -179,6 +179,7 @@ export function AppSidebar() {
       icon: SlidersHorizontal,
       items: [
         { to: "/app/settings", icon: Settings, label: t("sidebar.generalSettings"), exact: true },
+        { to: "/app/settings/members", icon: Users, label: t("sidebar.members") },
         { to: "/app/billing", icon: CreditCard, label: t("sidebar.subscription"), exact: true },
         { to: "/app/settings/integrations", icon: Share2, label: t("sidebar.socialNetworks") },
 
