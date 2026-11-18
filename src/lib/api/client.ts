@@ -87,6 +87,9 @@ export function getAccessToken() {
 export function setOrganizationId(id: string | null) {
   organizationId = id;
 }
+export function getOrganizationId() {
+  return organizationId;
+}
 
 type ApiEvent = "unauthorized" | "module-forbidden";
 const listeners = new Map<ApiEvent, Set<(e: ApiError) => void>>();
@@ -102,25 +105,65 @@ function emit(event: ApiEvent, e: ApiError) {
   listeners.get(event)?.forEach((fn) => fn(e));
 }
 
+// ---------------------------------------------------------------------------
+// Refresh across tabs. Tabs share the refresh cookie, and the API revokes the
+// whole session when a consumed refresh token is presented again (04-auth-rbac
+// §1), so only one tab may rotate at a time. A rotation also invalidates the
+// previous access token: the new one is handed to the other tabs, in memory.
+// ---------------------------------------------------------------------------
+
+const REFRESH_LOCK = "konkoure.auth.refresh";
+const SESSION_CHANNEL = "konkoure.auth.session";
+
+let sessionChannel: BroadcastChannel | null | undefined;
+
+function getSessionChannel(): BroadcastChannel | null {
+  if (sessionChannel === undefined) {
+    sessionChannel =
+      typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(SESSION_CHANNEL);
+    sessionChannel?.addEventListener(
+      "message",
+      (event: MessageEvent<{ accessToken?: unknown }>) => {
+        if (typeof event.data?.accessToken === "string") accessToken = event.data.accessToken;
+      },
+    );
+  }
+  return sessionChannel;
+}
+
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator === "undefined" || !navigator.locks) return fn();
+  return navigator.locks.request(REFRESH_LOCK, fn) as Promise<T>;
+}
+
 let refreshing: Promise<boolean> | null = null;
 
-/** Rotates tokens with the refresh cookie. Single-flight: concurrent 401s share one call. */
+/**
+ * Rotates tokens with the refresh cookie. Single-flight inside a tab, serialized
+ * between tabs; a tab that received a fresher token while waiting does not rotate.
+ */
 export function refreshSession(): Promise<boolean> {
   refreshing ??= (async () => {
+    const channel = getSessionChannel();
+    const tokenBefore = accessToken;
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: "{}",
+      return await withRefreshLock(async () => {
+        if (accessToken && accessToken !== tokenBefore) return true;
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: "{}",
+        });
+        if (!res.ok) {
+          accessToken = null;
+          return false;
+        }
+        const json = (await res.json()) as { data: { accessToken: string } };
+        accessToken = json.data.accessToken;
+        channel?.postMessage({ accessToken });
+        return true;
       });
-      if (!res.ok) {
-        accessToken = null;
-        return false;
-      }
-      const json = (await res.json()) as { data: { accessToken: string } };
-      accessToken = json.data.accessToken;
-      return true;
     } catch {
       return false;
     } finally {
@@ -183,8 +226,9 @@ export async function apiRequest<T>(
   if (opts.body !== undefined && !(opts.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-  const withOrg = opts.withOrganization ?? path.startsWith("/org");
+  const sentToken = accessToken;
+  if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
+  const withOrg = opts.withOrganization ?? (path === "/org" || path.startsWith("/org/"));
   if (withOrg && organizationId) headers["X-Organization-Id"] = organizationId;
   if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
 
@@ -212,12 +256,16 @@ export async function apiRequest<T>(
 
   const error = await toApiError(res);
 
-  // `/auth/*` calls are public, where a 401 means bad credentials, except this one.
-  const usesSession = !path.startsWith("/auth/") || path === "/auth/resend-verification";
+  // `/auth/*` calls are public, where a 401 means bad credentials, except these.
+  // Logout must reach the API: otherwise the refresh cookie keeps the session alive.
+  const usesSession =
+    !path.startsWith("/auth/") || path === "/auth/resend-verification" || path === "/auth/logout";
 
   // Expired access token: refresh once, then replay. Never loop (04-auth-rbac §1).
+  // Another tab may already have rotated the session while this request was in flight.
   if (res.status === 401 && !retried && usesSession) {
-    if (await refreshSession()) return apiRequest<T>(path, opts, true);
+    const alreadyRenewed = accessToken !== null && accessToken !== sentToken;
+    if (alreadyRenewed || (await refreshSession())) return apiRequest<T>(path, opts, true);
   }
   if (res.status === 401 && usesSession) emit("unauthorized", error);
   if (error.code === "E_MODULE_NOT_INCLUDED") emit("module-forbidden", error);
