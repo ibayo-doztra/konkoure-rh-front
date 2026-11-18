@@ -24,11 +24,18 @@ pnpm build:dev       # build en mode development
 pnpm lint            # eslint . (inclut prettier via eslint-plugin-prettier)
 pnpm format          # prettier --write .
 pnpm exec tsc --noEmit  # vérification de types (aucun script dédié)
+pnpm exec tsc --noEmit -p e2e  # vérification de types des tests e2e
+pnpm test:e2e        # tests Playwright (desktop et mobile)
+pnpm test:e2e:ui     # mode interactif de Playwright
 ```
 
 Particularité pnpm à conserver : `publicHoistPattern: "@tanstack/*"` est nécessaire : la config Lovable déduplique `@tanstack/*` depuis la racine, sinon le build échoue (« failed to resolve import "@tanstack/query-core" »).
 
-Aucun framework de test n'est configuré dans ce frontend.
+## Tests e2e
+
+Playwright (`e2e/`, `playwright.config.ts`) lance la vraie API du dépôt voisin (`KONKOURE_API_DIR` pour un autre emplacement) sur le port 3334 et le frontend sur le port 8092. Prérequis : PostgreSQL démarré, Redis démarré, `.env` présent dans l'API, et une fois `pnpm exec playwright install chromium`.
+
+La base `konkoure_e2e` est supprimée et recréée à chaque exécution. `e2e/support/fake-mail.mjs` capture les e-mails dans `e2e/.outbox/` et bloque tout appel réseau externe de l'API. Chaque lot de migration ajoute ici les parcours de ses écrans.
 
 ## Architecture
 
