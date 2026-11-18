@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ce dépôt est le **frontend web** de Konkouré (TanStack Start, issu de Lovable). **Supabase a été entièrement retiré** : le seul backend est l'API AdonisJS du dépôt voisin `D:/Projects/konkoure-rh-api` (spécifications : `konkoure-rh-api/docs/backend/`, contrat d'API : `06-api-reference.md`). Ne jamais réintroduire `@supabase/*`, `createServerFn` ni un accès direct à une base. L'ancien code Supabase et les server functions Lovable sont archivés, pour référence uniquement, dans `konkoure-rh-api/docs/legacy-supabase/`.
 
-Ce dossier a son propre dépôt git (branche `main`).
+Ce dossier a son propre dépôt git (branches `main` et `develop`).
 
 ## Commandes
 
@@ -24,11 +24,18 @@ pnpm build:dev       # build en mode development
 pnpm lint            # eslint . (inclut prettier via eslint-plugin-prettier)
 pnpm format          # prettier --write .
 pnpm exec tsc --noEmit  # vérification de types (aucun script dédié)
+pnpm exec tsc --noEmit -p e2e  # vérification de types des tests e2e
+pnpm test:e2e        # tests Playwright (desktop et mobile)
+pnpm test:e2e:ui     # mode interactif de Playwright
 ```
 
 Particularité pnpm à conserver : `publicHoistPattern: "@tanstack/*"` est nécessaire : la config Lovable déduplique `@tanstack/*` depuis la racine, sinon le build échoue (« failed to resolve import "@tanstack/query-core" »).
 
-Aucun framework de test n'est configuré dans ce frontend.
+## Tests e2e
+
+Playwright (`e2e/`, `playwright.config.ts`) lance la vraie API du dépôt voisin (`KONKOURE_API_DIR` pour un autre emplacement) sur le port 3334 et le frontend sur le port 8092. Prérequis : PostgreSQL démarré, Redis démarré, `.env` présent dans l'API, et une fois `pnpm exec playwright install chromium`.
+
+La base `konkoure_e2e` est supprimée et recréée à chaque exécution. Le serveur API y tourne avec le rôle `konkoure_app`, donc sous RLS. `e2e/support/fake-mail.mjs` capture les e-mails dans `e2e/.outbox/` et bloque tout appel réseau externe de l'API. Chaque lot de migration ajoute ici les parcours de ses écrans.
 
 ## Architecture
 
@@ -37,8 +44,10 @@ Aucun framework de test n'est configuré dans ce frontend.
 - Routage par fichiers à plat dans `src/routes/` (notation à points : `_authenticated.app.employees.$id.tsx`). `src/routeTree.gen.ts` est généré : ne jamais l'éditer. Espaces : `_authenticated.app.*` (application), `konkoureoffice.*` (back office plateforme), `careers.*` / `paiement.*` / `resources.*` (public).
 - Couche API dans `src/lib/api/` :
   - `client.ts` : `api.get/list/post/put/patch/delete` vers `${VITE_API_URL}/api/v1`, enveloppe `{ data, meta }`, `ApiError` (codes de `01-architecture §6`), jeton d'accès **en mémoire uniquement**, refresh par cookie httpOnly (un seul rejeu par requête), en-têtes `X-Organization-Id` (chemins `/org/*`), `Accept-Language` et `Idempotency-Key`. Événements globaux via `onApiEvent` : 401 → déconnexion locale ; `E_MODULE_NOT_INCLUDED` → `/app/module-indisponible` (branché dans `_authenticated.tsx`).
-  - `auth.ts` + `types.ts` : endpoints `/auth/*`, `/me`, `POST /organizations`. La forme de `Me` est une **proposition**, à inscrire dans `06-api-reference.md`.
+  - `auth.ts` + `types.ts` : endpoints `/auth/*`, `/me`, `POST /organizations`. `GET /me` envoie `X-Organization-Id` : abonnement et modules sont ceux de l'organisation active.
+  - Le refresh est sérialisé entre onglets (Web Locks) et le nouveau jeton leur est transmis en mémoire (BroadcastChannel) : ne pas appeler `/auth/refresh` en dehors de `refreshSession()`.
   - `pending.ts` + `legacy-functions.ts` : écrans **pas encore migrés**. Chaque ancien appel est devenu `pendingQuery("MÉTHODE /chemin")` ou une fonction `pendingFn`, qui échoue avec `E_NOT_MIGRATED` et indique l'endpoint cible. `grep -rln "pendingQuery\|legacy-functions" src` liste ce qu'il reste à migrer.
+- Organisation active : choisie par le client dans `useAuth` (`selectOrganization`), mémorisée dans `localStorage`, sélecteur dans `AppSidebar` si l'utilisateur en a plusieurs. Modules et offres suivent les codes de l'API (`src/lib/entitlements.ts`).
 - Session : `useAuth` (lit `GET /me`) alimente `useOrg`, `useRole`, `useProfile`, `useMyEmployee` et `useSubscription`, qui gardent leurs anciennes interfaces (champs snake_case pour `Organization`). Rôles et modules viennent de l'API : le client ne fait que masquer l'interface.
 - Migrer un écran : créer `src/lib/api/<domaine>.ts` (`queryOptions` + mutations TanStack Query), remplacer ses `pending*`, lecture initiale via `loader` + `ensureQueryData` puis `useSuspenseQuery` (skill `konkoure-frontend-integration`, lots de `docs/frontend/06-migration-front-plan.md`). Un endpoint absent de `06-api-reference.md` s'y ajoute d'abord, côté backend.
 - Les URL canoniques et SEO pointent encore vers `konkoure.lovable.app` ; le domaine cible est `konkoure.doztra.cloud`.

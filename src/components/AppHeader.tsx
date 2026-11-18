@@ -96,6 +96,9 @@ export function AppHeader() {
                 {t("sidebar.myProfile")}
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onClick={() => navigate({ to: "/app/account" })}>
+              {t("sidebar.myAccount")}
+            </DropdownMenuItem>
             {canAccess("/app/settings", role) && (
               <DropdownMenuItem onClick={() => navigate({ to: "/app/settings" })}>
                 {t("common.settings")}

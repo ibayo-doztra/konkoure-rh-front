@@ -8,7 +8,7 @@ import { OrgProvider } from "@/hooks/useOrg";
 import { RoleProvider } from "@/hooks/useRole";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import "@/lib/i18n";
+import { storedLanguage } from "@/lib/i18n";
 
 
 interface RouterContext {
@@ -123,13 +123,8 @@ function ToastRouteReset() {
 function HtmlLangSync() {
   const { i18n } = useTranslation();
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("konkoure.lang")?.slice(0, 2);
-      if ((stored === "fr" || stored === "en") && stored !== i18n.language) {
-        void i18n.changeLanguage(stored);
-      }
-    } catch {
-      /* storage unavailable */
+    if (storedLanguage && storedLanguage !== i18n.language) {
+      void i18n.changeLanguage(storedLanguage);
     }
     const apply = () => {
       const lng = (i18n.resolvedLanguage || i18n.language || "fr").slice(0, 2);

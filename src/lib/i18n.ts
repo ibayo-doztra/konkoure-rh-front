@@ -238,6 +238,20 @@ const fr = {
     loginMetaTitle: "Connexion — Konkouré",
     signupMetaTitle: "Inscription — Konkouré",
     resetMetaTitle: "Réinitialiser — Konkouré",
+    loginMetaDescription: "Connectez-vous à votre espace Konkouré pour gérer recrutement, performance et pointage de vos équipes.",
+    signupMetaDescription: "Créez votre compte Konkouré et démarrez en quelques minutes votre gestion RH moderne, pensée pour l'Afrique.",
+    resetMetaDescription: "Réinitialisez votre mot de passe Konkouré et reprenez la main sur votre espace RH.",
+    verifyEmailMetaTitle: "Vérification de l'e-mail — Konkouré",
+    verifyEmailMetaDescription: "Confirmez votre adresse e-mail pour activer votre compte Konkouré.",
+    verifyEmailTitle: "Vérification de votre e-mail",
+    verifyEmailChecking: "Vérification du lien…",
+    verifyEmailSuccess: "Votre adresse e-mail est confirmée.",
+    verifyEmailInvalid: "Ce lien de vérification est invalide ou a expiré.",
+    resendVerification: "Renvoyer l'e-mail de vérification",
+    verificationSent: "E-mail de vérification envoyé. Consultez votre boîte de réception.",
+    continue: "Continuer",
+    passwordPolicy: "Au moins 10 caractères, avec une minuscule, une majuscule et un chiffre.",
+    claimHint: "Créez votre compte avec l'adresse e-mail utilisée pour le paiement : votre abonnement sera activé automatiquement.",
     loginTitle: "Bon retour parmi nous",
     loginSubtitle: "Connectez-vous à votre espace Konkouré",
     signupTitle: "Créer votre espace",
@@ -282,17 +296,23 @@ const fr = {
       network: "Serveur injoignable. Vérifiez votre connexion.",
       notMigrated: "Cette fonctionnalité est en cours de migration vers la nouvelle API.",
       invalidLink: "Lien invalide ou expiré.",
+      passwordComposition: "Le mot de passe doit contenir une minuscule, une majuscule et un chiffre.",
+      passwordCommon: "Ce mot de passe est trop courant. Choisissez-en un autre.",
+      passwordPersonal: "Le mot de passe ne doit contenir ni votre nom ni votre adresse e-mail.",
       generic: "Une erreur est survenue. Réessayez.",
     },
   },
   onboarding: {
     metaTitle: "Créer votre organisation — Konkouré",
+    metaDescription: "Configurez votre organisation Konkouré pour démarrer votre espace RH en quelques minutes.",
     title: "Créez votre organisation",
     subtitle: "Quelques infos pour commencer.",
+    verifyTitle: "Confirmez votre adresse e-mail",
+    verifyBody: "Ouvrez le lien envoyé à {{email}} pour pouvoir créer votre organisation.",
+    verifiedCheck: "J'ai confirmé mon e-mail",
+    stillNotVerified: "Votre adresse e-mail n'est pas encore confirmée.",
+    useAnotherAccount: "Utiliser un autre compte",
     companyName: "Nom de l'entreprise",
-    urlSlug: "Identifiant (URL)",
-    urlHint: "konkoure.app/careers/{{slug}}",
-    defaultPlaceholder: "votre-entreprise",
     defaultLanguage: "Langue par défaut",
     
     perfModelLabel: "Modèle de gestion de la performance",
@@ -474,6 +494,7 @@ const fr = {
   },
   sidebar: {
     skipToContent: "Aller au contenu",
+    switchOrganization: "Changer d'organisation",
     generalSettings: "Paramètres généraux",
     socialNetworks: "Réseaux sociaux",
     platform: "Plateforme",
@@ -735,10 +756,24 @@ const en: typeof fr = {
     loginMetaTitle: "Sign in — Konkouré",
     signupMetaTitle: "Sign up — Konkouré",
     resetMetaTitle: "Reset password — Konkouré",
+    loginMetaDescription: "Sign in to your Konkouré workspace to manage your teams' recruitment, performance and time tracking.",
+    signupMetaDescription: "Create your Konkouré account and start your modern HR management, built for Africa, in minutes.",
+    resetMetaDescription: "Reset your Konkouré password and get back to your HR workspace.",
+    verifyEmailMetaTitle: "Email verification — Konkouré",
+    verifyEmailMetaDescription: "Confirm your email address to activate your Konkouré account.",
+    verifyEmailTitle: "Verifying your email",
+    verifyEmailChecking: "Checking link…",
+    verifyEmailSuccess: "Your email address is confirmed.",
+    verifyEmailInvalid: "This verification link is invalid or has expired.",
+    resendVerification: "Resend verification email",
+    verificationSent: "Verification email sent. Check your inbox.",
+    continue: "Continue",
+    passwordPolicy: "At least 10 characters, with a lowercase letter, an uppercase letter and a digit.",
+    claimHint: "Create your account with the email address used for the payment: your subscription will be activated automatically.",
     loginTitle: "Welcome back",
     loginSubtitle: "Sign in to your Konkouré workspace",
     signupTitle: "Create your workspace",
-    signupSubtitle: "14-day trial, no credit card",
+    signupSubtitle: "30-day trial, no credit card",
     fullName: "Full name",
     workEmail: "Work email",
     submitLogin: "Sign in",
@@ -779,17 +814,23 @@ const en: typeof fr = {
       network: "Server unreachable. Check your connection.",
       notMigrated: "This feature is being migrated to the new API.",
       invalidLink: "Invalid or expired link.",
+      passwordComposition: "The password must contain a lowercase letter, an uppercase letter and a digit.",
+      passwordCommon: "This password is too common. Choose another one.",
+      passwordPersonal: "The password must not contain your name or email address.",
       generic: "Something went wrong. Please retry.",
     },
   },
   onboarding: {
     metaTitle: "Create your organization — Konkouré",
+    metaDescription: "Set up your Konkouré organization and start your HR workspace in minutes.",
     title: "Create your organization",
     subtitle: "A few details to get started.",
+    verifyTitle: "Confirm your email address",
+    verifyBody: "Open the link sent to {{email}} to create your organization.",
+    verifiedCheck: "I have confirmed my email",
+    stillNotVerified: "Your email address is not confirmed yet.",
+    useAnotherAccount: "Use another account",
     companyName: "Company name",
-    urlSlug: "Identifier (URL)",
-    urlHint: "konkoure.app/careers/{{slug}}",
-    defaultPlaceholder: "your-company",
     defaultLanguage: "Default language",
     
     perfModelLabel: "Performance management model",
@@ -971,6 +1012,7 @@ const en: typeof fr = {
   },
   sidebar: {
     skipToContent: "Skip to content",
+    switchOrganization: "Switch organization",
     generalSettings: "General settings",
     socialNetworks: "Social networks",
     platform: "Platform",
@@ -1045,6 +1087,22 @@ if (typeof window !== "undefined") {
   }
 }
 
+function readStoredLanguage(): "fr" | "en" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)?.slice(0, 2);
+    return stored === "fr" || stored === "en" ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Preference saved by the user. Read before `init`, which caches its initial
+ * language ("fr") under the same key and would otherwise erase it.
+ */
+export const storedLanguage = readStoredLanguage();
+
 if (!i18n.isInitialized) {
   i18n
     .use(LanguageDetector)
@@ -1082,7 +1140,10 @@ export function activeLocale(): string {
 
 /** Map an API error (06-api-reference error codes) to a translation key. */
 export function authErrorKey(error: unknown): string {
-  const code = (error as { code?: string } | null)?.code;
+  const { code, details } = (error ?? {}) as {
+    code?: string;
+    details?: { field?: string; rule?: string }[];
+  };
   switch (code) {
     case "E_UNAUTHORIZED":
       return "auth.errors.invalidCredentials";
@@ -1094,8 +1155,17 @@ export function authErrorKey(error: unknown): string {
       return "auth.errors.passwordResetRequired";
     case "E_RATE_LIMITED":
       return "auth.errors.rateLimited";
-    case "E_VALIDATION":
+    case "E_EMAIL_NOT_VERIFIED":
+      return "auth.errors.emailNotConfirmed";
+    case "E_VALIDATION": {
+      // 06-api-reference §1: invalid link and password policy refusals.
+      const detail = details?.[0];
+      if (detail?.field === "token") return "auth.errors.invalidLink";
+      if (detail?.rule === "composition") return "auth.errors.passwordComposition";
+      if (detail?.rule === "common") return "auth.errors.passwordCommon";
+      if (detail?.rule === "personal") return "auth.errors.passwordPersonal";
       return "auth.errors.invalidData";
+    }
     case "E_NOT_FOUND":
       return "auth.errors.invalidLink";
     case "E_NETWORK":

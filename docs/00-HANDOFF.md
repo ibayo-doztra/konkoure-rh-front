@@ -33,7 +33,8 @@ fonctions SQL, server functions TanStack) est la référence fonctionnelle à re
 | Sujet | Décision |
 |---|---|
 | Géographie | Guinée/Conakry par défaut ; jamais Dakar/Sénégal |
-| Devise | GNF uniquement (abonnements) ; `default_currency = 'GNF'` ; aucun salaire géré |
+| Devise | GNF uniquement (abonnements) ; `default_currency = 'GNF'` |
+| Salaires | pas de paie ; le salaire reste un champ de contrat et de fiche, en accès restreint (05 §5) |
 | Fuseau | `Africa/Conakry` (UTC+0), stockage UTC |
 | Langues | FR par défaut, EN ; code en anglais |
 | Essai | 30 jours, sans recrutement ni talents |
@@ -45,7 +46,9 @@ fonctions SQL, server functions TanStack) est la référence fonctionnelle à re
 | Doublons de candidature | bloqués par e-mail/téléphone **avant** l'envoi des fichiers |
 | E-mails | expéditeur `Konkouré <support@konkoure.doztra.cloud>` |
 | Domaine | `konkoure.doztra.cloud` |
-| Rôles | `owner`, `hr_admin`, `manager`, `employee`, `recruiter` + super-admin plateforme |
+| Rôles | `owner`, `hr_admin`, `manager`, `employee`, `recruiter`, `security_agent` + super-admin plateforme |
+| Offres | codes `free`, `starter`, `pro`, `enterprise` (03 §6) |
+| Chemins d'API | routes métier sous `/api/v1/org/*` |
 | Manager | ne voit que les chefs de département / son sous-arbre |
 | Modales | `DialogContent > DialogHeader + DialogBody`, `DialogFormGrid`, `DialogActions` ; jamais `DialogFooter` |
 | Thèmes | clair/sombre via jetons sémantiques uniquement |
@@ -58,7 +61,7 @@ fonctions SQL, server functions TanStack) est la référence fonctionnelle à re
 | Employé | Employee | `employee` |
 | Congé | Leave | `leave_request` |
 | Jour férié | Public holiday | `public_holiday` |
-| Pointage | Time clock / punch | `time_log` (`ARRIVEE`/`DEPART`) |
+| Pointage | Time clock / punch | `time_log` (`in`/`out`, affichés Arrivée/Départ) |
 | Zone de travail | Work zone | `work_zone` |
 | Offre d'emploi | Job | `job` |
 | Candidat | Candidate | `candidate` |

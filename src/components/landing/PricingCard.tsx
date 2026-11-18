@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 import { savePendingPlan, type PendingPlanCode } from "@/lib/pending-plan";
 
 const PLAN_CODE_BY_ID: Partial<Record<PlanCopy["id"], PendingPlanCode>> = {
-  essential: "essentiel",
-  pro: "professionnel",
-  enterprise: "entreprise",
+  essential: "starter",
+  pro: "pro",
+  enterprise: "enterprise",
 };
 
 export type BillingCycle = "monthly" | "annual";

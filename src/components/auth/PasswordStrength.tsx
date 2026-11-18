@@ -12,14 +12,21 @@ export function scorePassword(pwd: string): number {
   return Math.min(s, 4);
 }
 
+export const PASSWORD_MIN_LENGTH = 10;
+
+/** Client mirror of the API password policy (04-auth-rbac §2); the API stays the authority. */
+export function meetsPasswordPolicy(pwd: string): boolean {
+  return (
+    pwd.length >= PASSWORD_MIN_LENGTH &&
+    pwd.length <= 128 &&
+    /[a-z]/.test(pwd) &&
+    /[A-Z]/.test(pwd) &&
+    /\d/.test(pwd)
+  );
+}
+
 const LABELS = ["weak", "weak", "fair", "good", "strong"] as const;
-const COLORS = [
-  "bg-muted",
-  "bg-destructive",
-  "bg-orange-500",
-  "bg-yellow-500",
-  "bg-green-500",
-];
+const COLORS = ["bg-muted", "bg-destructive", "bg-orange-500", "bg-yellow-500", "bg-green-500"];
 
 export function PasswordStrength({ value }: { value: string }) {
   const { t } = useTranslation();
@@ -43,6 +50,7 @@ export function PasswordStrength({ value }: { value: string }) {
           {t("auth.passwordStrengthLabel")}: <span className="font-medium">{label}</span>
         </p>
       )}
+      <p className="text-xs text-muted-foreground">{t("auth.passwordPolicy")}</p>
     </div>
   );
 }

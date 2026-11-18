@@ -36,6 +36,8 @@ const SEG_TO_KEY: Record<string, string> = {
   settings: "settings",
   integrations: "integrations",
   platform: "platform",
+  members: "members",
+  account: "account",
   new: "new",
   edit: "edit",
 };

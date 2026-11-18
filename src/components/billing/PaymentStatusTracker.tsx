@@ -279,7 +279,7 @@ export function PaymentStatusTracker({
                 <Link
                   to="/paiement"
                   search={{
-                    plan: (summary.planCode as PlanCode) ?? "essentiel",
+                    plan: (summary.planCode as PlanCode) ?? "starter",
                     cycle: summary.cycle === "annuel" ? "annuel" : "mensuel",
                   }}
                 >

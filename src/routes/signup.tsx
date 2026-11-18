@@ -11,7 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { PasswordStrength, scorePassword } from "@/components/auth/PasswordStrength";
+import {
+  meetsPasswordPolicy,
+  PASSWORD_MIN_LENGTH,
+  PasswordStrength,
+} from "@/components/auth/PasswordStrength";
 import { Logo } from "@/components/brand/Logo";
 import { toast } from "sonner";
 import i18n, { authErrorKey } from "@/lib/i18n";
@@ -20,12 +24,12 @@ export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
       { title: i18n.t("auth.signupMetaTitle") },
-      { name: "description", content: "Créez votre organisation Konkouré et démarrez en quelques minutes votre gestion RH moderne, pensée pour l'Afrique." },
+      { name: "description", content: i18n.t("auth.signupMetaDescription") },
       { property: "og:title", content: i18n.t("auth.signupMetaTitle") },
-      { property: "og:description", content: "Inscription gratuite à la plateforme RH Konkouré." },
-      { property: "og:url", content: "https://konkoure.lovable.app/signup" },
+      { property: "og:description", content: i18n.t("auth.signupMetaDescription") },
+      { property: "og:url", content: "https://konkoure.doztra.cloud/signup" },
     ],
-    links: [{ rel: "canonical", href: "https://konkoure.lovable.app/signup" }],
+    links: [{ rel: "canonical", href: "https://konkoure.doztra.cloud/signup" }],
   }),
   validateSearch: (search: Record<string, unknown>): { claim?: string; email?: string } => ({
     ...(typeof search.claim === "string" ? { claim: search.claim } : {}),
@@ -52,9 +56,9 @@ function SignupPage() {
     if (claim) savePendingClaim(claim);
   }, [claim]);
 
-  const strength = scorePassword(password);
+  const validPassword = meetsPasswordPolicy(password);
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canSubmit = !loading && acceptTerms && strength >= 2 && password === confirm && password.length >= 8;
+  const canSubmit = !loading && acceptTerms && validPassword && password === confirm;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,7 +66,7 @@ function SignupPage() {
       toast.error(t("auth.passwordMismatch"));
       return;
     }
-    if (strength < 2) {
+    if (!validPassword) {
       toast.error(t("auth.passwordTooWeak"));
       return;
     }
@@ -100,35 +104,57 @@ function SignupPage() {
           {claim && (
             <div className="mt-3 space-y-2 text-left">
               <p className="rounded-md border border-primary/40 bg-accent/40 px-3 py-2 text-xs text-muted-foreground">
-                Créez votre compte avec l'adresse e-mail utilisée pour le paiement : votre
-                abonnement sera activé automatiquement.
+                {t("auth.claimHint")}
               </p>
               <PaymentStatusTracker claimToken={claim} compact hideActions />
             </div>
           )}
-
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="full_name">{t("auth.fullName")}</Label>
-              <Input id="full_name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <Input
+                id="full_name"
+                required
+                minLength={2}
+                maxLength={120}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t("auth.workEmail")}</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{t("common.password")}</Label>
-              <PasswordInput id="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput
+                id="password"
+                required
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={128}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <PasswordStrength value={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">{t("auth.confirmPassword")}</Label>
-              <PasswordInput id="confirm" required value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={mismatch || undefined} />
-              {mismatch && (
-                <p className="text-xs text-destructive">{t("auth.passwordMismatch")}</p>
-              )}
+              <PasswordInput
+                id="confirm"
+                required
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                aria-invalid={mismatch || undefined}
+              />
+              {mismatch && <p className="text-xs text-destructive">{t("auth.passwordMismatch")}</p>}
             </div>
             <div className="flex items-start gap-2">
               <Checkbox
@@ -137,7 +163,10 @@ function SignupPage() {
                 onCheckedChange={(v) => setAcceptTerms(v === true)}
                 className="mt-0.5"
               />
-              <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug text-muted-foreground">
+              <Label
+                htmlFor="accept-terms"
+                className="text-sm font-normal leading-snug text-muted-foreground"
+              >
                 {t("auth.acceptTerms")}
               </Label>
             </div>

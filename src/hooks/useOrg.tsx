@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { setOrganizationId } from "@/lib/api/client";
-import type { Me } from "@/lib/api/types";
+import type { Me, MeOrganization } from "@/lib/api/types";
 
 /** Legacy snake_case shape still consumed by the screens. */
 export interface Organization {
@@ -17,16 +16,22 @@ export interface Organization {
 
 interface OrgCtx {
   org: Organization | null;
+  organizations: MeOrganization[];
   loading: boolean;
   refresh: () => Promise<void>;
+  selectOrganization: (id: string) => Promise<void>;
 }
 
-const Ctx = createContext<OrgCtx>({ org: null, loading: true, refresh: async () => {} });
+const Ctx = createContext<OrgCtx>({
+  org: null,
+  organizations: [],
+  loading: true,
+  refresh: async () => {},
+  selectOrganization: async () => {},
+});
 
-function activeOrganization(me: Me | null): Organization | null {
-  if (!me) return null;
-  const o =
-    me.organizations.find((x) => x.id === me.activeOrganizationId) ?? me.organizations[0] ?? null;
+function activeOrganization(me: Me | null, id: string | null): Organization | null {
+  const o = me?.organizations.find((candidate) => candidate.id === id);
   if (!o) return null;
   return {
     id: o.id,
@@ -34,7 +39,7 @@ function activeOrganization(me: Me | null): Organization | null {
     slug: o.slug,
     default_language: o.defaultLanguage,
     default_currency: o.defaultCurrency,
-    plan: o.plan,
+    plan: o.plan ?? "",
     performance_model: o.performanceModel,
     logo_url: o.logoUrl,
   };
@@ -42,18 +47,22 @@ function activeOrganization(me: Me | null): Organization | null {
 
 /** Active organization, derived from `GET /me`. Drives the `X-Organization-Id` header. */
 export function OrgProvider({ children }: { children: ReactNode }) {
-  const { me, loading, reload } = useAuth();
-  const org = useMemo(() => activeOrganization(me), [me]);
-
-  useEffect(() => {
-    setOrganizationId(org?.id ?? null);
-  }, [org?.id]);
+  const { me, activeOrganizationId, loading, reload, selectOrganization } = useAuth();
+  const org = useMemo(
+    () => activeOrganization(me, activeOrganizationId),
+    [me, activeOrganizationId],
+  );
+  const organizations = me?.organizations ?? [];
 
   const refresh = async () => {
     await reload();
   };
 
-  return <Ctx.Provider value={{ org, loading, refresh }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ org, organizations, loading, refresh, selectOrganization }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useOrg() {

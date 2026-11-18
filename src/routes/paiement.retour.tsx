@@ -57,7 +57,7 @@ function PrepaidReturn() {
           </Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link to="/paiement" search={{ plan: "essentiel", cycle: "mensuel" }}>
+          <Link to="/paiement" search={{ plan: "starter", cycle: "mensuel" }}>
             {t("paiement.backToPayment")}
           </Link>
         </Button>

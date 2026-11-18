@@ -1,9 +1,7 @@
 // Shapes consumed by the frontend session layer.
 //
-// ⚠️ PROPOSED CONTRACT — `GET /api/v1/me` is only described in prose in
-// konkoure-rh-api/docs/backend/06-api-reference.md ("profil, organisation active,
-// rôles, employé lié, abonnement, modules, super-admin"). This exact shape must be
-// validated and written into 06-api-reference.md before the backend implements it.
+// Contract: konkoure-rh-api/docs/backend/06-api-reference.md §2 (`GET /me`).
+// Until the HR module ships, the API returns `employee: null`.
 import type { AppRole } from "@/lib/permissions";
 
 export interface AuthUser {
@@ -13,7 +11,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   emailVerified: boolean;
   preferredLanguage: "fr" | "en" | null;
-  /** Invited account that must set its own password before using the app. */
+  /** Imported account that must reset its password (`users.must_reset_password`). */
   mustChangePassword: boolean;
 }
 
@@ -24,7 +22,7 @@ export interface MeOrganization {
   logoUrl: string | null;
   defaultLanguage: string;
   defaultCurrency: string;
-  plan: string;
+  plan: string | null;
   performanceModel: "classic" | "sap";
   roles: AppRole[];
 }
@@ -34,9 +32,9 @@ export interface MeSubscription {
   planName: string;
   maxEmployees: number;
   aiCreditsPerMonth: number;
-  status: "trialing" | "active" | "past_due" | "canceled";
+  status: "trialing" | "active" | "past_due" | "suspended" | "canceled" | "expired";
   currentPeriodEnd: string | null;
-  cycle: "mensuel" | "annuel";
+  cycle: "monthly" | "yearly";
   priceGnf: number;
   trialEndsAt: string | null;
   /** Paid plan still effective (including cancellation until period end). */
@@ -47,7 +45,6 @@ export interface Me {
   user: AuthUser;
   isPlatformAdmin: boolean;
   organizations: MeOrganization[];
-  activeOrganizationId: string | null;
   employee: { id: string; firstName: string | null; lastName: string | null } | null;
   subscription: MeSubscription | null;
   /** Effective modules computed server-side (entitlements); the client only hides UI. */

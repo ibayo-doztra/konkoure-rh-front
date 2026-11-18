@@ -56,7 +56,9 @@ function statutLabel(t: (k: string) => string, statut: string): string {
     trialing: t("billing.statusTrialing"),
     active: t("billing.statusActive"),
     past_due: t("billing.statusPastDue"),
+    suspended: t("billing.statusSuspended"),
     canceled: t("billing.statusCanceled"),
+    expired: t("billing.statusExpired"),
   };
   return map[statut] ?? statut;
 }
@@ -272,7 +274,7 @@ function BillingPage() {
                     className="w-full"
                     disabled={p.prix_gnf <= 0 || current}
                     variant={current ? "outline" : "default"}
-                    onClick={() => navigate({ to: "/app/billing/checkout", search: { plan: p.code as "essentiel" | "professionnel" | "entreprise", cycle } })}
+                    onClick={() => navigate({ to: "/app/billing/checkout", search: { plan: p.code as "starter" | "pro" | "enterprise", cycle } })}
                   >
                     {p.prix_gnf <= 0 ? t("billing.freePlan") : current ? t("billing.currentPlanBtn") : t("billing.choosePlan")}
                   </Button>

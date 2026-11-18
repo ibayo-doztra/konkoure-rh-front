@@ -6,10 +6,10 @@ import { ArrowLeft, CreditCard, Smartphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export type Cycle = "mensuel" | "annuel";
-export type PlanCode = "essentiel" | "professionnel" | "entreprise";
+export type PlanCode = "starter" | "pro" | "enterprise";
 export type Method = "orange_money" | "mtn_momo" | "card";
 
-export const PLAN_CODES: PlanCode[] = ["essentiel", "professionnel", "entreprise"];
+export const PLAN_CODES: PlanCode[] = ["starter", "pro", "enterprise"];
 
 export interface PlanRow {
   id: string;

@@ -37,7 +37,7 @@ function AuthLayout() {
       return;
     }
     if (user.mustChangePassword) {
-      nav({ to: "/invitation", replace: true });
+      nav({ to: "/reset-password", replace: true });
       return;
     }
     if (!orgLoading && !org) {
