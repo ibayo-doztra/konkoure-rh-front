@@ -67,11 +67,6 @@
       "count": 19
     }
   },
-  "src/components/employees/LeaveBalanceCard.tsx": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
   "src/components/employees/NfcBadgeCard.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
@@ -331,24 +326,6 @@
   "src/routes/_authenticated.app.contracts.tsx": {
     "prettier/prettier": {
       "count": 168
-    }
-  },
-  "src/routes/_authenticated.app.departments.tsx": {
-    "prettier/prettier": {
-      "count": 13
-    }
-  },
-  "src/routes/_authenticated.app.employees.$id.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "prettier/prettier": {
-      "count": 106
-    }
-  },
-  "src/routes/_authenticated.app.employees.index.tsx": {
-    "prettier/prettier": {
-      "count": 138
     }
   },
   "src/routes/_authenticated.app.index.tsx": {
