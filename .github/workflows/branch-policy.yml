@@ -1,0 +1,26 @@
+name: Branch policy
+
+# Only `develop` may be merged into `main`; every other branch starts from
+# `develop` and opens its pull request against it (see CLAUDE.md, "Branches").
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited]
+
+permissions: {}
+
+jobs:
+  source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull requests into main come from develop
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ] || [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::Only develop may be merged into main (got $HEAD_REPO:$HEAD_REF). Target develop instead."
+            exit 1
+          fi
+          echo "OK: develop -> main"
