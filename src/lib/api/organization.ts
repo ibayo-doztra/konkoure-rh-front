@@ -70,6 +70,8 @@ export interface Invitation {
   id: string;
   email: string;
   role: AppRole;
+  /** Employee record linked to the account when the invitation is accepted. */
+  employeeId: string | null;
   status: "pending" | "accepted" | "revoked" | "expired";
   expiresAt: string;
   invitedBy: string | null;
@@ -93,7 +95,16 @@ export const pendingInvitationsQuery = (organizationId: string, page: number) =>
       }),
   });
 
-export function createInvitation(input: { email: string; role: AppRole }, idempotencyKey: string) {
+export const allPendingInvitationsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...invitationsKey(organizationId), "pending", "all"],
+    queryFn: () => api.all<Invitation>("/org/invitations", { "filter[status]": "pending" }),
+  });
+
+export function createInvitation(
+  input: { email: string; role: AppRole; employeeId?: string },
+  idempotencyKey: string,
+) {
   return api.post<Invitation>("/org/invitations", input, { idempotencyKey });
 }
 

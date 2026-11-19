@@ -23,6 +23,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
 import { formatDate } from "@/lib/format";
 import { ALL_ROLES, type AppRole } from "@/lib/permissions";
+import { ListPager, useClampedPage } from "@/components/ListPager";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,44 +106,6 @@ function ListFallback() {
       </CardContent>
     </Card>
   );
-}
-
-function Pager({
-  page,
-  lastPage,
-  onChange,
-}: {
-  page: number;
-  lastPage: number;
-  onChange: (page: number) => void;
-}) {
-  const { t } = useTranslation();
-  if (lastPage <= 1) return null;
-  return (
-    <div className="flex items-center justify-end gap-2 pt-2">
-      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        {t("membersPage.previous")}
-      </Button>
-      <span className="text-sm text-muted-foreground">
-        {page} / {lastPage}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={page >= lastPage}
-        onClick={() => onChange(page + 1)}
-      >
-        {t("membersPage.next")}
-      </Button>
-    </div>
-  );
-}
-
-/** Keeps the list on an existing page after its last row was removed. */
-function useClampedPage(lastPage: number, page: number, setPage: (page: number) => void) {
-  useEffect(() => {
-    if (page > 1 && page > lastPage) setPage(Math.max(lastPage, 1));
-  }, [lastPage, page, setPage]);
 }
 
 function MembersCard({ organizationId }: { organizationId: string }) {
@@ -246,7 +209,7 @@ function MembersCard({ organizationId }: { organizationId: string }) {
             </TableBody>
           </Table>
         </div>
-        <Pager page={page} lastPage={lastPage} onChange={setPage} />
+        <ListPager page={page} lastPage={lastPage} onChange={setPage} />
       </CardContent>
       <RolesDialog
         key={editing?.userId ?? "none"}
@@ -423,7 +386,7 @@ function InvitationsCard({ organizationId }: { organizationId: string }) {
             </Table>
           </div>
         )}
-        <Pager page={page} lastPage={lastPage} onChange={setPage} />
+        <ListPager page={page} lastPage={lastPage} onChange={setPage} />
       </CardContent>
     </Card>
   );

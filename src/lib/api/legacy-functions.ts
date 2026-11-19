@@ -4,16 +4,11 @@
 // replacing these imports with a real `src/lib/api/<domain>.ts` module.
 import { pendingFn } from "@/lib/api/pending";
 
-// HR — employees, invitations, badges
-export const createEmployee = pendingFn("POST /org/employees");
+// HR — import, badges
 export const importEmployees = pendingFn("POST /org/employees/import/commit");
-export const getEmployeeSensitive = pendingFn("GET /org/employees/:id");
-export const updateEmployeeProfileDetails = pendingFn("PATCH /org/employees/:id");
 export const getEmployeeBadgeInfo = pendingFn("GET /org/employees/:id/badge");
 export const assignEmployeeBadge = pendingFn("POST /org/employees/:id/badge");
 export const revokeEmployeeBadge = pendingFn("DELETE /org/employees/:id/badge");
-export const inviteEmployeeUser = pendingFn("POST /org/invitations");
-export const getEmployeeAccountStates = pendingFn("GET /org/members");
 
 // Leaves
 export const listHolidays = pendingFn("GET /org/holidays");
