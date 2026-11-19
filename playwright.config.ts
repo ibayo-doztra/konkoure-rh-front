@@ -40,6 +40,11 @@ export default defineConfig({
         // The API runs under its real database role, so row-level security applies.
         DB_APP_ROLE: "konkoure_app",
         LIMITER_STORE: "memory",
+        // The whole suite shares one IP: the production budget (300/min) would
+        // throttle it. Accepted by the API outside production only.
+        RATE_LIMIT_GLOBAL_IP_PER_MINUTE: "10000",
+        // Required by the timeclock module (konkoure-rh-api #12); any value in tests.
+        NFC_UID_PEPPER: "e2e-only-pepper",
         LOG_LEVEL: "warn",
         MAIL_MAILER: "resend",
         RESEND_API_KEY: "e2e-fake-key",
