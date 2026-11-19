@@ -65,7 +65,7 @@ test("les RH créent un employé puis le retrouvent et modifient sa fiche", asyn
   await expect(page.getByText("Aminata Sylla")).toBeVisible();
 
   await page.getByLabel("Nom, e-mail ou matricule").fill("Sylla");
-  await expect(page.locator("#main-content").getByText("Mamadou Diallo")).toBeHidden();
+  await expect(page.locator("#main-content").getByText("Mamadou Diallo")).toHaveCount(0);
   const card = page.locator("div.bg-card", { hasText: "Aminata Sylla" }).last();
   await card.getByRole("button", { name: "Voir" }).click();
 
@@ -153,5 +153,5 @@ test("supprimer un département occupé impose de déplacer ses employés", asyn
   await confirm.click();
 
   await expect(page.getByText("Département supprimé")).toBeVisible();
-  await expect(page.getByText("Atelier")).toBeHidden();
+  await expect(page.getByText("Atelier")).toHaveCount(0);
 });
