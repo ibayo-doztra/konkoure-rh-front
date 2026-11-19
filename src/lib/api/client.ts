@@ -148,6 +148,33 @@ function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
 
 let refreshing: Promise<boolean> | null = null;
 
+// The API checks rate limits before rotating, so after a 429 the refresh
+// cookie is still valid: wait and try again instead of ending the session.
+// Offices often share one public IP, hence one per-IP budget. Other failures
+// are never retried, as the token may already have been consumed.
+const REFRESH_ATTEMPTS = 3;
+const MAX_RETRY_DELAY_MS = 10_000;
+
+function retryDelayMs(res: Response, attempt: number): number {
+  // Retry-After is only readable when the API exposes it (CORS).
+  const seconds = Number(res.headers.get("Retry-After"));
+  const delay = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 1000 * 2 ** attempt;
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+}
+
+async function postRefresh(): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (res.status !== 429 || attempt + 1 >= REFRESH_ATTEMPTS) return res;
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs(res, attempt)));
+  }
+}
+
 /**
  * Rotates tokens with the refresh cookie. Single-flight inside a tab, serialized
  * between tabs; a tab that received a fresher token while waiting does not rotate.
@@ -159,12 +186,7 @@ export function refreshSession(): Promise<boolean> {
     try {
       return await withRefreshLock(async () => {
         if (accessToken && accessToken !== tokenBefore) return true;
-        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: "POST",
-          credentials: "include",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: "{}",
-        });
+        const res = await postRefresh();
         if (!res.ok) {
           accessToken = null;
           return false;

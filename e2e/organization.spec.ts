@@ -74,7 +74,7 @@ test("le propriétaire gère les invitations et les membres", async ({ page, req
 
   await page.getByRole("button", { name: `Révoquer l'invitation de ${invited}` }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Révoquer" }).click();
-  await expect(main.getByText(invited)).toBeHidden();
+  await expect(main.getByText(invited)).toHaveCount(0);
 
   await page.getByRole("button", { name: "Modifier les rôles de Fatoumata Bah" }).click();
   await page.getByRole("dialog").getByLabel("Recruteur").click();
@@ -84,7 +84,7 @@ test("le propriétaire gère les invitations et les membres", async ({ page, req
 
   await page.getByRole("button", { name: "Retirer Fatoumata Bah" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Retirer" }).click();
-  await expect(main.getByText(memberEmail)).toBeHidden();
+  await expect(main.getByText(memberEmail)).toHaveCount(0);
 });
 
 test("un utilisateur met à jour son profil et son mot de passe", async ({ page, request }) => {
