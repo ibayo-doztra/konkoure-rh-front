@@ -10,6 +10,10 @@ Ce dépôt est le **frontend web** de Konkouré (TanStack Start, issu de Lovable
 
 Ce dossier a son propre dépôt git (branches `main` et `develop`).
 
+## Branches
+
+Même règle que l'API. Toute branche (`feat/…`, `fix/…`, `chore/…`) part de `develop` à jour (`git fetch && git checkout -b feat/x origin/develop`) et sa PR vise **`develop`**. Seule `develop` est fusionnée dans `main`, par une PR `develop` → `main`. Le workflow `Branch policy` (`.github/workflows/branch-policy.yml`) fait échouer toute PR vers `main` qui ne vient pas de `develop`. Ne jamais commiter directement sur `develop` ni `main`.
+
 ## Commandes
 
 Gestionnaire de paquets : **pnpm** (version épinglée par `packageManager` dans `package.json`, via corepack : `corepack pnpm …` si pnpm n'est pas installé globalement). Ne pas utiliser npm, yarn ni bun.
