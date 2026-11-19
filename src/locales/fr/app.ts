@@ -101,8 +101,6 @@ export default {
     revokeFor: "Révoquer l'invitation de {{email}}",
     revokeTitle: "Révoquer cette invitation ?",
     revokeDescription: "Le lien envoyé par e-mail ne fonctionnera plus.",
-    previous: "Précédent",
-    next: "Suivant",
   },
   accountPage: {
     title: "Mon compte",

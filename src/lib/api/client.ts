@@ -13,10 +13,12 @@ export type ApiErrorCode =
   | "E_EMAIL_NOT_VERIFIED"
   | "E_MODULE_NOT_INCLUDED"
   | "E_SUBSCRIPTION_INACTIVE"
+  | "E_QUOTA_EXCEEDED"
   | "E_NOT_FOUND"
   | "E_CONFLICT"
   | "E_PAYLOAD_TOO_LARGE"
   | "E_VALIDATION"
+  | "E_HIERARCHY_CYCLE"
   | "E_ACCOUNT_LOCKED"
   | "E_PASSWORD_RESET_REQUIRED"
   | "E_RATE_LIMITED"
@@ -297,6 +299,15 @@ export const api = {
     query?: RequestOptions["query"],
     opts: Omit<RequestOptions, "method" | "query" | "body"> = {},
   ) => apiRequest<Paginated<T>>(path, { ...opts, method: "GET", query }),
+  /** Reads every page of an offset-paginated list. */
+  all: async <T>(path: string, query?: RequestOptions["query"]): Promise<T[]> => {
+    const rows: T[] = [];
+    for (let page = 1; ; page += 1) {
+      const result = await api.list<T>(path, { ...query, page, perPage: 100 });
+      rows.push(...result.data);
+      if (page >= (result.meta.lastPage ?? 1)) return rows;
+    }
+  },
   post: <T>(path: string, body?: unknown, opts: Omit<RequestOptions, "method" | "body"> = {}) =>
     data<T>(path, { ...opts, method: "POST", body }),
   put: <T>(path: string, body?: unknown, opts: Omit<RequestOptions, "method" | "body"> = {}) =>
