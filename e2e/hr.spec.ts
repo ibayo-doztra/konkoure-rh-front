@@ -252,12 +252,7 @@ test("l'import d'employés est bloqué tant que le fichier contient une erreur",
   await expect(page.getByText("Alpha Bah")).toBeVisible();
 });
 
-// konkoure-rh-api: POST /org/employees/:id/badge answers 500 (badge_service.ts refreshes the
-// new badge after its nested transaction has ended, so RLS hides it). Enable once fixed.
-test.fixme("les RH attribuent puis révoquent le badge NFC d'un employé", async ({
-  page,
-  request,
-}) => {
+test("les RH attribuent puis révoquent le badge NFC d'un employé", async ({ page, request }) => {
   const owner = await createOwner(request);
   const employee = await createEmployee(request, owner, {
     firstName: "Mariama",
