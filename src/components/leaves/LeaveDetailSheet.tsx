@@ -1,7 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { Check, X, Trash2 } from "lucide-react";
+import { Check, Eye, Paperclip, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/client";
+import { openSignedUrl } from "@/lib/signed-url";
+import {
+  BALANCE_TYPES,
+  leaveAttachmentUrl,
+  leaveQuery,
+  leavesKey,
+  uploadLeaveAttachment,
+  LEAVE_STATUS_VARIANT,
+  type LeaveRow,
+} from "@/lib/api/leaves";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,17 +24,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { getEmployeeLeaveBalance } from "@/lib/api/legacy-functions";
 
-const STATUS_VARIANT: Record<
-  string,
-  "default" | "secondary" | "outline" | "destructive" | "success"
-> = {
-  pending: "secondary",
-  approved: "success",
-  rejected: "destructive",
-  cancelled: "outline",
-};
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -33,54 +37,69 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function LeaveDetailSheet({
+  organizationId,
   request,
-  canManage,
-  isMine,
+  canDecide,
+  canCancel,
+  canAttach,
   onClose,
   onApprove,
   onReject,
   onCancel,
 }: {
-  request: any | null;
-  canManage: boolean;
-  isMine: boolean;
+  organizationId: string;
+  request: LeaveRow | null;
+  canDecide: boolean;
+  canCancel: boolean;
+  canAttach: boolean;
   onClose: () => void;
-  onApprove: (r: any) => void;
-  onReject: (r: any) => void;
-  onCancel: (r: any) => void;
+  onApprove: (r: LeaveRow) => void;
+  onReject: (r: LeaveRow) => void;
+  onCancel: (r: LeaveRow) => void;
 }) {
   const { t } = useTranslation();
-  const balanceFn = getEmployeeLeaveBalance;
+  const queryClient = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  const TYPE_LABEL: Record<string, string> = {
-    annuel: t("leaves.typeAnnuel"),
-    maladie: t("leaves.typeMaladie"),
-    maternite: t("leaves.typeMaternite"),
-    sans_solde: t("leaves.typeSansSolde"),
-  };
-  const STATUS_LABEL: Record<string, string> = {
-    pending: t("leaves.statusPending"),
-    approved: t("leaves.statusApproved"),
-    rejected: t("leaves.statusRejected"),
-    cancelled: t("leaves.statusCancelled"),
-  };
-
-  const { data: balanceData, isLoading: balanceLoading } = useQuery({
-    queryKey: ["leave-balance", request?.employee_id],
-    queryFn: () => balanceFn({ data: { employeeId: request!.employee_id } }),
-    enabled: !!request?.employee_id && (canManage || isMine),
+  // The detail adds the balance once this request is counted.
+  const detail = useQuery({
+    ...leaveQuery(organizationId, request?.id ?? ""),
+    enabled: !!request,
   });
 
-  const emp = request?.employees;
-  const empName = emp
-    ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || t("leaves.employeeFallback")
-    : t("leaves.employeeFallback");
-  const days = Number(request?.requested_days ?? 0);
-  const balance = balanceData?.balance ?? null;
-  const isAnnual = request?.type === "annuel";
-  const remaining = balance === null ? null : isAnnual ? balance - days : balance;
-  const showActions =
-    request?.status === "pending" && (canManage || isMine);
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadLeaveAttachment(request!.id, file),
+    onSuccess: () => {
+      toast.success(t("leaves.attachmentUploaded"));
+      void queryClient.invalidateQueries({ queryKey: leavesKey(organizationId) });
+    },
+    onError: (error) =>
+      toast.error(t("leaves.attachmentError"), { description: apiErrorMessage(error) }),
+  });
+
+  const current = request ? { ...request, ...detail.data } : null;
+  const days = current?.requestedDays ?? 0;
+  const withBalance = !!current && BALANCE_TYPES.includes(current.type);
+  const balanceAfter = detail.data?.balanceAfter ?? null;
+  // A pending request is already deducted from `balanceAfter`.
+  const balanceBefore =
+    balanceAfter === null
+      ? null
+      : current?.status === "pending"
+        ? balanceAfter + days
+        : balanceAfter;
+
+  const onFile = (file: File | undefined) => {
+    if (fileInput.current) fileInput.current.value = "";
+    if (!file) return;
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      toast.error(t("leaves.attachmentTooLarge"));
+      return;
+    }
+    upload.mutate(file);
+  };
+
+  const showActions = canDecide || canCancel;
 
   return (
     <Sheet open={!!request} onOpenChange={(o) => !o && onClose()}>
@@ -88,14 +107,16 @@ export function LeaveDetailSheet({
         side="right"
         className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-md"
       >
-        {request && (
+        {current && (
           <>
             <SheetHeader className="space-y-2 border-b border-border p-6 text-left">
-              <SheetTitle className="truncate">{empName}</SheetTitle>
+              <SheetTitle className="truncate">
+                {current.employeeName || t("leaves.employeeFallback")}
+              </SheetTitle>
               <SheetDescription className="flex flex-wrap items-center gap-2">
-                {emp?.job_title ? <span>{emp.job_title}</span> : null}
-                <Badge variant={STATUS_VARIANT[request.status]}>
-                  {STATUS_LABEL[request.status] ?? request.status}
+                {current.jobTitle ? <span>{current.jobTitle}</span> : null}
+                <Badge variant={LEAVE_STATUS_VARIANT[current.status]}>
+                  {t(`leaves.status${current.status[0].toUpperCase()}${current.status.slice(1)}`)}
                 </Badge>
               </SheetDescription>
             </SheetHeader>
@@ -106,103 +127,154 @@ export function LeaveDetailSheet({
                   {t("leaves.detailsRequest")}
                 </h3>
                 <div className="divide-y divide-border rounded-lg border border-border">
-                  <Row label={t("leaves.colType")} value={TYPE_LABEL[request.type] ?? request.type} />
+                  <Row label={t("leaves.colType")} value={t(`leaves.types.${current.type}`)} />
                   <Row
                     label={t("leaves.startDate")}
-                    value={format(new Date(request.start_date), "dd/MM/yyyy")}
+                    value={`${format(new Date(current.startDate), "dd/MM/yyyy")}${
+                      current.halfDayStart ? ` · ${t("leaves.halfDayStart")}` : ""
+                    }`}
                   />
                   <Row
                     label={t("leaves.endDate")}
-                    value={format(new Date(request.end_date), "dd/MM/yyyy")}
+                    value={`${format(new Date(current.endDate), "dd/MM/yyyy")}${
+                      current.halfDayEnd ? ` · ${t("leaves.halfDayEnd")}` : ""
+                    }`}
                   />
                   <Row
                     label={t("leaves.requestedDays")}
                     value={
-                      <span className="tabular-nums">
-                        {t("leaves.daysUnit", { count: days })}
-                      </span>
+                      <span className="tabular-nums">{t("leaves.daysUnit", { count: days })}</span>
                     }
                   />
-                  {request.created_at && (
-                    <Row
-                      label={t("leaves.createdAt")}
-                      value={format(new Date(request.created_at), "dd/MM/yyyy HH:mm")}
-                    />
-                  )}
+                  <Row
+                    label={t("leaves.createdAt")}
+                    value={format(new Date(current.createdAt), "dd/MM/yyyy HH:mm")}
+                  />
                 </div>
               </section>
 
-              {(canManage || isMine) && (
-                <section className="space-y-2">
-                  <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("leaves.detailsBalance")}
-                  </h3>
+              <section className="space-y-2">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("leaves.detailsBalance")}
+                </h3>
+                {withBalance ? (
                   <div className="divide-y divide-border rounded-lg border border-border">
                     <Row
-                      label={t("leaves.acquiredBalance")}
+                      label={t("leaves.balanceBefore")}
                       value={
                         <span className="tabular-nums">
-                          {balanceLoading || balance === null ? "…" : `${balance} j`}
+                          {balanceBefore === null
+                            ? "…"
+                            : t("leaves.daysUnit", { count: balanceBefore })}
                         </span>
                       }
                     />
                     <Row
                       label={t("leaves.requestedDays")}
-                      value={<span className="tabular-nums">{days} j</span>}
+                      value={
+                        <span className="tabular-nums">
+                          {t("leaves.daysUnit", { count: days })}
+                        </span>
+                      }
                     />
                     <Row
                       label={t("leaves.remainingBalance")}
                       value={
                         <span
                           className={`tabular-nums ${
-                            remaining !== null && remaining < 0
+                            balanceAfter !== null && balanceAfter < 0
                               ? "text-destructive"
                               : "text-foreground"
                           }`}
                         >
-                          {balanceLoading || remaining === null ? "…" : `${remaining} j`}
+                          {balanceAfter === null
+                            ? "…"
+                            : t("leaves.daysUnit", { count: balanceAfter })}
                         </span>
                       }
                     />
                   </div>
-                  {!isAnnual && (
-                    <p className="text-xs text-muted-foreground">{t("leaves.nonAnnualHint")}</p>
-                  )}
-                </section>
-              )}
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t("leaves.nonAnnualHint")}</p>
+                )}
+              </section>
 
               <section className="space-y-2">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t("leaves.detailsReason")}
                 </h3>
                 <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
-                  {request.reason?.trim() ? request.reason : t("leaves.noReason")}
+                  {current.reason?.trim() ? current.reason : t("leaves.noReason")}
                 </p>
               </section>
 
-              {(request.status === "approved" || request.status === "rejected") && (
+              <section className="space-y-2">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("leaves.attachment")}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  {current.hasAttachment ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        void openSignedUrl(
+                          () => leaveAttachmentUrl(current.id),
+                          (error) =>
+                            toast.error(t("leaves.attachmentError"), {
+                              description: apiErrorMessage(error),
+                            }),
+                        )
+                      }
+                    >
+                      <Eye className="mr-1 h-4 w-4" /> {t("leaves.viewAttachment")}
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      {t("leaves.noAttachment")}
+                    </span>
+                  )}
+                  {canAttach && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInput.current?.click()}
+                      disabled={upload.isPending}
+                    >
+                      <Paperclip className="mr-1 h-4 w-4" /> {t("leaves.attach")}
+                    </Button>
+                  )}
+                </div>
+                {canAttach && (
+                  <p className="text-xs text-muted-foreground">{t("leaves.attachmentHint")}</p>
+                )}
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  aria-label={t("leaves.attach")}
+                  onChange={(e) => onFile(e.target.files?.[0])}
+                />
+              </section>
+
+              {(current.status === "approved" || current.status === "rejected") && (
                 <section className="space-y-2">
                   <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t("leaves.detailsDecision")}
                   </h3>
                   <div className="divide-y divide-border rounded-lg border border-border">
-                    <Row
-                      label={t("leaves.colStatus")}
-                      value={STATUS_LABEL[request.status] ?? request.status}
-                    />
-                    {request.decided_at && (
+                    {current.decidedAt && (
                       <Row
                         label={t("leaves.decidedAt")}
-                        value={format(new Date(request.decided_at), "dd/MM/yyyy HH:mm")}
+                        value={format(new Date(current.decidedAt), "dd/MM/yyyy HH:mm")}
                       />
                     )}
-                    {request.status === "rejected" && request.decision_comment?.trim() && (
+                    {current.decisionComment?.trim() && (
                       <div className="space-y-1 px-4 py-2.5 text-sm">
-                        <span className="text-muted-foreground">
-                          {t("leaves.decisionComment")}
-                        </span>
+                        <span className="text-muted-foreground">{t("leaves.decisionComment")}</span>
                         <p className="whitespace-pre-wrap text-foreground">
-                          {request.decision_comment}
+                          {current.decisionComment}
                         </p>
                       </div>
                     )}
@@ -213,20 +285,20 @@ export function LeaveDetailSheet({
 
             {showActions && (
               <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-border bg-background p-4">
-                {canManage && (
+                {canCancel && (
+                  <Button variant="outline" onClick={() => onCancel(current)}>
+                    <Trash2 className="mr-1 h-4 w-4" /> {t("leaves.cancel")}
+                  </Button>
+                )}
+                {canDecide && (
                   <>
-                    <Button variant="outlineDanger" onClick={() => onReject(request)}>
+                    <Button variant="outlineDanger" onClick={() => onReject(current)}>
                       <X className="mr-1 h-4 w-4" /> {t("leaves.reject")}
                     </Button>
-                    <Button onClick={() => onApprove(request)}>
+                    <Button onClick={() => onApprove(current)}>
                       <Check className="mr-1 h-4 w-4" /> {t("leaves.approve")}
                     </Button>
                   </>
-                )}
-                {isMine && (
-                  <Button variant="outline" onClick={() => onCancel(request)}>
-                    <Trash2 className="mr-1 h-4 w-4" /> {t("leaves.cancel")}
-                  </Button>
                 )}
               </div>
             )}

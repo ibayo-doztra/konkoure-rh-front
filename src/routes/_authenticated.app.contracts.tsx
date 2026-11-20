@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiErrorMessage } from "@/lib/api/client";
+import { openSignedUrl } from "@/lib/signed-url";
 import {
   allEmployeesQuery,
   contractDocumentUrl,
@@ -315,19 +316,11 @@ function ContractsPage() {
 
   const loading = closeMutation.isPending || saveMutation.isPending;
 
-  async function openDocument(c: ContractRow) {
-    // Open the tab during the click so that the browser does not block it.
-    const tab = window.open("", "_blank");
-    try {
-      const { url } = await contractDocumentUrl(c.id);
-      if (tab) {
-        tab.opener = null;
-        tab.location.href = url;
-      } else window.location.assign(url);
-    } catch (error) {
-      tab?.close();
-      toast.error(t("contracts.documentError"), { description: apiErrorMessage(error) });
-    }
+  function openDocument(c: ContractRow) {
+    void openSignedUrl(
+      () => contractDocumentUrl(c.id),
+      (error) => toast.error(t("contracts.documentError"), { description: apiErrorMessage(error) }),
+    );
   }
 
   function pickDocument(c: ContractRow) {
@@ -652,7 +645,7 @@ function ContractsPage() {
                           {
                             label: t("contracts.viewDocument"),
                             icon: <Eye className="h-4 w-4" />,
-                            onSelect: () => void openDocument(c),
+                            onSelect: () => openDocument(c),
                             hidden: !c.hasDocument,
                           },
                           {
