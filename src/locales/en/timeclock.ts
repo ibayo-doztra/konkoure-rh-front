@@ -2,11 +2,16 @@ export default {
   timeclock: {
     logs: {
       title: "Time logs",
-      description: "Attendance tracking: check-ins, check-outs and time on site.",
-      sessionsTitle: "Attendance sessions",
+      description:
+        "Attendance by day: first arrival, last departure and worked time, computed from the punches.",
+      sessionsTitle: "Attendance by day",
       empty: "No sessions.",
+      from: "From",
+      to: "To",
+      rangeError: "The period must cover {{max}} days at most.",
       columns: {
         employee: "Employee",
+        day: "Day",
         arrivee: "Check-in",
         depart: "Check-out",
         duree: "Duration",
@@ -18,11 +23,18 @@ export default {
         ongoing: "Ongoing",
       },
     },
+    anomaly: {
+      missing_out: "Missing departure",
+      out_of_zone: "Out of zone",
+      duplicate: "Duplicate punch",
+      clock_drift: "Device clock mismatch",
+      low_accuracy: "Inaccurate position",
+    },
     scan: {
       title: "Badge time clock",
-      description: "Scan an employee's NFC badge. The type (check-in or check-out) is determined automatically.",
+      description:
+        "Scan an employee's NFC badge. The type (check-in or check-out) is determined automatically.",
       badgeUidMissing: "Badge UID missing",
-      dedupedToast: "Scan already recorded",
       arriveeToast: "Check-in recorded",
       departToast: "Check-out recorded",
       unexpectedError: "Unexpected error",
@@ -30,20 +42,21 @@ export default {
       nfcActiveToast: "NFC reader active — tap a badge",
       nfcEnableError: "Could not enable NFC",
       positionDetected: "Position detected — coordinates are saved with each punch.",
-      positionUnavailable: "Geolocation unavailable — the punch will be recorded without coordinates.",
+      positionUnavailable:
+        "Geolocation unavailable — the punch will be recorded without coordinates.",
       nfcReader: "NFC reader",
       nfcActive: "active",
       nfcInactive: "inactive",
       stop: "Stop",
       enableNfc: "Enable NFC scanner",
-      nfcNotSupported: "Web NFC is not supported by this browser. Use Chrome on Android, or manual entry below.",
+      nfcNotSupported:
+        "Web NFC is not supported by this browser. Use Chrome on Android, or manual entry below.",
       manualUidLabel: "Manual UID entry",
       manualUidPlaceholder: "E.g.: 04:A2:1B:C3:2D:5E:80",
       scanButton: "Scan",
       arriveeLabel: "Check-in",
       departLabel: "Check-out",
       recordedAt: "recorded at",
-      dedupedBadge: "already recorded",
       refused: "Punch refused",
     },
     zones: {
@@ -51,11 +64,12 @@ export default {
       description: "Draw a zone on the map — simple circle or precise outline around your site",
       geolocationUnavailable: "Geolocation unavailable on this browser",
       positionAdded: "Position added on the map — drag the marker to adjust if needed",
-      permissionDenied: "Location denied by the browser. Open the published site in a tab or allow location.",
+      permissionDenied:
+        "Location denied by the browser. Open the published site in a tab or allow location.",
       positionUnavailableClick: "Position unavailable. Click on the map to place the zone.",
       timeout: "Location too slow. Try again or click on the map.",
       positionUnrecoverable: "Could not retrieve position",
-      nameRequired: "Name required",
+      nameRequired: "Name: at least 2 characters",
       drawFirst: "Draw the zone on the map first",
       polygonMinPoints: "A polygon requires at least 3 points",
       created: "Zone created",
@@ -65,8 +79,10 @@ export default {
       myPosition: "My position",
       undoLastPoint: "Undo last point",
       clear: "Clear",
-      circleHint: "Click on the map to place the center, then adjust the radius. Tip: switch to Satellite view (top right) to visually locate your site.",
-      polygonHint: "Click to add each vertex of your zone's outline (min. 3 points). Tip: switch to Satellite view for precise mapping.",
+      circleHint:
+        "Click on the map to place the center, then adjust the radius. Tip: switch to Satellite view (top right) to visually locate your site.",
+      polygonHint:
+        "Click to add each vertex of your zone's outline (min. 3 points). Tip: switch to Satellite view for precise mapping.",
       newZone: "New zone",
       nameLabel: "Name",
       namePlaceholder: "E.g.: Conakry HQ",
@@ -78,6 +94,8 @@ export default {
       noZones: "No zone defined.",
       circleSummary: "Circle · {{radius}}m",
       polygonSummary: "Polygon · {{count}} vertices",
+      deleteTitle: "Delete this zone?",
+      deleteDesc: "Punches already linked to this zone keep it.",
       deleteAria: "Delete",
     },
   },
@@ -95,7 +113,8 @@ export default {
     nineBox: {
       title: "9-Box matrix",
       description: "Performance × Potential",
-      footer: "Horizontal axis: performance · Vertical axis: potential · 0-9 rating scale from reviews.",
+      footer:
+        "Horizontal axis: performance · Vertical axis: potential · 0-9 rating scale from reviews.",
       labels: {
         riskTalent: "At-risk talent",
         performer: "Performer",

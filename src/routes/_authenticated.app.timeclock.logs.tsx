@@ -1,194 +1,180 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { pendingQuery } from "@/lib/api/pending";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { allEmployeesQuery } from "@/lib/api/hr";
+import { attendanceQuery, type AttendanceDay } from "@/lib/api/timeclock";
 import { useOrg } from "@/hooks/useOrg";
-import { useRole } from "@/hooks/useRole";
-import { useMyEmployee } from "@/hooks/useMyEmployee";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ListPager, useClampedPage } from "@/components/ListPager";
 import { PageHeader } from "@/components/PageHeader";
 import { ResponsiveTable } from "@/components/ResponsiveTable";
-import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/_authenticated/app/timeclock/logs")({
   component: LogsPage,
 });
 
-type Punch = {
-  id: string;
-  employee_id: string;
-  type: "ARRIVEE" | "DEPART";
-  timestamp: string;
-  latitude: number | null;
-  longitude: number | null;
-  employees: { first_name: string; last_name: string } | null;
-};
+const MAX_RANGE_DAYS = 93;
 
-type Session = {
-  employee: string;
-  arrivee: string;
-  depart: string | null;
-  durationMs: number | null;
-};
+const isoDay = (offsetDays: number) =>
+  new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
 
-const ANOMALY_MS = 24 * 60 * 60 * 1000;
-
-function formatDuration(ms: number): string {
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
+function formatMinutes(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-function formatDate(ts: string): string {
-  return new Date(ts).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const daysBetween = (from: string, to: string) =>
+  Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 
-function sessionStatus(s: Session, now: number, t: (k: string) => string): { label: string; variant: "default" | "secondary" | "destructive" | "outline" } {
-  if (s.depart) return { label: t("timeclock.logs.status.finished"), variant: "secondary" };
-  const openMs = now - new Date(s.arrivee).getTime();
-  if (openMs > ANOMALY_MS) return { label: t("timeclock.logs.status.anomaly"), variant: "destructive" };
-  return { label: t("timeclock.logs.status.ongoing"), variant: "default" };
-}
-
+/**
+ * Attendance days computed by the API from the punches (first arrival, last
+ * departure, worked time, anomaly). The API scopes them: everyone for owner,
+ * hr_admin and security agents, the team and oneself for a manager, oneself
+ * otherwise.
+ */
 function LogsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { org } = useOrg();
-  const { role } = useRole();
-  const { myEmployee, loading: employeeLoading } = useMyEmployee();
-  // Un employé simple ne voit que son propre historique de pointage.
-  const seesAll = role === "owner" || role === "hr_admin" || role === "manager" || role === "security_agent";
-  const [items, setItems] = useState<Punch[]>([]);
+  const organizationId = org?.id ?? "";
+  const locale = i18n.language?.startsWith("en") ? "en-US" : "fr-FR";
+  const [from, setFrom] = useState(() => isoDay(-29));
+  const [to, setTo] = useState(() => isoDay(0));
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    if (!org) return;
-    if (!seesAll && employeeLoading) return;
-    void (async () => {
-      if (!seesAll && !myEmployee?.id) {
-        setItems([]);
-        return;
-      }
-      // GET /org/timeclock/logs?filter[employeeId]=… (cursor pagination, 01 §7)
-      const { data } = await pendingQuery("GET /org/timeclock/logs");
-      setItems((data as unknown as Punch[]) ?? []);
-    })();
-  }, [org, seesAll, employeeLoading, myEmployee?.id]);
+  const rangeValid = !!from && !!to && from <= to && daysBetween(from, to) < MAX_RANGE_DAYS;
+  const attendance = useQuery({
+    ...attendanceQuery(organizationId, { page, from, to }),
+    enabled: !!org && rangeValid,
+  });
+  const lastPage = attendance.data?.meta.lastPage ?? 1;
+  useClampedPage(lastPage, page, setPage);
 
-  const sessions = useMemo(() => {
-    const byEmp = new Map<string, Punch[]>();
-    for (const p of [...items].sort((a, b) => a.timestamp.localeCompare(b.timestamp))) {
-      const arr = byEmp.get(p.employee_id) ?? [];
-      arr.push(p);
-      byEmp.set(p.employee_id, arr);
+  const employees = useQuery({ ...allEmployeesQuery(organizationId), enabled: !!org });
+  const names = useMemo(
+    () => new Map((employees.data ?? []).map((e) => [e.id, `${e.firstName} ${e.lastName}`])),
+    [employees.data],
+  );
+
+  const time = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—";
+
+  const status = (d: AttendanceDay) => {
+    if (d.anomaly) {
+      return (
+        <Badge variant="destructive">
+          {t(`timeclock.anomaly.${d.anomaly}`, { defaultValue: d.anomaly })}
+        </Badge>
+      );
     }
-    const result: Session[] = [];
-    for (const [, punches] of byEmp) {
-      let openArrivee: Punch | null = null;
-      for (const p of punches) {
-        if (p.type === "ARRIVEE") {
-          if (openArrivee) {
-            result.push({
-              employee: fullName(openArrivee),
-              arrivee: openArrivee.timestamp,
-              depart: null,
-              durationMs: null,
-            });
-          }
-          openArrivee = p;
-        } else if (p.type === "DEPART" && openArrivee) {
-          result.push({
-            employee: fullName(openArrivee),
-            arrivee: openArrivee.timestamp,
-            depart: p.timestamp,
-            durationMs: new Date(p.timestamp).getTime() - new Date(openArrivee.timestamp).getTime(),
-          });
-          openArrivee = null;
-        }
-      }
-      if (openArrivee) {
-        result.push({
-          employee: fullName(openArrivee),
-          arrivee: openArrivee.timestamp,
-          depart: null,
-          durationMs: null,
-        });
-      }
-    }
-    result.sort((a, b) => b.arrivee.localeCompare(a.arrivee));
-    return result;
-  }, [items]);
-
-  const now = Date.now();
+    return d.isComplete ? (
+      <Badge variant="secondary">{t("timeclock.logs.status.finished")}</Badge>
+    ) : (
+      <Badge>{t("timeclock.logs.status.ongoing")}</Badge>
+    );
+  };
 
   return (
     <div>
-      <PageHeader
-        title={t("timeclock.logs.title")}
-        description={t("timeclock.logs.description")}
-      />
+      <PageHeader title={t("timeclock.logs.title")} description={t("timeclock.logs.description")} />
+
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-end gap-4 p-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="attendance-from">{t("timeclock.logs.from")}</Label>
+            <Input
+              id="attendance-from"
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="attendance-to">{t("timeclock.logs.to")}</Label>
+            <Input
+              id="attendance-to"
+              type="date"
+              value={to}
+              min={from}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          {!rangeValid && (
+            <p className="text-sm text-destructive">
+              {t("timeclock.logs.rangeError", { max: MAX_RANGE_DAYS })}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-0">
-          <div className="border-b bg-muted/30 p-3 text-sm font-semibold">{t("timeclock.logs.sessionsTitle")}</div>
+          <div className="border-b bg-muted/30 p-3 text-sm font-semibold">
+            {t("timeclock.logs.sessionsTitle")}
+          </div>
           <ResponsiveTable
-            data={sessions}
-            getRowKey={(s) => `${s.employee}-${s.arrivee}`}
+            data={rangeValid ? (attendance.data?.data ?? []) : []}
+            getRowKey={(d) => `${d.employeeId}-${d.day}`}
             empty={t("timeclock.logs.empty")}
             columns={[
               {
                 key: "employee",
                 header: t("timeclock.logs.columns.employee"),
                 priority: "primary",
-                cell: (s) => <span className="break-words">{s.employee}</span>,
+                cell: (d) => <span className="break-words">{names.get(d.employeeId) ?? "—"}</span>,
+              },
+              {
+                key: "day",
+                header: t("timeclock.logs.columns.day"),
+                cell: (d) => (
+                  <span className="whitespace-nowrap text-muted-foreground">
+                    {new Date(`${d.day}T00:00:00`).toLocaleDateString(locale)}
+                  </span>
+                ),
               },
               {
                 key: "arrivee",
                 header: t("timeclock.logs.columns.arrivee"),
-                cell: (s) => (
-                  <span className="whitespace-nowrap text-muted-foreground">
-                    {formatDate(s.arrivee)}
-                  </span>
-                ),
+                cell: (d) => <span className="tabular-nums">{time(d.firstIn)}</span>,
               },
               {
                 key: "depart",
                 header: t("timeclock.logs.columns.depart"),
-                cell: (s) => (
-                  <span className="whitespace-nowrap text-muted-foreground">
-                    {s.depart ? formatDate(s.depart) : "—"}
-                  </span>
-                ),
+                cell: (d) => <span className="tabular-nums">{time(d.lastOut)}</span>,
               },
               {
                 key: "duree",
                 header: t("timeclock.logs.columns.duree"),
-                cell: (s) =>
-                  s.durationMs !== null ? formatDuration(s.durationMs) : "—",
+                cell: (d) => (
+                  <span className="tabular-nums">
+                    {d.workedMinutes > 0 ? formatMinutes(d.workedMinutes) : "—"}
+                  </span>
+                ),
               },
               {
                 key: "statut",
                 header: t("timeclock.logs.columns.statut"),
                 priority: "actions",
-                cell: (s) => {
-                  const status = sessionStatus(s, now, t);
-                  return <Badge variant={status.variant}>{status.label}</Badge>;
-                },
+                cell: status,
               },
             ]}
           />
+          <div className="px-4 pb-3">
+            <ListPager page={page} lastPage={lastPage} onChange={setPage} />
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function fullName(p: Punch): string {
-  const e = p.employees;
-  return e ? `${e.first_name} ${e.last_name}` : p.employee_id.slice(0, 8);
 }
