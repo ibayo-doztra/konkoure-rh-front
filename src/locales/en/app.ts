@@ -132,6 +132,7 @@ export default {
     title: "Notifications",
     empty: "No notifications",
     markAllRead: "Mark all as read",
+    loadMore: "Show more",
     markRead: "Mark as read",
     unread: "unread",
     unread_other: "unread",

@@ -4,19 +4,6 @@
       "count": 3
     }
   },
-  "src/components/AppHeader.tsx": {
-    "prettier/prettier": {
-      "count": 9
-    }
-  },
-  "src/components/AppSidebar.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 21
-    }
-  },
   "src/components/ConfirmDialog.tsx": {
     "prettier/prettier": {
       "count": 2
@@ -25,11 +12,6 @@
   "src/components/LanguageSwitcher.tsx": {
     "prettier/prettier": {
       "count": 1
-    }
-  },
-  "src/components/NotificationBell.tsx": {
-    "prettier/prettier": {
-      "count": 5
     }
   },
   "src/components/PageHeader.tsx": {
@@ -181,11 +163,6 @@
       "count": 1
     }
   },
-  "src/lib/i18n.ts": {
-    "prettier/prettier": {
-      "count": 49
-    }
-  },
   "src/lib/landing/copy.ts": {
     "prettier/prettier": {
       "count": 29
@@ -206,11 +183,6 @@
       "count": 1
     }
   },
-  "src/locales/en/billing.ts": {
-    "prettier/prettier": {
-      "count": 25
-    }
-  },
   "src/locales/en/performance.ts": {
     "prettier/prettier": {
       "count": 22
@@ -219,16 +191,6 @@
   "src/locales/en/public.ts": {
     "prettier/prettier": {
       "count": 3
-    }
-  },
-  "src/locales/fr/app.ts": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
-  "src/locales/fr/billing.ts": {
-    "prettier/prettier": {
-      "count": 30
     }
   },
   "src/locales/fr/performance.ts": {
@@ -270,14 +232,6 @@
   "src/routes/_authenticated.app.billing.return.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/routes/_authenticated.app.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "prettier/prettier": {
-      "count": 54
     }
   },
   "src/routes/_authenticated.app.module-indisponible.tsx": {
