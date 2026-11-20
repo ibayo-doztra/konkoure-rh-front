@@ -21,6 +21,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEmployeeInvitation } from "@/hooks/useEmployeeInvitation";
 import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
+import { useSubscription } from "@/hooks/useSubscription";
+import { NfcBadgeCard } from "@/components/employees/NfcBadgeCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,6 +104,7 @@ function EmployeeDetailPage() {
   const { org } = useOrg();
   const { user } = useAuth();
   const { isAdmin } = useRole();
+  const { hasModule } = useSubscription();
   const queryClient = useQueryClient();
   const organizationId = org?.id ?? "";
   const [dialog, setDialog] = useState<"personal" | "emergency" | null>(null);
@@ -228,6 +231,9 @@ function EmployeeDetailPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <LeaveBalanceCard balance={emp.leaveBalance ?? null} />
+        {isAdmin && hasModule("timeclock") && (
+          <NfcBadgeCard organizationId={organizationId} employeeId={emp.id} />
+        )}
       </div>
 
       {isAdmin && (

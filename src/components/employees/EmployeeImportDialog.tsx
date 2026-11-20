@@ -1,188 +1,253 @@
 import { useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { importEmployees } from "@/lib/api/legacy-functions";
-
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { downloadTemplate, parseWorkbook, type DeptOption, type ParsedRow, IMPORT_MAX_ROWS } from "@/lib/employee-import";
+import { apiErrorMessage, isApiError, newIdempotencyKey } from "@/lib/api/client";
+import {
+  commitEmployeeImport,
+  hrKey,
+  previewEmployeeImport,
+  type ImportAction,
+  type ImportPreview,
+} from "@/lib/api/hr";
+import {
+  downloadTemplate,
+  IMPORT_MAX_BYTES,
+  IMPORT_MAX_ROWS,
+  type DeptOption,
+} from "@/lib/employee-import";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Props {
   open: boolean;
-  onOpenChange: (v: boolean) => void;
-  orgId: string;
+  onOpenChange: (open: boolean) => void;
+  organizationId: string;
   orgName?: string;
   departments: DeptOption[];
-  existingEmails: string[];
-  onImported: () => void;
 }
 
-export function EmployeeImportDialog({ open, onOpenChange, orgId, orgName, departments, existingEmails, onImported }: Props) {
+const ACCEPTED = /\.(xlsx|csv)$/i;
+
+export function EmployeeImportDialog({
+  open,
+  onOpenChange,
+  organizationId,
+  orgName,
+  departments,
+}: Props) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [rows, setRows] = useState<ParsedRow[] | null>(null);
-  const [truncated, setTruncated] = useState(false);
-  const [parsing, setParsing] = useState(false);
-  const [importing, setImporting] = useState(false);
-
-  const validRows = rows?.filter((r) => r.valid) ?? [];
-  const invalidCount = (rows?.length ?? 0) - validRows.length;
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const commitKey = useRef("");
 
   const reset = () => {
-    setRows(null);
+    setPreview(null);
     setFileName(null);
-    setTruncated(false);
+    analyse.reset();
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const handleFile = async (file: File) => {
-    if (!/\.xlsx$/i.test(file.name)) {
+  const analyse = useMutation({
+    mutationFn: previewEmployeeImport,
+    onSuccess: (result) => {
+      commitKey.current = newIdempotencyKey();
+      setPreview(result);
+      if (result.summary.total === 0) toast.error(t("employees.import.emptyFile"));
+    },
+    onError: (error) => {
+      toast.error(t("employees.import.importImpossible"), {
+        description: apiErrorMessage(error),
+      });
+      setFileName(null);
+      if (inputRef.current) inputRef.current.value = "";
+    },
+  });
+
+  const commit = useMutation({
+    mutationFn: () => commitEmployeeImport(preview!.importToken, commitKey.current),
+    onSuccess: (report) => {
+      toast.success(
+        t("employees.import.imported", { created: report.created, updated: report.updated }),
+      );
+      void queryClient.invalidateQueries({ queryKey: hrKey(organizationId) });
+      onOpenChange(false);
+      reset();
+    },
+    onError: (error) => {
+      const expired = isApiError(error) && error.details.some((d) => d.rule === "expired");
+      toast.error(t("employees.import.importImpossible"), {
+        description: expired ? t("employees.import.expired") : apiErrorMessage(error),
+      });
+      if (expired) reset();
+    },
+  });
+
+  const handleFile = (file: File) => {
+    if (!ACCEPTED.test(file.name)) {
       toast.error(t("employees.import.unsupportedFormat"));
       return;
     }
-    setParsing(true);
-    try {
-      const res = await parseWorkbook(file, { departments, existingEmails });
-      setRows(res.rows);
-      setTruncated(res.truncated);
-      setFileName(file.name);
-      if (res.rows.length === 0) toast.error(t("employees.import.emptyFile"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("employees.import.unreadableFile"));
-      reset();
-    } finally {
-      setParsing(false);
+    if (file.size > IMPORT_MAX_BYTES) {
+      toast.error(t("employees.import.tooLarge"));
+      return;
     }
+    setFileName(file.name);
+    setPreview(null);
+    analyse.mutate(file);
   };
 
-  const doImport = importEmployees;
-
-  const runImport = async () => {
-    if (validRows.length === 0) return;
-    setImporting(true);
-    try {
-      const res = await doImport({
-        data: { organizationId: orgId, rows: validRows.map((r) => r.payload!) },
-      });
-      if (res.error) {
-        toast.error(
-          t("employees.import.interrupted", {
-            atLine: res.failedAt ? t("employees.import.atLine", { line: validRows[res.failedAt - 1]?.line ?? res.failedAt }) : "",
-            error: res.error,
-          }),
-        );
-      }
-      if (res.inserted > 0) {
-        toast.success(
-          t("employees.import.importedCount", {
-            count: res.inserted,
-            ignored: invalidCount > 0 ? t("employees.import.ignoredCount", { count: invalidCount }) : "",
-          }),
-        );
-        onImported();
-        onOpenChange(false);
-        reset();
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("employees.import.importImpossible"));
-    } finally {
-      setImporting(false);
-    }
+  const summary = preview?.summary;
+  const hasErrors = (summary?.error ?? 0) > 0;
+  const writable = (summary?.create ?? 0) + (summary?.update ?? 0) > 0;
+  const actionLabel: Record<ImportAction, string> = {
+    create: t("employees.import.actionCreate"),
+    update: t("employees.import.actionUpdate"),
+    skip: t("employees.import.actionSkip"),
+    error: t("employees.import.actionError"),
   };
-
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(v) => {
-        onOpenChange(v);
-        if (!v) reset();
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) reset();
       }}
     >
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{t("employees.import.title")}</DialogTitle>
+          <DialogDescription>
+            {t("employees.import.instructions", { max: IMPORT_MAX_ROWS })}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
-          {departments.length === 0 && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>{t("employees.import.noDepartmentsTitle")}</AlertTitle>
-              <AlertDescription>
-                {t("employees.import.noDepartmentsDesc")}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-            <p className="mb-3">
-              {t("employees.import.instructions", { max: IMPORT_MAX_ROWS })}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => void downloadTemplate(departments, orgName)}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />{t("employees.import.downloadTemplate")}
-              </Button>
-              <Button size="sm" onClick={() => inputRef.current?.click()} disabled={parsing}>
-                {parsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {t("employees.import.chooseFile")}
-              </Button>
-              {fileName && <span className="self-center text-xs">{fileName}</span>}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void downloadTemplate(departments, orgName)}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              {t("employees.import.downloadTemplate")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={analyse.isPending || commit.isPending}
+            >
+              {analyse.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              {analyse.isPending
+                ? t("employees.import.analysing")
+                : t("employees.import.chooseFile")}
+            </Button>
+            {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx"
+              accept=".xlsx,.csv"
               className="hidden"
+              aria-label={t("employees.import.chooseFile")}
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
               }}
             />
           </div>
 
-          {rows && rows.length > 0 && (
+          {summary && summary.total > 0 && (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge className="bg-success text-success-foreground">{t("employees.import.valid", { count: validRows.length })}</Badge>
-                {invalidCount > 0 && <Badge variant="destructive">{t("employees.import.errorCount", { count: invalidCount })}</Badge>}
-                {truncated && (
-                  <span className="text-muted-foreground">
-                    {t("employees.import.truncated", { max: IMPORT_MAX_ROWS })}
-                  </span>
+                <Badge className="bg-success text-success-foreground">
+                  {t("employees.import.create", { count: summary.create })}
+                </Badge>
+                <Badge variant="secondary">
+                  {t("employees.import.update", { count: summary.update })}
+                </Badge>
+                {summary.skip > 0 && (
+                  <Badge variant="outline">
+                    {t("employees.import.skip", { count: summary.skip })}
+                  </Badge>
+                )}
+                {hasErrors && (
+                  <Badge variant="destructive">
+                    {t("employees.import.errorCount", { count: summary.error })}
+                  </Badge>
                 )}
               </div>
+
+              {preview.errors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{t("employees.import.errorsTitle")}</AlertTitle>
+                  <AlertDescription>
+                    <p className="mb-2">{t("employees.import.errorsDesc")}</p>
+                    <ul className="max-h-40 space-y-1 overflow-auto text-sm">
+                      {preview.errors.map((issue, index) => (
+                        <li key={`${issue.line}-${issue.field}-${index}`}>
+                          {issue.line > 0 && (
+                            <span className="font-medium">
+                              {t("employees.import.colLine")} {issue.line}
+                              {issue.field ? ` · ${issue.field}` : ""} :{" "}
+                            </span>
+                          )}
+                          {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="max-h-80 overflow-auto rounded-lg border border-border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-14">{t("employees.import.colLine")}</TableHead>
+                      <TableHead className="w-16">{t("employees.import.colLine")}</TableHead>
                       <TableHead>{t("employees.import.colEmployee")}</TableHead>
-                      <TableHead>{t("employees.import.colEmail")}</TableHead>
-                      <TableHead>{t("employees.import.colDepartment")}</TableHead>
-                      <TableHead>{t("employees.import.colRowStatus")}</TableHead>
+                      <TableHead>{t("employees.import.colAction")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
-                      <TableRow key={r.line} className={r.valid ? "bg-success/5" : "bg-destructive/5"}>
-                        <TableCell className="text-muted-foreground">{r.line}</TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {`${r.raw["Prénom"] ?? ""} ${r.raw["Nom"] ?? ""}`.trim() || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-[14rem] truncate">{r.raw["Email"] || "—"}</TableCell>
-                        <TableCell className="max-w-[10rem] truncate">{r.raw["Département"] || "—"}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.valid ? (
-                            <span className="text-success">{t("employees.import.readyToImport")}</span>
-                          ) : (
-                            <span className="text-destructive">{r.errors.join(" · ")}</span>
-                          )}
+                    {preview.rows.map((row) => (
+                      <TableRow
+                        key={row.line}
+                        className={row.action === "error" ? "bg-destructive/5" : undefined}
+                      >
+                        <TableCell className="text-muted-foreground">{row.line}</TableCell>
+                        <TableCell className="whitespace-nowrap">{row.name || "—"}</TableCell>
+                        <TableCell
+                          className={
+                            row.action === "error" ? "text-destructive" : "text-muted-foreground"
+                          }
+                        >
+                          {actionLabel[row.action]}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -190,15 +255,18 @@ export function EmployeeImportDialog({ open, onOpenChange, orgId, orgName, depar
                 </Table>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={reset} disabled={importing}>
+              <DialogActions>
+                <Button variant="outline" onClick={reset} disabled={commit.isPending}>
                   {t("employees.import.chooseOtherFile")}
                 </Button>
-                <Button onClick={() => void runImport()} disabled={validRows.length === 0 || importing}>
-                  {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t("employees.import.importCount", { count: validRows.length })}
+                <Button
+                  onClick={() => commit.mutate()}
+                  disabled={hasErrors || !writable || commit.isPending}
+                >
+                  {commit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("employees.import.importAction")}
                 </Button>
-              </div>
+              </DialogActions>
             </>
           )}
         </DialogBody>
