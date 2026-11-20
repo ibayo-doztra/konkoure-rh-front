@@ -60,6 +60,33 @@ test("deux onglets rechargés ensemble gardent la session", async ({ context, pa
   await expect(third.locator("#main-content")).toBeVisible();
 });
 
+test("un refresh limité par l'API (429) ne ferme pas la session", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  await signIn(page, owner.email);
+  await expect(page).toHaveURL(APP_URL);
+
+  // The API throttles before rotating: the refresh cookie stays valid.
+  let throttled = 0;
+  await page.route("**/api/v1/auth/refresh", async (route) => {
+    if (throttled >= 2) return route.continue();
+    throttled += 1;
+    return route.fulfill({
+      status: 429,
+      contentType: "application/json",
+      headers: {
+        "Access-Control-Allow-Origin": new URL(page.url()).origin,
+        "Access-Control-Allow-Credentials": "true",
+      },
+      body: JSON.stringify({ error: { code: "E_TOO_MANY_REQUESTS", message: "throttled" } }),
+    });
+  });
+
+  await page.reload();
+  await expect(page.locator("#main-content")).toBeVisible();
+  await expect(page).toHaveURL(APP_URL);
+  expect(throttled).toBe(2);
+});
+
 test("un membre de deux organisations passe de l'une à l'autre", async ({
   page,
   request,
