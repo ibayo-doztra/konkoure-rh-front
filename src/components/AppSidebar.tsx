@@ -1,7 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getPlatformAdminStatus } from "@/lib/api/legacy-functions";
 import {
   LayoutDashboard,
   Users,
@@ -18,7 +16,6 @@ import {
   Grid3x3,
   Crown,
   CreditCard,
-
   Settings,
   Share2,
   ChevronDown,
@@ -36,7 +33,13 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOrg } from "@/hooks/useOrg";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { canAccess } from "@/lib/permissions";
@@ -56,11 +59,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/brand/Logo";
@@ -73,7 +72,7 @@ export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const { org, organizations, selectOrganization } = useOrg();
-  const { user, loading: authLoading } = useAuth();
+  const { me } = useAuth();
   const { role } = useRole();
   const { hasModule } = useSubscription();
   const perfModel = org?.performance_model ?? "classic";
@@ -84,44 +83,24 @@ export function AppSidebar() {
       setOpenMobile(false);
     }
   };
-  const platformStatusFn = getPlatformAdminStatus;
-  const { data: platformStatus } = useQuery({
-    queryKey: ["platform-admin-status", user?.id ?? null, org?.id ?? null],
-    queryFn: async () => {
-      try {
-        return await platformStatusFn({ data: { organizationId: org!.id } });
-      } catch (error: any) {
-        if (error instanceof Response && error.status === 401) {
-          return { isPlatformAdmin: false };
-        }
-        if (error instanceof Error && /Unauthorized|authorization header/i.test(error.message)) {
-          return { isPlatformAdmin: false };
-        }
-        throw error;
-      }
-    },
-    enabled: !authLoading && !!user && !!org?.id,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-  const isPlatformAdmin = platformStatus?.isPlatformAdmin === true;
+  // `GET /me` says whether the user may open the platform back office.
+  const isPlatformAdmin = me?.isPlatformAdmin === true;
   const path = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (p: string, exact?: boolean) =>
     exact || p === "/app" ? path === p : path === p || path.startsWith(p + "/");
 
-  const performanceItems: Item[] = perfModel === "sap"
-    ? [
-        { to: "/app/performance/goals", icon: Target, label: t("nav.goals") },
-        { to: "/app/performance/reviews", icon: ClipboardCheck, label: t("nav.reviews") },
-        { to: "/app/performance/feedback", icon: MessageSquare, label: t("nav.feedback") },
-      ]
-    : [
-        { to: "/app/performance/okrs", icon: Target, label: t("nav.okrs"), badge: "OKR" },
-        { to: "/app/performance/reviews", icon: ClipboardCheck, label: t("nav.reviews") },
-        { to: "/app/performance/feedback", icon: MessageSquare, label: t("nav.feedback") },
-      ];
-
-
+  const performanceItems: Item[] =
+    perfModel === "sap"
+      ? [
+          { to: "/app/performance/goals", icon: Target, label: t("nav.goals") },
+          { to: "/app/performance/reviews", icon: ClipboardCheck, label: t("nav.reviews") },
+          { to: "/app/performance/feedback", icon: MessageSquare, label: t("nav.feedback") },
+        ]
+      : [
+          { to: "/app/performance/okrs", icon: Target, label: t("nav.okrs"), badge: "OKR" },
+          { to: "/app/performance/reviews", icon: ClipboardCheck, label: t("nav.reviews") },
+          { to: "/app/performance/feedback", icon: MessageSquare, label: t("nav.feedback") },
+        ];
 
   const allGroups: Group[] = [
     {
@@ -164,7 +143,6 @@ export function AppSidebar() {
       ],
     },
 
-
     {
       label: t("nav.talents"),
       icon: Star,
@@ -185,7 +163,6 @@ export function AppSidebar() {
 
         ...(isPlatformAdmin
           ? [{ to: "/app/settings/platform", icon: Shield, label: t("sidebar.platform") } as Item]
-
           : []),
       ],
     },
@@ -205,8 +182,8 @@ export function AppSidebar() {
         }))
         .filter((g) => g.items.length > 0);
 
-
-  const activeGroupLabel = groups.find((g) => g.items.some((it) => isActive(it.to, it.exact)))?.label ?? null;
+  const activeGroupLabel =
+    groups.find((g) => g.items.some((it) => isActive(it.to, it.exact)))?.label ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel);
   const [popoverGroup, setPopoverGroup] = useState<string | null>(null);
   useEffect(() => {
@@ -230,9 +207,7 @@ export function AppSidebar() {
     if (!group) return;
     const len = group.items.length;
     const next = ((itemIdx % len) + len) % len;
-    const el = document.querySelector<HTMLElement>(
-      `[data-sidebar-subitem="${groupIdx}-${next}"]`,
-    );
+    const el = document.querySelector<HTMLElement>(`[data-sidebar-subitem="${groupIdx}-${next}"]`);
     el?.focus();
   };
 
@@ -302,7 +277,6 @@ export function AppSidebar() {
         break;
     }
   };
-
 
   return (
     <Sidebar collapsible="icon">
@@ -396,7 +370,10 @@ export function AppSidebar() {
                       {!collapsed && (
                         <>
                           <span className="flex-1 text-left">Doc Flutter</span>
-                          <Badge variant="secondary" className="ml-auto px-1.5 py-0 text-[10px] font-semibold">
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto px-1.5 py-0 text-[10px] font-semibold"
+                          >
                             DEV
                           </Badge>
                         </>
@@ -528,7 +505,10 @@ export function AppSidebar() {
                                   >
                                     <span className={active ? "text-primary" : ""}>{it.label}</span>
                                     {it.badge && (
-                                      <Badge variant="secondary" className="ml-auto px-1.5 py-0 text-[10px] font-semibold">
+                                      <Badge
+                                        variant="secondary"
+                                        className="ml-auto px-1.5 py-0 text-[10px] font-semibold"
+                                      >
                                         {it.badge}
                                       </Badge>
                                     )}
