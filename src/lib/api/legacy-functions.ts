@@ -4,12 +4,6 @@
 // replacing these imports with a real `src/lib/api/<domain>.ts` module.
 import { pendingFn } from "@/lib/api/pending";
 
-// Leaves
-export const listHolidays = pendingFn("GET /org/holidays");
-export const upsertHoliday = pendingFn("POST|PATCH /org/holidays");
-export const deleteHoliday = pendingFn("DELETE /org/holidays/:id");
-export const getEmployeeLeaveBalance = pendingFn("GET /org/leaves/balances");
-
 // Timeclock
 export const scanNfcBadge = pendingFn("POST /org/timeclock/scan");
 export type ScanNfcBadgeResult =
@@ -63,13 +57,6 @@ export const updateAdminDemoRequest = pendingFn("PATCH /platform/demo-requests/:
 export const listAdminPlans = pendingFn("GET /platform/plans");
 export const upsertAdminPlan = pendingFn("POST|PATCH /platform/plans");
 export const deleteAdminPlan = pendingFn("DELETE /platform/plans/:id");
-
-// Leaves (requests)
-export const listLeaveRequests = pendingFn("GET /org/leaves");
-export const createLeaveRequest = pendingFn("POST /org/leaves");
-export const decideLeaveRequest = pendingFn("POST /org/leaves/:id/approve|reject");
-export const cancelLeaveRequest = pendingFn("POST /org/leaves/:id/cancel");
-export const computeWorkingDays = pendingFn("GET /org/leaves/calendar");
 
 // Social publishing
 export const listSocialAccounts = pendingFn("GET /org/integrations/social/accounts");

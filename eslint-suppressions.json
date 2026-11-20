@@ -108,14 +108,6 @@
       "count": 2
     }
   },
-  "src/components/leaves/LeaveDetailSheet.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prettier/prettier": {
-      "count": 4
-    }
-  },
   "src/components/recruitment/CvPreviewDialog.tsx": {
     "prettier/prettier": {
       "count": 1
@@ -296,22 +288,6 @@
     },
     "prettier/prettier": {
       "count": 54
-    }
-  },
-  "src/routes/_authenticated.app.leaves.holidays.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 7
-    },
-    "prettier/prettier": {
-      "count": 9
-    }
-  },
-  "src/routes/_authenticated.app.leaves.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 24
-    },
-    "prettier/prettier": {
-      "count": 159
     }
   },
   "src/routes/_authenticated.app.module-indisponible.tsx": {

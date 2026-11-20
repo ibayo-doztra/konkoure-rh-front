@@ -1,6 +1,6 @@
 export interface HolidayLike {
   date: string;
-  is_movable: boolean;
+  isMovable: boolean;
 }
 
 /**
@@ -11,7 +11,7 @@ export function isFutureMovableHoliday(
   holiday: HolidayLike,
   referenceDate: Date = new Date(),
 ): boolean {
-  if (!holiday.is_movable) return false;
+  if (!holiday.isMovable) return false;
 
   const ref = new Date(referenceDate);
   ref.setHours(0, 0, 0, 0);
