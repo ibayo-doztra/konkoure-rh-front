@@ -155,3 +155,138 @@ test("supprimer un département occupé impose de déplacer ses employés", asyn
   await expect(page.getByText("Département supprimé")).toBeVisible();
   await expect(page.getByText("Atelier")).toHaveCount(0);
 });
+
+const isoDay = (offsetDays: number) =>
+  new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+
+/** A table row on desktop, a card on mobile: the visible one holding `text` and `button`. */
+function rowWith(page: Page, text: string, button: string) {
+  return page
+    .locator("tr, div")
+    .filter({ hasText: text })
+    .filter({ has: page.getByRole("button", { name: button, exact: true }) })
+    .last();
+}
+
+test("les RH créent, modifient, clôturent et suppriment des contrats", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  await createEmployee(request, owner, { firstName: "Aminata", lastName: "Sylla" });
+  const other = await createEmployee(request, owner, { firstName: "Sékou", lastName: "Touré" });
+  await apiPost(request, owner, "/org/contracts", {
+    employeeId: other.id,
+    type: "cdi",
+    startDate: isoDay(-10),
+  });
+  await signInAt(page, owner.email, "/app/contracts");
+
+  await page.getByRole("button", { name: "Nouveau contrat" }).click();
+  await choose(page, "Employé", "Aminata Sylla");
+  await choose(page, "Type", "CDD");
+  await choose(page, "Statut", "Actif");
+  await page.locator("#contract-start").fill(isoDay(-60));
+  await page.locator("#contract-end").fill(isoDay(300));
+  await page.locator("#contract-salary").fill("3500000");
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("Contrat créé")).toBeVisible();
+
+  await rowWith(page, "Aminata Sylla", "Modifier")
+    .getByRole("button", { name: "Modifier", exact: true })
+    .click();
+  await expect(page.getByRole("combobox", { name: "Employé" })).toBeDisabled();
+  await page.locator("#contract-hours").fill("40");
+  await page.getByRole("dialog").getByRole("button", { name: "Mettre à jour" }).click();
+  await expect(page.getByText("Contrat mis à jour")).toBeVisible();
+
+  await rowWith(page, "Aminata Sylla", "Actions")
+    .getByRole("button", { name: "Actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Clôturer" }).click();
+  await expect(page.locator("#contract-close-date")).toHaveValue(isoDay(0));
+  await page.getByRole("button", { name: "Confirmer la clôture" }).click();
+  await expect(page.getByText("Contrat clôturé")).toBeVisible();
+  // Only Aminata's contract is closed; Sékou's stays a draft.
+  await expect(page.getByText("Terminé", { exact: true }).filter({ visible: true })).toBeVisible();
+
+  await rowWith(page, "Sékou Touré", "Actions")
+    .getByRole("button", { name: "Actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Supprimer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByText("Contrat supprimé")).toBeVisible();
+  await expect(page.getByText("Sékou Touré")).toHaveCount(0);
+});
+
+test("l'import d'employés est bloqué tant que le fichier contient une erreur", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  await signInAt(page, owner.email, "/app/employees");
+
+  const upload = (rows: string[]) =>
+    page.locator('input[type="file"][accept=".xlsx,.csv"]').setInputFiles({
+      name: "employes.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(["Nom;Prénom;E-mail", ...rows].join("\n"), "utf8"),
+    });
+  const fanta = uniqueEmail("fanta");
+
+  await page.getByRole("button", { name: "Actions employés" }).click();
+  await page.getByRole("menuitem", { name: "Importer des employés" }).click();
+  const dialog = page.getByRole("dialog");
+
+  await upload(["Camara;Fanta;adresse-invalide", `Bah;Alpha;${uniqueEmail("alpha")}`]);
+  await expect(dialog.getByText("1 en erreur")).toBeVisible();
+  await expect(dialog.getByText("Corrigez le fichier avant d'importer")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Importer", exact: true })).toBeDisabled();
+
+  await dialog.getByRole("button", { name: "Choisir un autre fichier" }).click();
+  await upload([`Camara;Fanta;${fanta}`, `Bah;Alpha;${uniqueEmail("alpha")}`]);
+  await expect(dialog.getByText("2 à créer")).toBeVisible();
+  await dialog.getByRole("button", { name: "Importer", exact: true }).click();
+  await expect(page.getByText("Import terminé : 2 créé(s), 0 mis à jour.")).toBeVisible();
+  await expect(page.getByText("Fanta Camara")).toBeVisible();
+  await expect(page.getByText("Alpha Bah")).toBeVisible();
+});
+
+// konkoure-rh-api: POST /org/employees/:id/badge answers 500 (badge_service.ts refreshes the
+// new badge after its nested transaction has ended, so RLS hides it). Enable once fixed.
+test.fixme("les RH attribuent puis révoquent le badge NFC d'un employé", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const employee = await createEmployee(request, owner, {
+    firstName: "Mariama",
+    lastName: "Diallo",
+  });
+  // A UID is unique across organizations: each run uses its own.
+  const uid = Array.from({ length: 8 }, () => "0123456789ABCDEF"[Math.floor(Math.random() * 16)])
+    .join("")
+    .replace(/(..)(?!$)/g, "$1:");
+  const lastFour = uid.replace(/:/g, "").slice(-4);
+  await signInAt(page, owner.email, `/app/employees/${employee.id}`);
+
+  await expect(page.getByText("Aucun badge attribué.")).toBeVisible();
+  await page.locator("#nfc-uid").fill(uid);
+  const assigned = page.waitForResponse(
+    (r) => r.url().endsWith(`/employees/${employee.id}/badge`) && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Attribuer" }).click();
+  const response = await assigned;
+  expect(response.status(), await response.text()).toBe(201);
+  await expect(page.getByText("Badge attribué", { exact: true })).toBeVisible();
+  const current = page.getByTestId("badge-uid");
+  await expect(current).toContainText(lastFour);
+  await expect(current).not.toContainText(uid.replace(/:/g, "").slice(0, 4));
+  await expect(page.getByText("Attribué", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Révoquer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Révoquer" }).click();
+  await expect(page.getByText("Badge révoqué")).toBeVisible();
+  await expect(page.getByText("Aucun badge attribué.")).toBeVisible();
+  await expect(page.getByText("Révoqué", { exact: true })).toBeVisible();
+});

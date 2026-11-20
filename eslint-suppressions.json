@@ -1,9 +1,4 @@
 {
-  "src/components/ActionMenu.tsx": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
   "src/components/AppBreadcrumbs.tsx": {
     "prettier/prettier": {
       "count": 3
@@ -60,19 +55,6 @@
   "src/components/employees/EmployeeCombobox.tsx": {
     "prettier/prettier": {
       "count": 12
-    }
-  },
-  "src/components/employees/EmployeeImportDialog.tsx": {
-    "prettier/prettier": {
-      "count": 19
-    }
-  },
-  "src/components/employees/NfcBadgeCard.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "prettier/prettier": {
-      "count": 11
     }
   },
   "src/components/jobs/JobForm.tsx": {
@@ -207,11 +189,6 @@
       "count": 1
     }
   },
-  "src/lib/employee-import.ts": {
-    "prettier/prettier": {
-      "count": 6
-    }
-  },
   "src/lib/i18n.ts": {
     "prettier/prettier": {
       "count": 49
@@ -242,11 +219,6 @@
       "count": 25
     }
   },
-  "src/locales/en/hrm.ts": {
-    "prettier/prettier": {
-      "count": 11
-    }
-  },
   "src/locales/en/performance.ts": {
     "prettier/prettier": {
       "count": 22
@@ -270,11 +242,6 @@
   "src/locales/fr/billing.ts": {
     "prettier/prettier": {
       "count": 30
-    }
-  },
-  "src/locales/fr/hrm.ts": {
-    "prettier/prettier": {
-      "count": 10
     }
   },
   "src/locales/fr/performance.ts": {
@@ -321,11 +288,6 @@
   "src/routes/_authenticated.app.billing.return.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/routes/_authenticated.app.contracts.tsx": {
-    "prettier/prettier": {
-      "count": 168
     }
   },
   "src/routes/_authenticated.app.index.tsx": {

@@ -55,7 +55,7 @@ export function ActionMenu({ items, align = "end", label = "Actions", triggerCla
           const item = it as Extract<ActionMenuItem, { label: string }>;
           const cls = cn(
             "gap-2",
-            item.variant === "destructive" && "text-destructive focus:text-destructive"
+            item.variant === "destructive" && "text-destructive focus:text-destructive",
           );
           if (item.href) {
             return (
@@ -71,9 +71,10 @@ export function ActionMenu({ items, align = "end", label = "Actions", triggerCla
             <DropdownMenuItem
               key={item.label}
               disabled={item.disabled}
-              onSelect={(e) => {
-                e.preventDefault();
-                item.onSelect?.();
+              onSelect={() => {
+                // Let the menu close first: a dialog opened while it is still
+                // open would leave it on screen once the dialog is dismissed.
+                setTimeout(() => item.onSelect?.(), 0);
               }}
               className={cls}
             >

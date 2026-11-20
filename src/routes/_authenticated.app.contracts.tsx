@@ -1,6 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { pendingQuery } from "@/lib/api/pending";
+import { useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  allEmployeesQuery,
+  contractDocumentUrl,
+  contractsQuery,
+  createContract,
+  deleteContract,
+  employeeQuery,
+  hrKey,
+  terminateContract,
+  updateContract,
+  uploadContractDocument,
+  type Contract,
+  type ContractInput,
+  type ContractType,
+} from "@/lib/api/hr";
 import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
 import { useMyEmployee } from "@/hooks/useMyEmployee";
@@ -34,7 +50,9 @@ import {
   AlertTriangle,
   BellRing,
   CheckCircle2,
+  Eye,
   FileText,
+  Paperclip,
   Plus,
   Trash2,
   Pencil,
@@ -108,8 +126,14 @@ function fmtDate(d: string | Date | null | undefined, locale = "fr-FR") {
   return new Date(d).toLocaleDateString(locale);
 }
 
-const CONTRACT_TYPES = ["cdi", "cdd", "stage", "freelance", "apprenticeship", "Journalier"] as const;
-type ContractType = (typeof CONTRACT_TYPES)[number];
+const CONTRACT_TYPES: ContractType[] = [
+  "cdi",
+  "cdd",
+  "stage",
+  "freelance",
+  "apprenticeship",
+  "daily",
+];
 function useContractTypeLabel(t: (k: string) => string): Record<string, string> {
   return {
     cdi: t("contracts.typeCdi"),
@@ -117,37 +141,33 @@ function useContractTypeLabel(t: (k: string) => string): Record<string, string> 
     stage: t("contracts.typeStage"),
     freelance: t("contracts.typeFreelance"),
     apprenticeship: t("contracts.typeApprenticeship"),
-    Journalier: t("contracts.typeJournalier"),
+    daily: t("contracts.typeJournalier"),
   };
 }
 
-type EmployeeRef = { id: string; first_name: string; last_name: string; position: string | null };
+type EmployeeRef = { firstName: string; lastName: string; jobTitle: string | null };
 
-type ContractRow = {
-  id: string;
-  employee_id: string;
-  type: string;
-  status: string;
-  start_date: string;
-  end_date: string | null;
-  salary: number | null;
-  currency: string | null;
-  trial_period_end: string | null;
-  notes: string | null;
-  employees: { first_name: string; last_name: string; position?: string | null } | null;
-};
+type ContractRow = Contract & { employee: EmployeeRef | null };
 
-type DisplayStatus = "actif" | "expire" | "preavis" | "brouillon" | "termine";
+const employeeName = (c: ContractRow) =>
+  `${c.employee?.firstName ?? ""} ${c.employee?.lastName ?? ""}`.trim();
 
-function getDisplayStatus(c: ContractRow): { key: DisplayStatus; noticeStart?: Date; noticeDays?: number } {
+type DisplayStatus = "actif" | "expire" | "preavis" | "brouillon" | "suspendu" | "termine";
+
+function getDisplayStatus(c: ContractRow): {
+  key: DisplayStatus;
+  noticeStart?: Date;
+  noticeDays?: number;
+} {
   if (c.status === "draft") return { key: "brouillon" };
   if (c.status === "terminated") return { key: "termine" };
-  if (c.end_date) {
-    const end = new Date(c.end_date);
+  if (c.status === "suspended") return { key: "suspendu" };
+  if (c.endDate) {
+    const end = new Date(c.endDate);
     const today = new Date();
     if (end < today) return { key: "expire" };
-    const cat = getEmployeeCategory(c.employees?.position);
-    const noticeStart = getNoticeStartDate(c.end_date, getNoticeMonths(cat));
+    const cat = getEmployeeCategory(c.employee?.jobTitle);
+    const noticeStart = getNoticeStartDate(c.endDate, getNoticeMonths(cat));
     const days = daysUntil(noticeStart);
     if (days <= 0) return { key: "preavis", noticeStart, noticeDays: days };
     return { key: "actif", noticeStart, noticeDays: days };
@@ -157,11 +177,15 @@ function getDisplayStatus(c: ContractRow): { key: DisplayStatus; noticeStart?: D
 
 function StatusBadge({ s }: { s: DisplayStatus }) {
   const { t } = useTranslation();
-  const map: Record<DisplayStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  const map: Record<
+    DisplayStatus,
+    { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  > = {
     actif: { label: t("contracts.statusActive"), variant: "default" },
     preavis: { label: t("contracts.statusOnNotice"), variant: "destructive" },
     expire: { label: t("contracts.statusExpired"), variant: "destructive" },
     brouillon: { label: t("contracts.statusDraft"), variant: "outline" },
+    suspendu: { label: t("contracts.statusSuspended"), variant: "secondary" },
     termine: { label: t("contracts.statusTerminated"), variant: "secondary" },
   };
   const { label, variant } = map[s];
@@ -171,26 +195,32 @@ function StatusBadge({ s }: { s: DisplayStatus }) {
 // ----------------- Form types -----------------
 type FormState = {
   id?: string;
-  employee_id: string;
+  employeeId: string;
   type: ContractType;
-  status: "draft" | "active" | "terminated";
-  start_date: string;
-  end_date: string;
+  status: ContractInput["status"];
+  startDate: string;
+  endDate: string;
   salary: string;
-  trial_period_end: string;
+  weeklyHours: string;
+  trialPeriodEnd: string;
   notes: string;
 };
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 const emptyForm = (): FormState => ({
-  employee_id: "",
+  employeeId: "",
   type: "cdi",
   status: "draft",
-  start_date: new Date().toISOString().slice(0, 10),
-  end_date: "",
+  startDate: today(),
+  endDate: "",
   salary: "",
-  trial_period_end: "",
+  weeklyHours: "",
+  trialPeriodEnd: "",
   notes: "",
 });
+
+const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 // ----------------- Page -----------------
 function ContractsPage() {
@@ -203,38 +233,117 @@ function ContractsPage() {
   // Seuls les RH / propriétaires gèrent les contrats.
   // Les autres rôles n'accèdent qu'à leur propre contrat, en lecture seule.
   const canManage = isAdmin;
-  const [items, setItems] = useState<ContractRow[]>([]);
-  const [employees, setEmployees] = useState<EmployeeRef[]>([]);
+  const queryClient = useQueryClient();
+  const organizationId = org?.id ?? "";
   const [closing, setClosing] = useState<ContractRow | null>(null);
+  const [closeDate, setCloseDate] = useState(today());
   const [pendingDelete, setPendingDelete] = useState<ContractRow | null>(null);
-  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<FormState | null>(null);
+  const documentInput = useRef<HTMLInputElement>(null);
+  const [documentFor, setDocumentFor] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!org) return;
-    if (!canManage) {
-      if (employeeLoading) return;
-      if (!myEmployee?.id) {
-        setItems([]);
-        setEmployees([]);
-        return;
-      }
-      const { data: mine } = await pendingQuery("GET /org/contracts");
-      setItems((mine as ContractRow[]) ?? []);
-      setEmployees([]);
+  // Owner and hr_admin manage every contract; everyone else only reads their own.
+  const selfId = canManage ? undefined : myEmployee?.id;
+  const contracts = useQuery({
+    ...contractsQuery(organizationId, selfId),
+    enabled: !!org && (canManage || (!employeeLoading && !!selfId)),
+  });
+  const allEmployees = useQuery({
+    ...allEmployeesQuery(organizationId),
+    enabled: !!org && canManage,
+  });
+  const self = useQuery({
+    ...employeeQuery(organizationId, selfId ?? ""),
+    enabled: !!org && !!selfId,
+  });
+
+  const employees = useMemo(() => allEmployees.data ?? [], [allEmployees.data]);
+  const items = useMemo<ContractRow[]>(() => {
+    const byId = new Map<string, EmployeeRef>(employees.map((e) => [e.id, e]));
+    if (self.data) byId.set(self.data.id, self.data);
+    if (!selfId && !canManage) return [];
+    return (contracts.data ?? []).map((c) => ({ ...c, employee: byId.get(c.employeeId) ?? null }));
+  }, [contracts.data, employees, self.data, selfId, canManage]);
+
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: [...hrKey(organizationId), "contracts"] });
+
+  const closeMutation = useMutation({
+    mutationFn: ({ id, endDate }: { id: string; endDate: string }) =>
+      terminateContract(id, endDate),
+    onSuccess: () => {
+      toast.success(t("contracts.closed"));
+      setClosing(null);
+      void refresh();
+    },
+    onError: (error) =>
+      toast.error(t("contracts.closeError"), { description: apiErrorMessage(error) }),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: ContractInput }) =>
+      id ? updateContract(id, input) : createContract(input),
+    onSuccess: (_contract, { id }) => {
+      toast.success(id ? t("contracts.updatedToast") : t("contracts.createdToast"));
+      setEditing(null);
+      void refresh();
+    },
+    onError: (error) =>
+      toast.error(t("contracts.saveError"), { description: apiErrorMessage(error) }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteContract(id),
+    onSuccess: () => {
+      toast.success(t("contracts.deletedToast"));
+      setPendingDelete(null);
+      void refresh();
+    },
+    onError: (error) =>
+      toast.error(t("contracts.deleteError"), { description: apiErrorMessage(error) }),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => uploadContractDocument(id, file),
+    onSuccess: () => {
+      toast.success(t("contracts.documentUploaded"));
+      void refresh();
+    },
+    onError: (error) =>
+      toast.error(t("contracts.documentError"), { description: apiErrorMessage(error) }),
+  });
+
+  const loading = closeMutation.isPending || saveMutation.isPending;
+
+  async function openDocument(c: ContractRow) {
+    // Open the tab during the click so that the browser does not block it.
+    const tab = window.open("", "_blank");
+    try {
+      const { url } = await contractDocumentUrl(c.id);
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = url;
+      } else window.location.assign(url);
+    } catch (error) {
+      tab?.close();
+      toast.error(t("contracts.documentError"), { description: apiErrorMessage(error) });
+    }
+  }
+
+  function pickDocument(c: ContractRow) {
+    setDocumentFor(c.id);
+    documentInput.current?.click();
+  }
+
+  function onDocumentPicked(file: File | undefined) {
+    if (documentInput.current) documentInput.current.value = "";
+    if (!file || !documentFor) return;
+    if (file.size > DOCUMENT_MAX_BYTES) {
+      toast.error(t("contracts.documentTooLarge"));
       return;
     }
-    const [{ data: contracts }, { data: emps }] = await Promise.all([
-      pendingQuery("GET /org/contracts"),
-      pendingQuery("GET /org/employees"),
-    ]);
-    setItems((contracts as ContractRow[]) ?? []);
-    setEmployees((emps as EmployeeRef[]) ?? []);
-  }, [org, canManage, employeeLoading, myEmployee?.id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+    uploadMutation.mutate({ id: documentFor, file });
+  }
 
   const nonCompliantCDD = useMemo(
     () =>
@@ -243,7 +352,7 @@ function ContractsPage() {
           c.type === "cdd" &&
           c.status !== "terminated" &&
           getDisplayStatus(c).key !== "termine" &&
-          isCDDOverLimit(c.start_date, c.end_date),
+          isCDDOverLimit(c.startDate, c.endDate),
       ),
     [items],
   );
@@ -253,15 +362,25 @@ function ContractsPage() {
       items
         .map((c) => ({ c, d: getDisplayStatus(c) }))
         .filter(
-          ({ d }) => d.noticeDays !== undefined && d.noticeDays > 0 && d.noticeDays <= 30 && d.key !== "termine",
+          ({ d }) =>
+            d.noticeDays !== undefined &&
+            d.noticeDays > 0 &&
+            d.noticeDays <= 30 &&
+            d.key !== "termine",
         ),
     [items],
   );
 
-  const inNotice = useMemo(() => items.filter((c) => getDisplayStatus(c).key === "preavis"), [items]);
+  const inNotice = useMemo(
+    () => items.filter((c) => getDisplayStatus(c).key === "preavis"),
+    [items],
+  );
 
   const activeCount = useMemo(
-    () => items.filter((c) => getDisplayStatus(c).key === "actif" || getDisplayStatus(c).key === "preavis").length,
+    () =>
+      items.filter(
+        (c) => getDisplayStatus(c).key === "actif" || getDisplayStatus(c).key === "preavis",
+      ).length,
     [items],
   );
 
@@ -273,105 +392,74 @@ function ContractsPage() {
     [items],
   );
 
-  async function confirmClose() {
-    if (!closing) return;
-    setLoading(true);
-    const { error } = await pendingQuery("PATCH /org/contracts");
-    setLoading(false);
-    if (error) {
-      toast.error(t("contracts.closeError"), { description: error.message });
-      return;
-    }
-    toast.success(t("contracts.closed"));
-    setClosing(null);
-    void load();
+  function openClose(c: ContractRow) {
+    setCloseDate(today());
+    setClosing(c);
   }
 
-  async function saveContract() {
+  function saveContract() {
     if (!editing || !org) return;
-    if (!editing.employee_id) {
+    if (!editing.employeeId) {
       toast.error(t("contracts.selectEmployeeError"));
       return;
     }
-    if (!editing.start_date) {
+    if (!editing.startDate) {
       toast.error(t("contracts.startDateRequiredError"));
       return;
     }
-    if ((editing.type === "cdd" || editing.type === "stage") && !editing.end_date) {
+    if ((editing.type === "cdd" || editing.type === "stage") && !editing.endDate) {
       toast.error(t("contracts.endDateRequiredError"));
       return;
     }
-    setLoading(true);
-    const payload = {
-      organization_id: org.id,
-      employee_id: editing.employee_id,
-      type: editing.type,
-      status: editing.status,
-      start_date: editing.start_date,
-      end_date: editing.end_date || null,
-      salary: editing.salary ? Number(editing.salary) : null,
-      
-      trial_period_end: editing.trial_period_end || null,
-      notes: editing.notes || null,
-    };
-    const { error } = editing.id
-      ? await pendingQuery("PATCH /org/contracts")
-      : await pendingQuery("POST /org/contracts");
-    setLoading(false);
-    if (error) {
-      toast.error(t("contracts.saveError"), { description: error.message });
-      return;
-    }
-    toast.success(editing.id ? t("contracts.updatedToast") : t("contracts.createdToast"));
-    setEditing(null);
-    void load();
-  }
-
-  async function performDelete() {
-    if (!pendingDelete) return;
-    const { error } = await pendingQuery("DELETE /org/contracts");
-    if (error) {
-      toast.error(t("contracts.deleteError"), { description: error.message });
-      return;
-    }
-    toast.success(t("contracts.deletedToast"));
-    setPendingDelete(null);
-    void load();
+    saveMutation.mutate({
+      id: editing.id,
+      input: {
+        employeeId: editing.employeeId,
+        type: editing.type,
+        status: editing.status,
+        startDate: editing.startDate,
+        endDate: editing.endDate || null,
+        salary: editing.salary ? Number(editing.salary) : null,
+        weeklyHours: editing.weeklyHours ? Number(editing.weeklyHours) : null,
+        trialPeriodEnd: editing.trialPeriodEnd || null,
+        notes: editing.notes || null,
+      },
+    });
   }
 
   function openEdit(c: ContractRow) {
     setEditing({
       id: c.id,
-      employee_id: c.employee_id,
-      type: (c.type as ContractType) ?? "cdi",
-      status: (c.status as "draft" | "active" | "terminated") ?? "draft",
-      start_date: c.start_date,
-      end_date: c.end_date ?? "",
+      employeeId: c.employeeId,
+      type: c.type,
+      status: c.status === "terminated" ? "active" : c.status,
+      startDate: c.startDate,
+      endDate: c.endDate ?? "",
       salary: c.salary != null ? String(c.salary) : "",
-      trial_period_end: c.trial_period_end ?? "",
+      weeklyHours: c.weeklyHours != null ? String(c.weeklyHours) : "",
+      trialPeriodEnd: c.trialPeriodEnd ?? "",
       notes: c.notes ?? "",
     });
   }
 
   // Live preview helpers for the form
-  const formEmployee = employees.find((e) => e.id === editing?.employee_id);
-  const formCategory = formEmployee ? getEmployeeCategory(formEmployee.position) : null;
+  const formEmployee = employees.find((e) => e.id === editing?.employeeId);
+  const formCategory = formEmployee ? getEmployeeCategory(formEmployee.jobTitle) : null;
   const formMonths =
-    editing && editing.start_date && editing.end_date
-      ? monthsBetween(editing.start_date, editing.end_date)
+    editing && editing.startDate && editing.endDate
+      ? monthsBetween(editing.startDate, editing.endDate)
       : null;
   const formOverLimit =
-    editing?.type === "cdd" && editing.end_date && isCDDOverLimit(editing.start_date, editing.end_date);
+    editing?.type === "cdd" &&
+    editing.endDate &&
+    isCDDOverLimit(editing.startDate, editing.endDate);
+  const locale = i18n.language === "en" ? "en-US" : "fr-FR";
 
   return (
     <div className="space-y-4">
       <PageHeader
         title={canManage ? t("contracts.title") : t("contracts.myContract")}
-        description={
-          canManage
-            ? t("contracts.description")
-            : t("contracts.myDescription")
-        }
+        description={canManage ? t("contracts.description") : t("contracts.myDescription")}
         actions={
           canManage ? (
             <Button onClick={() => setEditing(emptyForm())}>
@@ -384,7 +472,11 @@ function ContractsPage() {
       {/* KPIs */}
       {canManage && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <KpiCard icon={<FileText className="h-4 w-4" />} label={t("contracts.kpiActive")} value={String(activeCount)} />
+          <KpiCard
+            icon={<FileText className="h-4 w-4" />}
+            label={t("contracts.kpiActive")}
+            value={String(activeCount)}
+          />
           <KpiCard
             icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
             label={t("contracts.kpiNonCompliantCdd")}
@@ -407,12 +499,11 @@ function ContractsPage() {
       {canManage && nonCompliantCDD.length > 0 && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t("contracts.nonCompliantTitle", { count: nonCompliantCDD.length })}</AlertTitle>
+          <AlertTitle>
+            {t("contracts.nonCompliantTitle", { count: nonCompliantCDD.length })}
+          </AlertTitle>
           <AlertDescription>
-            {t("contracts.nonCompliantDesc")}{" "}
-            {nonCompliantCDD
-              .map((c) => `${c.employees?.first_name ?? ""} ${c.employees?.last_name ?? ""}`.trim())
-              .join(", ")}
+            {t("contracts.nonCompliantDesc")} {nonCompliantCDD.map(employeeName).join(", ")}
           </AlertDescription>
         </Alert>
       )}
@@ -420,12 +511,16 @@ function ContractsPage() {
       {canManage && (upcomingNotices.length > 0 || inNotice.length > 0) && (
         <Alert>
           <BellRing className="h-4 w-4" />
-          <AlertTitle>{t("contracts.upcomingNoticeTitle", { count: upcomingNotices.length + inNotice.length })}</AlertTitle>
+          <AlertTitle>
+            {t("contracts.upcomingNoticeTitle", {
+              count: upcomingNotices.length + inNotice.length,
+            })}
+          </AlertTitle>
           <AlertDescription>
             {[...inNotice.map((c) => ({ c, d: getDisplayStatus(c) })), ...upcomingNotices]
               .map(
                 ({ c, d }) =>
-                  `${c.employees?.first_name ?? ""} ${c.employees?.last_name ?? ""} (${t("contracts.noticePrefix", { date: fmtDate(d.noticeStart, i18n.language === "en" ? "en-US" : "fr-FR") })})`,
+                  `${employeeName(c)} (${t("contracts.noticePrefix", { date: fmtDate(d.noticeStart, locale) })})`,
               )
               .join(" • ")}
           </AlertDescription>
@@ -437,17 +532,13 @@ function ContractsPage() {
           <ResponsiveTable
             data={items}
             getRowKey={(c) => c.id}
-            empty={
-              canManage
-                ? t("contracts.emptyManaged")
-                : t("contracts.emptySelf")
-            }
+            empty={canManage ? t("contracts.emptyManaged") : t("contracts.emptySelf")}
             columns={[
               {
                 key: "employee",
                 header: t("contracts.colEmployee"),
                 priority: "primary",
-                cell: (c) => `${c.employees?.first_name ?? ""} ${c.employees?.last_name ?? ""}`.trim() || "—",
+                cell: (c) => employeeName(c) || "—",
               },
               {
                 key: "type",
@@ -461,11 +552,13 @@ function ContractsPage() {
                 header: t("contracts.colCategory"),
                 className: "text-muted-foreground",
                 cell: (c) => {
-                  const cat = getEmployeeCategory(c.employees?.position);
+                  const cat = getEmployeeCategory(c.employee?.jobTitle);
                   return (
                     <>
                       {CATEGORY_LABEL[cat]}
-                      <div className="text-xs">{t("contracts.noticeMonths", { count: getNoticeMonths(cat) })}</div>
+                      <div className="text-xs">
+                        {t("contracts.noticeMonths", { count: getNoticeMonths(cat) })}
+                      </div>
                     </>
                   );
                 },
@@ -477,11 +570,13 @@ function ContractsPage() {
                 cell: (c) => (
                   <>
                     <span className="whitespace-nowrap">
-                      {fmtDate(c.start_date, i18n.language === "en" ? "en-US" : "fr-FR")} → {fmtDate(c.end_date, i18n.language === "en" ? "en-US" : "fr-FR")}
+                      {fmtDate(c.startDate, locale)} → {fmtDate(c.endDate, locale)}
                     </span>
-                    {c.end_date && (
+                    {c.endDate && (
                       <div className="text-xs">
-                        {t("contracts.monthsShort", { count: monthsBetween(c.start_date, c.end_date).toFixed(1) })}
+                        {t("contracts.monthsShort", {
+                          count: monthsBetween(c.startDate, c.endDate).toFixed(1),
+                        })}
                       </div>
                     )}
                   </>
@@ -503,7 +598,7 @@ function ContractsPage() {
                 className: "space-y-1",
                 cell: (c) => {
                   const disp = getDisplayStatus(c);
-                  const overLimit = c.type === "cdd" && isCDDOverLimit(c.start_date, c.end_date);
+                  const overLimit = c.type === "cdd" && isCDDOverLimit(c.startDate, c.endDate);
                   const noticeImminent =
                     disp.noticeDays !== undefined && disp.noticeDays > 0 && disp.noticeDays <= 30;
                   return (
@@ -515,12 +610,14 @@ function ContractsPage() {
                       )}
                       {noticeImminent && disp.key !== "preavis" && (
                         <Badge variant="secondary" className="block w-fit">
-                          {t("contracts.noticeImminent", { date: fmtDate(disp.noticeStart, i18n.language === "en" ? "en-US" : "fr-FR") })}
+                          {t("contracts.noticeImminent", {
+                            date: fmtDate(disp.noticeStart, locale),
+                          })}
                         </Badge>
                       )}
                       {disp.key === "preavis" && disp.noticeStart && (
                         <Badge variant="destructive" className="block w-fit">
-                          {t("contracts.noticeSince", { date: fmtDate(disp.noticeStart, i18n.language === "en" ? "en-US" : "fr-FR") })}
+                          {t("contracts.noticeSince", { date: fmtDate(disp.noticeStart, locale) })}
                         </Badge>
                       )}
                       {!overLimit && !noticeImminent && disp.key === "actif" && (
@@ -532,45 +629,59 @@ function ContractsPage() {
                   );
                 },
               },
-              ...(canManage
-                ? ([
-                    {
-                      key: "actions",
-                      header: t("contracts.colActions"),
-                      priority: "actions" as const,
-                      align: "right" as const,
-                      className: "text-right whitespace-nowrap",
-                      cell: (c: (typeof items)[number]) => {
-                        const canClose = c.status === "active" || c.status === "draft";
-                        return (
-                          <div className="inline-flex items-center gap-1">
-                            <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
-                              <Pencil className="mr-1 h-4 w-4" />
-                              {t("contracts.edit")}
-                            </Button>
-                            <ActionMenu
-                              items={[
-                                {
-                                  label: t("contracts.close"),
-                                  icon: <CheckCircle2 className="h-4 w-4" />,
-                                  onSelect: () => setClosing(c),
-                                  hidden: !canClose,
-                                },
-                                { type: "separator", hidden: !canClose },
-                                {
-                                  label: t("contracts.delete"),
-                                  icon: <Trash2 className="h-4 w-4" />,
-                                  onSelect: () => setPendingDelete(c),
-                                  variant: "destructive",
-                                },
-                              ]}
-                            />
-                          </div>
-                        );
-                      },
-                    },
-                  ])
-                : []),
+              {
+                key: "actions",
+                header: t("contracts.colActions"),
+                priority: "actions" as const,
+                align: "right" as const,
+                className: "text-right whitespace-nowrap",
+                cell: (c: ContractRow) => {
+                  const canClose = c.status === "active" || c.status === "suspended";
+                  const editable = c.status !== "terminated";
+                  return (
+                    <div className="inline-flex items-center gap-1">
+                      {canManage && editable && (
+                        <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
+                          <Pencil className="mr-1 h-4 w-4" />
+                          {t("contracts.edit")}
+                        </Button>
+                      )}
+                      <ActionMenu
+                        label={t("contracts.colActions")}
+                        items={[
+                          {
+                            label: t("contracts.viewDocument"),
+                            icon: <Eye className="h-4 w-4" />,
+                            onSelect: () => void openDocument(c),
+                            hidden: !c.hasDocument,
+                          },
+                          {
+                            label: t("contracts.attachDocument"),
+                            icon: <Paperclip className="h-4 w-4" />,
+                            onSelect: () => pickDocument(c),
+                            hidden: !canManage,
+                            disabled: uploadMutation.isPending,
+                          },
+                          { type: "separator", hidden: !canManage },
+                          {
+                            label: t("contracts.close"),
+                            icon: <CheckCircle2 className="h-4 w-4" />,
+                            onSelect: () => openClose(c),
+                            hidden: !canManage || !canClose,
+                          },
+                          {
+                            label: t("contracts.delete"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            onSelect: () => setPendingDelete(c),
+                            variant: "destructive",
+                            hidden: !canManage,
+                          },
+                        ]}
+                      />
+                    </div>
+                  );
+                },
+              },
             ]}
           />
         </CardContent>
@@ -584,8 +695,7 @@ function ContractsPage() {
             <DialogDescription>
               {closing && (
                 <>
-                  {closing.employees?.first_name} {closing.employees?.last_name} —{" "}
-                  {CONTRACT_TYPE_LABEL[closing.type] ?? closing.type}
+                  {employeeName(closing)} — {CONTRACT_TYPE_LABEL[closing.type] ?? closing.type}
                 </>
               )}
             </DialogDescription>
@@ -593,45 +703,62 @@ function ContractsPage() {
           {closing && (
             <DialogBody>
               <div className="space-y-3 text-sm">
-              {(() => {
-                const end = closing.end_date ?? new Date().toISOString().slice(0, 10);
-                const months = monthsBetween(closing.start_date, end);
-                const indemnity = computeIndemnity(closing.salary, closing.start_date, end);
-                return (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("contracts.grossSalary")}</span>
-                      <span>{formatCurrency(closing.salary)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("contracts.totalDuration")}</span>
-                      <span>{t("contracts.monthsShort", { count: months.toFixed(1) })}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("contracts.totalGross")}</span>
-                      <span>{formatCurrency((closing.salary ?? 0) * months)}</span>
-                    </div>
-                    {closing.type === "cdd" ? (
-                      <div className="flex justify-between border-t pt-3 font-medium">
-                        <span>{t("contracts.cddIndemnity")}</span>
-                        <span className="text-primary">{formatCurrency(indemnity)}</span>
+                <div>
+                  <Label htmlFor="contract-close-date">{t("contracts.closeDate")}</Label>
+                  <Input
+                    id="contract-close-date"
+                    type="date"
+                    value={closeDate}
+                    min={closing.startDate}
+                    onChange={(e) => setCloseDate(e.target.value)}
+                  />
+                </div>
+                {(() => {
+                  const end = closeDate || today();
+                  const months = monthsBetween(closing.startDate, end);
+                  const indemnity = computeIndemnity(closing.salary, closing.startDate, end);
+                  return (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("contracts.grossSalary")}</span>
+                        <span>{formatCurrency(closing.salary)}</span>
                       </div>
-                    ) : (
-                      <Alert>
-                        <AlertDescription>
-                          {t("contracts.indemnityNoticeOther", { type: CONTRACT_TYPE_LABEL[closing.type] ?? closing.type })}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </>
-                );
-              })()}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {t("contracts.totalDuration")}
+                        </span>
+                        <span>{t("contracts.monthsShort", { count: months.toFixed(1) })}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("contracts.totalGross")}</span>
+                        <span>{formatCurrency((closing.salary ?? 0) * months)}</span>
+                      </div>
+                      {closing.type === "cdd" ? (
+                        <div className="flex justify-between border-t pt-3 font-medium">
+                          <span>{t("contracts.cddIndemnity")}</span>
+                          <span className="text-primary">{formatCurrency(indemnity)}</span>
+                        </div>
+                      ) : (
+                        <Alert>
+                          <AlertDescription>
+                            {t("contracts.indemnityNoticeOther", {
+                              type: CONTRACT_TYPE_LABEL[closing.type] ?? closing.type,
+                            })}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <DialogActions>
                 <Button variant="outline" onClick={() => setClosing(null)}>
                   {t("contracts.cancel")}
                 </Button>
-                <Button onClick={confirmClose} disabled={loading}>
+                <Button
+                  onClick={() => closeMutation.mutate({ id: closing.id, endDate: closeDate })}
+                  disabled={loading || !closeDate}
+                >
                   {loading ? t("contracts.closing") : t("contracts.confirmClose")}
                 </Button>
               </DialogActions>
@@ -644,130 +771,163 @@ function ContractsPage() {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing?.id ? t("contracts.editContract") : t("contracts.newContract")}</DialogTitle>
-            <DialogDescription>
-              {t("contracts.contractLegalHint")}
-            </DialogDescription>
+            <DialogTitle>
+              {editing?.id ? t("contracts.editContract") : t("contracts.newContract")}
+            </DialogTitle>
+            <DialogDescription>{t("contracts.contractLegalHint")}</DialogDescription>
           </DialogHeader>
           {editing && (
             <DialogBody>
               <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label>{t("contracts.employee")}</Label>
-                <Select
-                  value={editing.employee_id}
-                  onValueChange={(v) => setEditing({ ...editing, employee_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("contracts.chooseEmployee")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.first_name} {e.last_name}
-                        {e.position ? ` — ${e.position}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formCategory && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("contracts.deducedCategory", { category: CATEGORY_LABEL[formCategory], months: getNoticeMonths(formCategory) })}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>{t("contracts.type")}</Label>
-                <Select
-                  value={editing.type}
-                  onValueChange={(v) => setEditing({ ...editing, type: v as ContractType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONTRACT_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {CONTRACT_TYPE_LABEL[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>{t("contracts.status")}</Label>
-                <Select
-                  value={editing.status}
-                  onValueChange={(v) => setEditing({ ...editing, status: v as FormState["status"] })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">{t("contracts.statusDraft")}</SelectItem>
-                    <SelectItem value="active">{t("contracts.statusActive")}</SelectItem>
-                    <SelectItem value="terminated">{t("contracts.statusTerminated")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>{t("contracts.startDate")}</Label>
-                <Input
-                  type="date"
-                  value={editing.start_date}
-                  onChange={(e) => setEditing({ ...editing, start_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>
-                  {t("contracts.endDate")} {(editing.type === "cdd" || editing.type === "stage") && <span className="text-destructive">*</span>}
-                </Label>
-                <Input
-                  type="date"
-                  value={editing.end_date}
-                  onChange={(e) => setEditing({ ...editing, end_date: e.target.value })}
-                />
-                {formMonths !== null && (
-                  <p className="mt-1 text-xs text-muted-foreground">{t("contracts.duration", { months: formMonths.toFixed(1) })}</p>
-                )}
-                {formOverLimit && (
-                  <p className="mt-1 text-xs text-destructive">
-                    {t("contracts.cddOverLimitWarning")}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>{t("contracts.salary")}</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  value={editing.salary}
-                  onChange={(e) => setEditing({ ...editing, salary: e.target.value })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>{t("contracts.trialPeriodEnd")}</Label>
-                <Input
-                  type="date"
-                  value={editing.trial_period_end}
-                  onChange={(e) => setEditing({ ...editing, trial_period_end: e.target.value })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>{t("contracts.notes")}</Label>
-                <Textarea
-                  rows={3}
-                  value={editing.notes}
-                  onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
-                />
-              </div>
+                <div className="sm:col-span-2">
+                  <Label>{t("contracts.employee")}</Label>
+                  <Select
+                    value={editing.employeeId}
+                    onValueChange={(v) => setEditing({ ...editing, employeeId: v })}
+                    disabled={!!editing.id}
+                  >
+                    <SelectTrigger aria-label={t("contracts.employee")}>
+                      <SelectValue placeholder={t("contracts.chooseEmployee")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.firstName} {e.lastName}
+                          {e.jobTitle ? ` — ${e.jobTitle}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formCategory && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("contracts.deducedCategory", {
+                        category: CATEGORY_LABEL[formCategory],
+                        months: getNoticeMonths(formCategory),
+                      })}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>{t("contracts.type")}</Label>
+                  <Select
+                    value={editing.type}
+                    onValueChange={(v) => setEditing({ ...editing, type: v as ContractType })}
+                  >
+                    <SelectTrigger aria-label={t("contracts.type")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTRACT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {CONTRACT_TYPE_LABEL[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t("contracts.status")}</Label>
+                  <Select
+                    value={editing.status}
+                    onValueChange={(v) =>
+                      setEditing({ ...editing, status: v as FormState["status"] })
+                    }
+                  >
+                    <SelectTrigger aria-label={t("contracts.status")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">{t("contracts.statusDraft")}</SelectItem>
+                      <SelectItem value="active">{t("contracts.statusActive")}</SelectItem>
+                      <SelectItem value="suspended">{t("contracts.statusSuspended")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="contract-start">{t("contracts.startDate")}</Label>
+                  <Input
+                    id="contract-start"
+                    type="date"
+                    value={editing.startDate}
+                    onChange={(e) => setEditing({ ...editing, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contract-end">
+                    {t("contracts.endDate")}{" "}
+                    {(editing.type === "cdd" || editing.type === "stage") && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    id="contract-end"
+                    type="date"
+                    value={editing.endDate}
+                    onChange={(e) => setEditing({ ...editing, endDate: e.target.value })}
+                  />
+                  {formMonths !== null && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("contracts.duration", { months: formMonths.toFixed(1) })}
+                    </p>
+                  )}
+                  {formOverLimit && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {t("contracts.cddOverLimitWarning")}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="contract-salary">{t("contracts.salary")}</Label>
+                  <Input
+                    id="contract-salary"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={editing.salary}
+                    onChange={(e) => setEditing({ ...editing, salary: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contract-hours">{t("contracts.weeklyHours")}</Label>
+                  <Input
+                    id="contract-hours"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={168}
+                    value={editing.weeklyHours}
+                    onChange={(e) => setEditing({ ...editing, weeklyHours: e.target.value })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="contract-trial">{t("contracts.trialPeriodEnd")}</Label>
+                  <Input
+                    id="contract-trial"
+                    type="date"
+                    value={editing.trialPeriodEnd}
+                    onChange={(e) => setEditing({ ...editing, trialPeriodEnd: e.target.value })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="contract-notes">{t("contracts.notes")}</Label>
+                  <Textarea
+                    id="contract-notes"
+                    rows={3}
+                    value={editing.notes}
+                    onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+                  />
+                </div>
               </div>
               <DialogActions>
                 <Button variant="outline" onClick={() => setEditing(null)}>
                   {t("contracts.cancel")}
                 </Button>
                 <Button onClick={saveContract} disabled={loading}>
-                  {loading ? t("contracts.saving") : editing?.id ? t("contracts.update") : t("contracts.create")}
+                  {loading
+                    ? t("contracts.saving")
+                    : editing?.id
+                      ? t("contracts.update")
+                      : t("contracts.create")}
                 </Button>
               </DialogActions>
             </DialogBody>
@@ -779,14 +939,20 @@ function ContractsPage() {
         onOpenChange={(o) => !o && setPendingDelete(null)}
         title={t("contracts.deleteTitle")}
         description={
-          pendingDelete
-            ? t("contracts.deleteDesc", { name: `${pendingDelete.employees?.first_name ?? ""} ${pendingDelete.employees?.last_name ?? ""}`.trim() })
-            : ""
+          pendingDelete ? t("contracts.deleteDesc", { name: employeeName(pendingDelete) }) : ""
         }
         cancelLabel={t("contracts.cancel")}
         actionLabel={t("contracts.delete")}
         actionVariant="destructive"
-        onConfirm={() => void performDelete()}
+        onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
+      />
+      <input
+        ref={documentInput}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
+        className="hidden"
+        aria-label={t("contracts.attachDocument")}
+        onChange={(e) => onDocumentPicked(e.target.files?.[0])}
       />
     </div>
   );
@@ -810,7 +976,9 @@ function KpiCard({
           <span>{label}</span>
           {icon}
         </div>
-        <div className={`mt-1 text-2xl font-semibold ${tone === "destructive" ? "text-destructive" : ""}`}>
+        <div
+          className={`mt-1 text-2xl font-semibold ${tone === "destructive" ? "text-destructive" : ""}`}
+        >
           {value}
         </div>
       </CardContent>
