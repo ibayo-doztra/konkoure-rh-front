@@ -2,11 +2,16 @@ export default {
   timeclock: {
     logs: {
       title: "Pointages",
-      description: "Suivi des présences : arrivées, départs et durées sur site.",
-      sessionsTitle: "Sessions de présence",
+      description:
+        "Présences par jour : première arrivée, dernier départ et temps travaillé, calculés à partir des pointages.",
+      sessionsTitle: "Présences par jour",
       empty: "Aucune session.",
+      from: "Du",
+      to: "Au",
+      rangeError: "La période doit couvrir au plus {{max}} jours.",
       columns: {
         employee: "Employé",
+        day: "Jour",
         arrivee: "Arrivée",
         depart: "Départ",
         duree: "Durée",
@@ -18,44 +23,56 @@ export default {
         ongoing: "En cours",
       },
     },
+    anomaly: {
+      missing_out: "Sortie manquante",
+      out_of_zone: "Hors zone",
+      duplicate: "Pointage en double",
+      clock_drift: "Heure de l'appareil incohérente",
+      low_accuracy: "Position imprécise",
+    },
     scan: {
       title: "Pointage par badge",
-      description: "Scannez le badge NFC d'un employé. Le type (arrivée ou sortie) est déterminé automatiquement.",
+      description:
+        "Scannez le badge NFC d'un employé. Le type (arrivée ou sortie) est déterminé automatiquement.",
       badgeUidMissing: "UID du badge manquant",
-      dedupedToast: "Scan déjà pris en compte",
       arriveeToast: "Arrivée enregistrée",
       departToast: "Sortie enregistrée",
       unexpectedError: "Erreur inattendue",
       nfcUnavailable: "Web NFC n'est pas disponible sur cet appareil. Utilisez la saisie manuelle.",
       nfcActiveToast: "Lecteur NFC actif — approchez un badge",
       nfcEnableError: "Impossible d'activer NFC",
-      positionDetected: "Position détectée — les coordonnées sont enregistrées avec chaque pointage.",
-      positionUnavailable: "Géolocalisation non disponible — le pointage sera enregistré sans coordonnées.",
+      positionDetected:
+        "Position détectée — les coordonnées sont enregistrées avec chaque pointage.",
+      positionUnavailable:
+        "Géolocalisation non disponible — le pointage sera enregistré sans coordonnées.",
       nfcReader: "Lecteur NFC",
       nfcActive: "actif",
       nfcInactive: "inactif",
       stop: "Arrêter",
       enableNfc: "Activer le scanner NFC",
-      nfcNotSupported: "Web NFC n'est pas pris en charge par ce navigateur. Utilisez Chrome sur Android, ou la saisie manuelle ci-dessous.",
+      nfcNotSupported:
+        "Web NFC n'est pas pris en charge par ce navigateur. Utilisez Chrome sur Android, ou la saisie manuelle ci-dessous.",
       manualUidLabel: "Saisie manuelle du UID",
       manualUidPlaceholder: "Ex : 04:A2:1B:C3:2D:5E:80",
       scanButton: "Scanner",
       arriveeLabel: "Arrivée",
       departLabel: "Sortie",
       recordedAt: "enregistrée à",
-      dedupedBadge: "déjà pris en compte",
       refused: "Pointage refusé",
     },
     zones: {
       title: "Zones de travail",
-      description: "Dessinez une zone sur la carte — cercle simple ou tracé précis autour de votre site",
+      description:
+        "Dessinez une zone sur la carte — cercle simple ou tracé précis autour de votre site",
       geolocationUnavailable: "Géolocalisation indisponible sur ce navigateur",
-      positionAdded: "Position ajoutée sur la carte — glissez le marqueur pour ajuster si nécessaire",
-      permissionDenied: "Localisation refusée par le navigateur. Ouvrez le site publié dans un onglet ou autorisez la localisation.",
+      positionAdded:
+        "Position ajoutée sur la carte — glissez le marqueur pour ajuster si nécessaire",
+      permissionDenied:
+        "Localisation refusée par le navigateur. Ouvrez le site publié dans un onglet ou autorisez la localisation.",
       positionUnavailableClick: "Position indisponible. Cliquez sur la carte pour placer la zone.",
       timeout: "Localisation trop lente. Réessayez ou cliquez sur la carte.",
       positionUnrecoverable: "Position non récupérable",
-      nameRequired: "Nom requis",
+      nameRequired: "Nom : 2 caractères minimum",
       drawFirst: "Dessinez d'abord la zone sur la carte",
       polygonMinPoints: "Un polygone requiert au moins 3 points",
       created: "Zone créée",
@@ -65,8 +82,10 @@ export default {
       myPosition: "Ma position",
       undoLastPoint: "Annuler dernier point",
       clear: "Effacer",
-      circleHint: "Cliquez sur la carte pour placer le centre, puis ajustez le rayon. Astuce : basculez en vue Satellite (en haut à droite) pour repérer visuellement votre site.",
-      polygonHint: "Cliquez pour ajouter chaque sommet du contour de votre zone (min. 3 points). Astuce : basculez en vue Satellite pour un repérage précis.",
+      circleHint:
+        "Cliquez sur la carte pour placer le centre, puis ajustez le rayon. Astuce : basculez en vue Satellite (en haut à droite) pour repérer visuellement votre site.",
+      polygonHint:
+        "Cliquez pour ajouter chaque sommet du contour de votre zone (min. 3 points). Astuce : basculez en vue Satellite pour un repérage précis.",
       newZone: "Nouvelle zone",
       nameLabel: "Nom",
       namePlaceholder: "Ex : Siège Conakry",
@@ -78,6 +97,8 @@ export default {
       noZones: "Aucune zone définie.",
       circleSummary: "Cercle · {{radius}}m",
       polygonSummary: "Polygone · {{count}} sommets",
+      deleteTitle: "Supprimer cette zone ?",
+      deleteDesc: "Les pointages déjà rattachés à cette zone la conservent.",
       deleteAria: "Supprimer",
     },
   },
@@ -95,7 +116,8 @@ export default {
     nineBox: {
       title: "Matrice 9-Box",
       description: "Performance × Potentiel",
-      footer: "Axe horizontal : performance · Axe vertical : potentiel · Notation 0-9 sur les revues.",
+      footer:
+        "Axe horizontal : performance · Axe vertical : potentiel · Notation 0-9 sur les revues.",
       labels: {
         riskTalent: "Talent à risque",
         performer: "Performeur",

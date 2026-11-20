@@ -221,11 +221,6 @@
       "count": 3
     }
   },
-  "src/locales/en/timeclock.ts": {
-    "prettier/prettier": {
-      "count": 7
-    }
-  },
   "src/locales/fr/app.ts": {
     "prettier/prettier": {
       "count": 1
@@ -244,11 +239,6 @@
   "src/locales/fr/public.ts": {
     "prettier/prettier": {
       "count": 5
-    }
-  },
-  "src/locales/fr/timeclock.ts": {
-    "prettier/prettier": {
-      "count": 10
     }
   },
   "src/router.tsx": {
@@ -427,21 +417,6 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     },
-    "prettier/prettier": {
-      "count": 5
-    }
-  },
-  "src/routes/_authenticated.app.timeclock.logs.tsx": {
-    "prettier/prettier": {
-      "count": 6
-    }
-  },
-  "src/routes/_authenticated.app.timeclock.scan.tsx": {
-    "prettier/prettier": {
-      "count": 10
-    }
-  },
-  "src/routes/_authenticated.app.timeclock.zones.tsx": {
     "prettier/prettier": {
       "count": 5
     }
