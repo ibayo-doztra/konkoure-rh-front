@@ -24,7 +24,8 @@ export default {
     inProgress: "En cours",
     deleteAria: "Supprimer",
     deleteConfirm: "Supprimer cet objectif ?",
-    deleteConfirmDesc: "Cette action est irréversible. L'OKR et ses résultats clés seront définitivement supprimés.",
+    deleteConfirmDesc:
+      "Cette action est irréversible. L'OKR et ses résultats clés seront définitivement supprimés.",
     deletedSuccess: "Objectif supprimé",
     reviewStatuses: {
       draft: "Brouillon",
@@ -40,7 +41,8 @@ export default {
     validatedSuccess: "Objectif validé",
     sendBack: "Renvoyer",
     sendBackTitle: "Renvoyer cet objectif ?",
-    sendBackDesc: "L'objectif repassera en « À revoir ». Indiquez au propriétaire ce qui doit être amélioré.",
+    sendBackDesc:
+      "L'objectif repassera en « À revoir ». Indiquez au propriétaire ce qui doit être amélioré.",
     sendBackCommentRequired: "Indiquez un motif",
     sentBackSuccess: "Objectif renvoyé pour révision",
     managerComment: "Commentaire du manager",
@@ -98,11 +100,17 @@ export default {
     status: "Statut",
     owner: "Propriétaire",
     myself: "Moi-même",
+    weight: "Pondération (%)",
+    weightHint: "Sur un plan actif, le total d'un employé ne dépasse pas 100 %.",
+    weightValue: "Poids : {{weight}} %",
+    progressAria: "Progression de « {{title}} » en pourcentage",
+    statusAria: "Statut de « {{title}} »",
     statuses: {
       not_started: "Pas démarré",
       in_progress: "En cours",
       late: "En retard",
       achieved: "Terminé",
+      cancelled: "Annulé",
     },
     planStatuses: {
       active: "Actif",
@@ -123,11 +131,15 @@ export default {
     endLabel: "Fin : ",
     deleteGoalAria: "Supprimer l'objectif",
     deleteConfirm: "Supprimer cet objectif ?",
-    deleteConfirmDesc: "Cette action est irréversible. L'objectif et son suivi seront définitivement supprimés.",
+    deleteConfirmDesc:
+      "Cette action est irréversible. L'objectif et son suivi seront définitivement supprimés.",
     empty: "Aucun objectif",
     createdSuccess: "Objectif créé",
     errors: {
       titleMin: "Titre : 3 caractères minimum",
+      weightRange: "La pondération doit être comprise entre 0 et 100",
+      progressRange: "La progression doit être comprise entre 0 et 100",
+      noEmployeeRecord: "Votre compte n'est lié à aucune fiche employé.",
     },
   },
   reviews: {
@@ -185,11 +197,13 @@ export default {
     },
     evaluationOf: "Évaluation de {{name}}",
     evaluationDefault: "Évaluation",
-    submittedReadOnly: "Vous avez soumis cette évaluation à votre manager{{date}}. Elle est désormais en lecture seule.",
+    submittedReadOnly:
+      "Vous avez soumis cette évaluation à votre manager{{date}}. Elle est désormais en lecture seule.",
     submittedOn: " le {{date}}",
     readOnlyOther: "Vous consultez cette évaluation en lecture seule.",
     goalsCount: "Objectifs ({{count}})",
-    noGoalsLinked: "Aucun objectif lié à cette évaluation. Créez-les depuis la page Objectifs en les associant à ce plan.",
+    noGoalsLinked:
+      "Aucun objectif lié à cette évaluation. Créez-les depuis la page Objectifs en les associant à ce plan.",
     indicatorLabel: "Indicateur : ",
     employeeComment: "Commentaire employé",
     employeeCommentPlaceholder: "Décrivez vos réalisations, difficultés, résultats…",
@@ -211,19 +225,24 @@ export default {
     submitManagerReview: "Valider",
     sendBack: "Renvoyer",
     sendBackConfirmTitle: "Renvoyer cette évaluation ?",
-    sendBackConfirmDesc: "L'évaluation sera renvoyée à son propriétaire pour révision ou amélioration. Elle redeviendra modifiable par l'employé et vos commentaires déjà saisis seront conservés.",
+    sendBackConfirmDesc:
+      "L'évaluation sera renvoyée à son propriétaire pour révision ou amélioration. Elle redeviendra modifiable par l'employé et vos commentaires déjà saisis seront conservés.",
     sendBackSuccess: "Évaluation renvoyée à son propriétaire",
     notifSentBackTitle: "Évaluation renvoyée pour révision",
     notifSentBackBody: "Votre manager vous a renvoyé votre évaluation{{plan}} pour révision.",
     sentBackBannerTitle: "Évaluation renvoyée pour révision",
-    sentBackBannerDesc: "Votre manager vous a renvoyé cette évaluation. Prenez connaissance de ses commentaires et de sa note ci-dessous (en lecture seule), complétez votre auto-évaluation, puis soumettez-la de nouveau.",
+    sentBackBannerDesc:
+      "Votre manager vous a renvoyé cette évaluation. Prenez connaissance de ses commentaires et de sa note ci-dessous (en lecture seule), complétez votre auto-évaluation, puis soumettez-la de nouveau.",
     validatedBannerTitle: "Évaluation validée par votre manager",
-    validatedBannerDesc: "Consultez le bilan et la note de votre manager ci-dessous, puis signez l'évaluation pour confirmer en avoir pris connaissance.",
+    validatedBannerDesc:
+      "Consultez le bilan et la note de votre manager ci-dessous, puis signez l'évaluation pour confirmer en avoir pris connaissance.",
     signedBannerTitle: "Évaluation signée",
-    signedBannerDesc: "Vous avez signé cette évaluation le {{date}}. Elle est désormais en lecture seule.",
+    signedBannerDesc:
+      "Vous avez signé cette évaluation le {{date}}. Elle est désormais en lecture seule.",
     sign: "Signer",
     signConfirmTitle: "Signer cette évaluation ?",
-    signConfirmDesc: "En signant, vous confirmez avoir pris connaissance du bilan et de la note de votre manager. L'évaluation sera clôturée et deviendra définitivement en lecture seule.",
+    signConfirmDesc:
+      "En signant, vous confirmez avoir pris connaissance du bilan et de la note de votre manager. L'évaluation sera clôturée et deviendra définitivement en lecture seule.",
     signSuccess: "Évaluation signée",
     notifSignedTitle: "Évaluation signée",
     notifSignedBody: "{{name}} a signé son évaluation{{plan}}.",
@@ -304,7 +323,8 @@ export default {
     empty: "Vide",
     createdSuccess: "Activité créée",
     deleteConfirm: "Supprimer cette activité ?",
-    deleteConfirmDesc: "Cette action est irréversible. L'activité sera retirée du suivi de l'objectif associé.",
+    deleteConfirmDesc:
+      "Cette action est irréversible. L'activité sera retirée du suivi de l'objectif associé.",
     errors: {
       selectGoal: "Sélectionnez un goal",
       titleMin: "Titre : 3 caractères minimum",
@@ -322,7 +342,8 @@ export default {
     save: "Enregistrer",
     savedSuccess: "Réalisation enregistrée",
     deleteConfirm: "Supprimer cette réalisation ?",
-    deleteConfirmDesc: "Cette action est irréversible. La réalisation disparaîtra du feed de l'employé.",
+    deleteConfirmDesc:
+      "Cette action est irréversible. La réalisation disparaîtra du feed de l'employé.",
     empty: "Aucune réalisation",
     errors: {
       titleMin: "Titre : 3 caractères minimum",
@@ -347,7 +368,8 @@ export default {
       until: "Jusqu'au ",
       empty: "Aucune offre. Cliquez sur « Nouvelle offre » pour commencer.",
       deleteTitle: "Supprimer cette offre ?",
-      deleteDescription: "L'offre « {{title}} » et les candidatures associées seront définitivement supprimées. Cette action est irréversible.",
+      deleteDescription:
+        "L'offre « {{title}} » et les candidatures associées seront définitivement supprimées. Cette action est irréversible.",
       deleteDescriptionGeneric: "Cette action est irréversible.",
       cancel: "Annuler",
       deleting: "Suppression…",
@@ -376,7 +398,8 @@ export default {
       titleLabel: "Titre",
       titlePlaceholder: "Ex : Développeur backend Python",
       descriptionLabel: "Description",
-      descriptionPlaceholder: "Décrivez la mission, le contexte de l'entreprise et les responsabilités principales…",
+      descriptionPlaceholder:
+        "Décrivez la mission, le contexte de l'entreprise et les responsabilités principales…",
       requirementsLabel: "Exigences",
       requirementsPlaceholder: "Listez les compétences, l'expérience et les qualités attendues…",
       locationLabel: "Localisation",
@@ -395,7 +418,8 @@ export default {
       publish: "Publier",
       publishEditing: "Enregistrer & publier",
       aiGeneratorTitle: "Générateur IA",
-      aiGeneratorDesc: "Renseignez les informations clés. L'IA rédigera l'offre et suggérera les documents à demander.",
+      aiGeneratorDesc:
+        "Renseignez les informations clés. L'IA rédigera l'offre et suggérera les documents à demander.",
       jobTitleRequired: "Intitulé du poste",
       seniority: "Séniorité",
       seniorityJunior: "Junior",
@@ -403,7 +427,8 @@ export default {
       seniorySenior: "Senior",
       seniorityLead: "Lead / Manager",
       specificRequirements: "Exigences spécifiques (optionnel)",
-      specificRequirementsPlaceholder: "Ex : 3 ans d'expérience, maîtrise de Django, anglais courant, télétravail possible…",
+      specificRequirementsPlaceholder:
+        "Ex : 3 ans d'expérience, maîtrise de Django, anglais courant, télétravail possible…",
       generate: "Générer l'offre",
       generating: "Génération…",
       titleRequired: "Le titre est requis",
@@ -441,7 +466,8 @@ export default {
       step2Desc: "Laissez l'IA rédiger un texte adapté à chaque réseau, ou écrivez le vôtre.",
       generateWithAi: "Générer avec l'IA",
       imagesTitle: "Images (optionnel)",
-      imagesDesc: "JPEG, PNG ou WebP — max {{max}} images, 5 Mo chacune. Non pris en charge sur X pour le moment.",
+      imagesDesc:
+        "JPEG, PNG ou WebP — max {{max}} images, 5 Mo chacune. Non pris en charge sur X pour le moment.",
       add: "Ajouter",
       removeImage: "Retirer l'image",
       uploadFailed: "Échec",
@@ -462,7 +488,8 @@ export default {
       waitUploads: "Patientez la fin des uploads d'images",
       emptyText: "Texte vide pour {{provider}}",
       overLimit: "{{provider}} : {{length}}/{{limit}} caractères",
-      twitterImagesWarning: "Les images ne sont pas encore prises en charge pour X — le texte sera publié seul.",
+      twitterImagesWarning:
+        "Les images ne sont pas encore prises en charge pour X — le texte sera publié seul.",
       publishedSuccess: "Publié sur {{count}} réseau",
       publishedSuccess_plural: "Publié sur {{count}} réseaux",
       partialSuccess: "{{ok}} succès, {{failed}} échec(s)",

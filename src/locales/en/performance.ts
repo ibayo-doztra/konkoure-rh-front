@@ -24,7 +24,8 @@ export default {
     inProgress: "In progress",
     deleteAria: "Delete",
     deleteConfirm: "Delete this objective?",
-    deleteConfirmDesc: "This action cannot be undone. The OKR and its key results will be permanently deleted.",
+    deleteConfirmDesc:
+      "This action cannot be undone. The OKR and its key results will be permanently deleted.",
     deletedSuccess: "Objective deleted",
     reviewStatuses: {
       draft: "Draft",
@@ -36,11 +37,13 @@ export default {
     submittedSuccess: "Objective submitted to your manager",
     validate: "Validate",
     validateConfirm: "Validate this objective?",
-    validateConfirmDesc: "The objective will be marked as validated and its owner will be notified.",
+    validateConfirmDesc:
+      "The objective will be marked as validated and its owner will be notified.",
     validatedSuccess: "Objective validated",
     sendBack: "Send back",
     sendBackTitle: "Send this objective back?",
-    sendBackDesc: "The objective goes back to \"Needs revision\". Tell the owner what should be improved.",
+    sendBackDesc:
+      'The objective goes back to "Needs revision". Tell the owner what should be improved.',
     sendBackCommentRequired: "Add a reason",
     sentBackSuccess: "Objective sent back for revision",
     managerComment: "Manager comment",
@@ -52,13 +55,13 @@ export default {
     addCheckin: "Add",
     checkinAdded: "Check-in added",
     notifSubmittedTitle: "Objective to validate",
-    notifSubmittedBody: "{{name}} submitted the objective \"{{objective}}\" for validation.",
+    notifSubmittedBody: '{{name}} submitted the objective "{{objective}}" for validation.',
     notifValidatedTitle: "Objective validated",
-    notifValidatedBody: "Your manager validated the objective \"{{objective}}\".",
+    notifValidatedBody: 'Your manager validated the objective "{{objective}}".',
     notifSentBackTitle: "Objective needs revision",
-    notifSentBackBody: "Your manager asks for a revision of the objective \"{{objective}}\".",
+    notifSentBackBody: 'Your manager asks for a revision of the objective "{{objective}}".',
     notifCheckinTitle: "New check-in",
-    notifCheckinBody: "A check-in was added on the objective \"{{objective}}\".",
+    notifCheckinBody: 'A check-in was added on the objective "{{objective}}".',
     empty: "No OKRs",
 
     errors: {
@@ -98,11 +101,17 @@ export default {
     status: "Status",
     owner: "Owner",
     myself: "Myself",
+    weight: "Weight (%)",
+    weightHint: "On an active plan, an employee's total cannot exceed 100%.",
+    weightValue: "Weight: {{weight}}%",
+    progressAria: 'Progress of "{{title}}" in percent',
+    statusAria: 'Status of "{{title}}"',
     statuses: {
       not_started: "Not started",
       in_progress: "In progress",
       late: "Late",
       achieved: "Achieved",
+      cancelled: "Cancelled",
     },
     planStatuses: {
       active: "Active",
@@ -123,11 +132,15 @@ export default {
     endLabel: "End: ",
     deleteGoalAria: "Delete goal",
     deleteConfirm: "Delete this goal?",
-    deleteConfirmDesc: "This action cannot be undone. The goal and its tracking will be permanently deleted.",
+    deleteConfirmDesc:
+      "This action cannot be undone. The goal and its tracking will be permanently deleted.",
     empty: "No goals",
     createdSuccess: "Goal created",
     errors: {
       titleMin: "Title: 3 characters minimum",
+      weightRange: "The weight must be between 0 and 100",
+      progressRange: "The progress must be between 0 and 100",
+      noEmployeeRecord: "Your account is not linked to an employee record.",
     },
   },
   reviews: {
@@ -189,7 +202,8 @@ export default {
     submittedOn: " on {{date}}",
     readOnlyOther: "You are viewing this review in read-only mode.",
     goalsCount: "Goals ({{count}})",
-    noGoalsLinked: "No goals linked to this review. Create them from the Goals page and link them to this plan.",
+    noGoalsLinked:
+      "No goals linked to this review. Create them from the Goals page and link them to this plan.",
     indicatorLabel: "Indicator: ",
     employeeComment: "Employee comment",
     employeeCommentPlaceholder: "Describe your achievements, difficulties, results…",
@@ -211,18 +225,22 @@ export default {
     submitManagerReview: "Validate",
     sendBack: "Send back",
     sendBackConfirmTitle: "Send this review back?",
-    sendBackConfirmDesc: "The review will be sent back to its owner for revision or improvement. It becomes editable by the employee again and your existing comments are kept.",
+    sendBackConfirmDesc:
+      "The review will be sent back to its owner for revision or improvement. It becomes editable by the employee again and your existing comments are kept.",
     sendBackSuccess: "Review sent back to its owner",
     notifSentBackTitle: "Review sent back for revision",
     sentBackBannerTitle: "Review sent back for revision",
-    sentBackBannerDesc: "Your manager sent this review back to you. Read their comments and score below (read-only), update your self-assessment, then submit it again.",
+    sentBackBannerDesc:
+      "Your manager sent this review back to you. Read their comments and score below (read-only), update your self-assessment, then submit it again.",
     validatedBannerTitle: "Review validated by your manager",
-    validatedBannerDesc: "Read your manager's assessment and score below, then sign the review to confirm you have read it.",
+    validatedBannerDesc:
+      "Read your manager's assessment and score below, then sign the review to confirm you have read it.",
     signedBannerTitle: "Review signed",
     signedBannerDesc: "You signed this review on {{date}}. It is now read-only.",
     sign: "Sign",
     signConfirmTitle: "Sign this review?",
-    signConfirmDesc: "By signing, you confirm you have read your manager's assessment and score. The review will be closed and become permanently read-only.",
+    signConfirmDesc:
+      "By signing, you confirm you have read your manager's assessment and score. The review will be closed and become permanently read-only.",
     signSuccess: "Review signed",
     notifSignedTitle: "Review signed",
     notifSignedBody: "{{name}} signed their review{{plan}}.",
@@ -304,7 +322,8 @@ export default {
     empty: "Empty",
     createdSuccess: "Activity created",
     deleteConfirm: "Delete this activity?",
-    deleteConfirmDesc: "This action cannot be undone. The activity will be removed from the linked goal's tracking.",
+    deleteConfirmDesc:
+      "This action cannot be undone. The activity will be removed from the linked goal's tracking.",
     errors: {
       selectGoal: "Select a goal",
       titleMin: "Title: 3 characters minimum",
@@ -322,7 +341,8 @@ export default {
     save: "Save",
     savedSuccess: "Achievement saved",
     deleteConfirm: "Delete this achievement?",
-    deleteConfirmDesc: "This action cannot be undone. The achievement will disappear from the employee's feed.",
+    deleteConfirmDesc:
+      "This action cannot be undone. The achievement will disappear from the employee's feed.",
     empty: "No achievements",
     errors: {
       titleMin: "Title: 3 characters minimum",
@@ -345,9 +365,10 @@ export default {
       documentsRequested_plural: "{{count}} documents requested",
       expiredOn: "Expired on ",
       until: "Until ",
-      empty: "No jobs. Click \"New job\" to get started.",
+      empty: 'No jobs. Click "New job" to get started.',
       deleteTitle: "Delete this job?",
-      deleteDescription: "The job \"{{title}}\" and its related applications will be permanently deleted. This action is irreversible.",
+      deleteDescription:
+        'The job "{{title}}" and its related applications will be permanently deleted. This action is irreversible.',
       deleteDescriptionGeneric: "This action is irreversible.",
       cancel: "Cancel",
       deleting: "Deleting…",
@@ -395,7 +416,8 @@ export default {
       publish: "Publish",
       publishEditing: "Save & publish",
       aiGeneratorTitle: "AI generator",
-      aiGeneratorDesc: "Enter the key information. The AI will write the job posting and suggest documents to request.",
+      aiGeneratorDesc:
+        "Enter the key information. The AI will write the job posting and suggest documents to request.",
       jobTitleRequired: "Job title",
       seniority: "Seniority",
       seniorityJunior: "Junior",
@@ -403,7 +425,8 @@ export default {
       seniorySenior: "Senior",
       seniorityLead: "Lead / Manager",
       specificRequirements: "Specific requirements (optional)",
-      specificRequirementsPlaceholder: "E.g. 3 years of experience, proficiency with Django, fluent English, remote possible…",
+      specificRequirementsPlaceholder:
+        "E.g. 3 years of experience, proficiency with Django, fluent English, remote possible…",
       generate: "Generate job posting",
       generating: "Generating…",
       titleRequired: "Title is required",
@@ -517,7 +540,7 @@ export default {
         monthsAgo: "{{count}} month(s) ago",
         yearsAgo: "{{count}} year(s) ago",
       },
-      movedTo: "Moved to \"{{stage}}\"",
+      movedTo: 'Moved to "{{stage}}"',
       contactInfo: "Contact info",
       job: "Job: ",
       viewCv: "View CV",
@@ -547,9 +570,9 @@ export default {
       activityDescriptions: {
         created: "Application received",
         createdWithJob: "Application received — {{job}}",
-        stageChanged: "Moved from \"{{from}}\" to \"{{to}}\"",
+        stageChanged: 'Moved from "{{from}}" to "{{to}}"',
         scored: "AI score updated: {{score}}/100",
-        noteAdded: "Note added: \"{{excerpt}}\"",
+        noteAdded: 'Note added: "{{excerpt}}"',
         noteAddedNoExcerpt: "Note added",
         noteDeleted: "Note deleted",
       },
