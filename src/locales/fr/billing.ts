@@ -14,7 +14,7 @@ export default {
     dueOn: " — échéance le {{date}}",
     trialActive:
       "Essai gratuit — {{count}} jour restant (jusqu'au {{date}}). Ensuite, seuls Personnel et Départements restent accessibles sans abonnement.",
-    trialActive_plural:
+    trialActive_other:
       "Essai gratuit — {{count}} jours restants (jusqu'au {{date}}). Ensuite, seuls Personnel et Départements restent accessibles sans abonnement.",
     graceCanceledNote:
       "Tous les modules de votre offre restent accessibles jusqu'à cette date, puis votre organisation basculera automatiquement sur l'offre Gratuit.",

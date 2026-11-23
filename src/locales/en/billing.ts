@@ -14,7 +14,7 @@ export default {
     dueOn: " — due on {{date}}",
     trialActive:
       "Free trial — {{count}} day left (until {{date}}). Afterwards, only People and Departments remain accessible without a subscription.",
-    trialActive_plural:
+    trialActive_other:
       "Free trial — {{count}} days left (until {{date}}). Afterwards, only People and Departments remain accessible without a subscription.",
     graceCanceledNote:
       "All modules of your plan remain accessible until this date, then your organization will automatically switch to the Free plan.",

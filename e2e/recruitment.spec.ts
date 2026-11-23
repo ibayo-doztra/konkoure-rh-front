@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { APP_URL, createOwner, open, signIn, type Owner } from "./support/app";
+import { APP_URL, createOwner, grantPlan, open, signIn, type Owner } from "./support/app";
 import { API_URL } from "./support/settings";
 
 async function orgSlug(request: APIRequestContext, owner: Owner) {
@@ -27,6 +27,7 @@ test("les RH publient une offre, visible sur la page carrières, puis la clôtur
   request,
 }) => {
   const owner = await createOwner(request);
+  grantPlan(owner.organizationId, "pro");
   const slug = await orgSlug(request, owner);
   await signIn(page, owner.email);
   await expect(page).toHaveURL(APP_URL);
@@ -51,8 +52,9 @@ test("les RH publient une offre, visible sur la page carrières, puis la clôtur
   await page.getByRole("link", { name: /Comptable confirmé/ }).click();
   await expect(page.getByRole("heading", { name: "Comptable confirmé" })).toBeVisible();
   await expect(page.getByText("Tenue de la comptabilité générale.")).toBeVisible();
-  await expect(page.getByText("CV", { exact: true })).toBeVisible();
-  await expect(page.getByText("Diplôme", { exact: true })).toBeVisible();
+  // The CV is always asked, on top of the pieces of the offer.
+  await expect(page.locator("label", { hasText: /^CV/ })).toBeVisible();
+  await expect(page.locator("label", { hasText: /^Diplôme/ })).toBeVisible();
 
   // Closed, the offer leaves the careers page.
   await signIn(page, owner.email);
@@ -69,6 +71,7 @@ test("les RH publient une offre, visible sur la page carrières, puis la clôtur
 
 test("une offre se duplique en brouillon puis se supprime", async ({ page, request }) => {
   const owner = await createOwner(request);
+  grantPlan(owner.organizationId, "pro");
   await signIn(page, owner.email);
   await expect(page).toHaveURL(APP_URL);
   await open(page, "/app/recruitment/jobs/new");

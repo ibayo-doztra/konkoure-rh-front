@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_DIR, API_PORT, API_URL, OUTBOX, WEB_PORT, WEB_URL } from "./e2e/support/settings";
+import { API_DIR, API_ENV, API_URL, OUTBOX, WEB_PORT, WEB_URL } from "./e2e/support/settings";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -30,24 +30,7 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        NODE_ENV: "test",
-        HOST: "localhost",
-        PORT: String(API_PORT),
-        APP_URL: API_URL,
-        WEB_APP_URL: WEB_URL,
-        CORS_ORIGINS: WEB_URL,
-        DB_DATABASE: "konkoure_e2e",
-        // The API runs under its real database role, so row-level security applies.
-        DB_APP_ROLE: "konkoure_app",
-        LIMITER_STORE: "memory",
-        // The whole suite shares one IP: the production budget (300/min) would
-        // throttle it. Accepted by the API outside production only.
-        RATE_LIMIT_GLOBAL_IP_PER_MINUTE: "10000",
-        // Required by the timeclock module (konkoure-rh-api #12); any value in tests.
-        NFC_UID_PEPPER: "e2e-only-pepper",
-        LOG_LEVEL: "warn",
-        MAIL_MAILER: "resend",
-        RESEND_API_KEY: "e2e-fake-key",
+        ...API_ENV,
         E2E_API_DIR: API_DIR,
         E2E_OUTBOX: OUTBOX,
       },
