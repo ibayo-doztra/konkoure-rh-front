@@ -219,16 +219,6 @@
       "count": 4
     }
   },
-  "src/routes/_authenticated.app.performance.achievements.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/routes/_authenticated.app.performance.feedback.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "src/routes/_authenticated.app.recruitment.candidates.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 24

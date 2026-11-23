@@ -1,9 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { pendingQuery } from "@/lib/api/pending";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/lib/format";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  createFeedback,
+  deleteFeedback,
+  FEEDBACK_KINDS,
+  feedbackQuery,
+  okrsQuery,
+  performanceKey,
+  type Feedback,
+  type FeedbackKind,
+} from "@/lib/api/performance";
 import { useOrg } from "@/hooks/useOrg";
-import { useMyEmployee } from "@/hooks/useMyEmployee";
-import { useRole } from "@/hooks/useRole";
+import { useConfirm } from "@/hooks/useConfirm";
+import { usePerformanceAccess } from "@/hooks/usePerformanceAccess";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,112 +43,94 @@ import {
 } from "@/components/ui/dialog";
 import { EmployeeCombobox } from "@/components/employees/EmployeeCombobox";
 import { PageHeader } from "@/components/PageHeader";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/_authenticated/app/performance/feedback")({
   component: FeedbackPage,
 });
 
-type EmployeeLite = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  photo_url: string | null;
-  position: string | null;
-  manager_id: string | null;
-  user_id: string | null;
-};
-
-const KINDS = ["kudos", "suggestion", "concern"] as const;
+const NO_OKR = "none";
+const EMPTY_FORM = { to: "", kind: "kudos" as FeedbackKind, message: "", okr: NO_OKR };
 
 function FeedbackPage() {
   const { t } = useTranslation();
+  const { confirm, confirmDialog } = useConfirm();
   const { org } = useOrg();
-  const { myEmployee, requireEmployee } = useMyEmployee();
-  const { isAdmin, role } = useRole();
-  const [items, setItems] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<EmployeeLite[]>([]);
-  const [okrs, setOkrs] = useState<any[]>([]);
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const access = usePerformanceAccess();
+  const me = access.myEmployeeId;
+  const feedback = useQuery({ ...feedbackQuery(organizationId), enabled: !!org });
+  const okrs = useQuery({ ...okrsQuery(organizationId), enabled: !!org });
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState<{
-    to: string;
-    kind: (typeof KINDS)[number];
-    message: string;
-    okr: string;
-  }>({
-    to: "",
-    kind: "kudos",
-    message: "",
-    okr: "none",
+  const [form, setForm] = useState(EMPTY_FORM);
+
+  const items = useMemo(() => feedback.data ?? [], [feedback.data]);
+  const received = items.filter((f) => !!me && f.toEmployeeId === me);
+  const sent = items.filter((f) => !!me && f.fromEmployeeId === me);
+  // The API already limits a manager to his team, and gives HR everything.
+  const team = items.filter((f) => f.toEmployeeId !== me && f.fromEmployeeId !== me);
+  const showTeam = access.isAdmin || access.isManager;
+
+  // No feedback to oneself (422).
+  const options = access.employees
+    .filter((e) => e.id !== me)
+    .map((e) => ({
+      id: e.id,
+      first_name: e.firstName,
+      last_name: e.lastName,
+      photo_url: e.photoUrl,
+      position: e.jobTitle,
+    }));
+  const recipientOkrs = (okrs.data ?? []).filter((o) => o.employeeId === form.to);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) });
+  const send = useMutation({
+    mutationFn: createFeedback,
+    onSuccess: () => {
+      toast.success(t("feedback.sentSuccess"));
+      setOpen(false);
+      setForm(EMPTY_FORM);
+      return refresh();
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+  const remove = useMutation({
+    mutationFn: (f: Feedback) => deleteFeedback(f.id),
+    onSuccess: refresh,
+    onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
-  const isManager = isAdmin || role === "manager";
-
-  const empById = useMemo(() => {
-    const m: Record<string, EmployeeLite> = {};
-    employees.forEach((e) => {
-      m[e.id] = e;
-    });
-    return m;
-  }, [employees]);
-
-  const load = async () => {
-    if (!org) return;
-    const [{ data: fb }, { data: emps }, { data: okrList }] = await Promise.all([
-      pendingQuery("GET /org/performance/feedback"),
-      pendingQuery("GET /org/employees"),
-      pendingQuery("GET /org/performance/okrs"),
-    ]);
-    setItems(fb ?? []);
-    setEmployees((emps ?? []) as EmployeeLite[]);
-    setOkrs(okrList ?? []);
-  };
-  useEffect(() => {
-    void load();
-  }, [org]);
-
-  const received = items.filter((f) => myEmployee && f.to_employee_id === myEmployee.id);
-  const sent = items.filter((f) => myEmployee && f.from_employee_id === myEmployee.id);
-  const teamIds = useMemo(
-    () => employees.filter((e) => myEmployee && e.manager_id === myEmployee.id).map((e) => e.id),
-    [employees, myEmployee],
-  );
-  const team = items.filter((f) => (isAdmin ? true : teamIds.includes(f.to_employee_id)));
-
-  const options = employees.filter((e) => e.id !== myEmployee?.id);
-  const recipientOkrs = okrs.filter((o) => o.employee_id === form.to);
-
-  const submit = async () => {
-    if (!org) return;
+  const submit = () => {
     if (!form.to) return toast.error(t("feedback.errors.recipientRequired"));
     if (form.message.trim().length < 3) return toast.error(t("feedback.errors.messageRequired"));
-    const empId = await requireEmployee();
-    if (empId === false) return;
-    setBusy(true);
-    const { error } = await pendingQuery("POST /org/performance/feedback");
-    if (error) {
-      setBusy(false);
-      return toast.error(error.message);
-    }
-    const targetUser = empById[form.to]?.user_id;
-    if (targetUser) {
-      await pendingQuery("POST /me/notifications");
-    }
-    setBusy(false);
-    setOpen(false);
-    setForm({ to: "", kind: "kudos", message: "", okr: "none" });
-    toast.success(t("feedback.sentSuccess"));
-    void load();
+    if (!me) return toast.error(t("feedback.errors.noEmployeeRecord"));
+    send.mutate({
+      toEmployeeId: form.to,
+      kind: form.kind,
+      message: form.message.trim(),
+      okrId: form.okr === NO_OKR ? undefined : form.okr,
+    });
   };
 
-  const kindBadge = (kind: string) => {
+  // The author or HR, never the recipient (06 §9).
+  const canDelete = (f: Feedback) =>
+    (!!me && f.fromEmployeeId === me) || (access.isAdmin && f.toEmployeeId !== me);
+
+  const askRemove = async (f: Feedback) => {
+    const ok = await confirm({
+      title: t("feedback.deleteConfirm"),
+      description: t("feedback.deleteConfirmDesc"),
+      actionLabel: t("common.delete"),
+      actionVariant: "destructive",
+    });
+    if (ok) remove.mutate(f);
+  };
+
+  const kindBadge = (kind: FeedbackKind) => {
     if (kind === "kudos") return <Badge variant="success">{t("feedback.kinds.kudos")}</Badge>;
-    if (kind === "concern")
+    if (kind === "concern") {
       return <Badge variant="destructive">{t("feedback.kinds.concern")}</Badge>;
+    }
     return (
       <Badge className="bg-warning/10 text-warning hover:bg-warning/10">
         {t("feedback.kinds.suggestion")}
@@ -141,28 +138,37 @@ function FeedbackPage() {
     );
   };
 
-  const name = (id: string | null) => {
-    const e = id ? empById[id] : null;
-    return e ? `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() : t("feedback.anonymous");
-  };
+  // Null author: a private feedback. Unknown name: a colleague outside what the reader may list.
+  const name = (id: string | null) =>
+    id ? (access.nameOf(id) ?? t("feedback.colleague")) : t("feedback.anonymous");
 
-  const renderList = (list: any[]) => (
+  const renderList = (list: Feedback[]) => (
     <div className="grid gap-3">
       {list.map((f) => {
-        const okr = f.okr_id ? okrs.find((o) => o.id === f.okr_id) : null;
+        const okr = f.okrId ? okrs.data?.find((o) => o.id === f.okrId) : undefined;
         return (
-          <Card key={f.id}>
+          <Card key={f.id} data-testid="feedback-card">
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {kindBadge(f.kind)}
                   <span className="text-sm font-medium">
-                    {name(f.from_employee_id)} → {name(f.to_employee_id)}
+                    {name(f.fromEmployeeId)} → {name(f.toEmployeeId)}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(f.created_at).toLocaleDateString()}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">{formatDate(f.createdAt)}</span>
+                  {canDelete(f) && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("feedback.deleteAria")}
+                      onClick={() => void askRemove(f)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm">{f.message}</p>
               {okr && (
@@ -175,18 +181,27 @@ function FeedbackPage() {
         );
       })}
       {list.length === 0 && (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("feedback.empty")}</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          {feedback.isError ? apiErrorMessage(feedback.error) : t("feedback.empty")}
+        </p>
       )}
     </div>
   );
 
   return (
     <div>
+      {confirmDialog}
       <PageHeader
         title={t("feedback.title")}
         description={t("feedback.description")}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) setForm(EMPTY_FORM);
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -205,7 +220,7 @@ function FeedbackPage() {
                     </Label>
                     <EmployeeCombobox
                       value={form.to}
-                      onChange={(v) => setForm({ ...form, to: v, okr: "none" })}
+                      onChange={(v) => setForm({ ...form, to: v, okr: NO_OKR })}
                       options={options}
                       placeholder={t("feedback.choosePerson")}
                       searchPlaceholder={t("feedback.searchPerson")}
@@ -213,16 +228,16 @@ function FeedbackPage() {
                     />
                   </div>
                   <div>
-                    <Label>{t("feedback.kind")}</Label>
+                    <Label htmlFor="feedback-kind">{t("feedback.kind")}</Label>
                     <Select
                       value={form.kind}
-                      onValueChange={(v) => setForm({ ...form, kind: v as (typeof KINDS)[number] })}
+                      onValueChange={(v) => setForm({ ...form, kind: v as FeedbackKind })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="feedback-kind">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {KINDS.map((k) => (
+                        {FEEDBACK_KINDS.map((k) => (
                           <SelectItem key={k} value={k}>
                             {t(`feedback.kinds.${k}`)}
                           </SelectItem>
@@ -232,13 +247,13 @@ function FeedbackPage() {
                   </div>
                   {recipientOkrs.length > 0 && (
                     <div>
-                      <Label>{t("feedback.linkedOkr")}</Label>
+                      <Label htmlFor="feedback-okr">{t("feedback.linkedOkr")}</Label>
                       <Select value={form.okr} onValueChange={(v) => setForm({ ...form, okr: v })}>
-                        <SelectTrigger>
+                        <SelectTrigger id="feedback-okr">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">{t("feedback.noOkr")}</SelectItem>
+                          <SelectItem value={NO_OKR}>{t("feedback.noOkr")}</SelectItem>
                           {recipientOkrs.map((o) => (
                             <SelectItem key={o.id} value={o.id}>
                               {o.objective}
@@ -249,11 +264,13 @@ function FeedbackPage() {
                     </div>
                   )}
                   <div>
-                    <Label>
+                    <Label htmlFor="feedback-message">
                       {t("feedback.message")} <span className="text-destructive">*</span>
                     </Label>
                     <Textarea
+                      id="feedback-message"
                       rows={4}
+                      maxLength={5000}
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
                       placeholder={t("feedback.messagePlaceholder")}
@@ -263,7 +280,7 @@ function FeedbackPage() {
                     <Button variant="outline" onClick={() => setOpen(false)}>
                       {t("common.cancel")}
                     </Button>
-                    <Button onClick={() => void submit()} disabled={busy}>
+                    <Button onClick={submit} disabled={send.isPending}>
                       {t("feedback.send")}
                     </Button>
                   </DialogActions>
@@ -281,7 +298,7 @@ function FeedbackPage() {
           <TabsTrigger value="sent">
             {t("feedback.tabs.sent")} ({sent.length})
           </TabsTrigger>
-          {isManager && (
+          {showTeam && (
             <TabsTrigger value="team">
               {t("feedback.tabs.team")} ({team.length})
             </TabsTrigger>
@@ -293,7 +310,7 @@ function FeedbackPage() {
         <TabsContent value="sent" className="mt-4">
           {renderList(sent)}
         </TabsContent>
-        {isManager && (
+        {showTeam && (
           <TabsContent value="team" className="mt-4">
             {renderList(team)}
           </TabsContent>

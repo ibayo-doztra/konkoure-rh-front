@@ -279,7 +279,11 @@ export default {
     linkedOkr: "Objectif OKR lié",
     noOkr: "Aucun",
     anonymous: "Anonyme",
+    colleague: "Un collègue",
     sentSuccess: "Feedback envoyé",
+    deleteConfirm: "Supprimer ce feedback ?",
+    deleteConfirmDesc: "Il disparaîtra pour son destinataire comme pour vous.",
+    deleteAria: "Supprimer le feedback",
     kinds: {
       kudos: "Félicitation",
       suggestion: "Suggestion",
@@ -293,6 +297,7 @@ export default {
     errors: {
       recipientRequired: "Choisissez un destinataire",
       messageRequired: "Le message doit faire au moins 3 caractères",
+      noEmployeeRecord: "Votre compte n'est lié à aucune fiche employé.",
     },
   },
 
@@ -330,9 +335,11 @@ export default {
     newAchievement: "Nouvelle réalisation",
     achievementTitle: "Titre",
     impact: "Impact",
-    linkedGoal: "Goal lié",
+    linkedGoal: "Objectif lié",
     none: "Aucun",
     save: "Enregistrer",
+    achievedAt: "Date de réalisation",
+    deleteAria: "Supprimer « {{title}} »",
     savedSuccess: "Réalisation enregistrée",
     deleteConfirm: "Supprimer cette réalisation ?",
     deleteConfirmDesc:
@@ -341,6 +348,8 @@ export default {
     errors: {
       titleMin: "Titre : 3 caractères minimum",
       titleMax: "200 caractères max",
+      dateRequired: "Indiquez la date de réalisation",
+      noEmployeeRecord: "Votre compte n'est lié à aucune fiche employé.",
     },
   },
   recruitment: {
