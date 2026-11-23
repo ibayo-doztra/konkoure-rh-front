@@ -429,7 +429,10 @@ function buildSections(
         {
           key: "avgGoalProgress",
           label: t("dashboard.avgGoalProgress"),
-          value: `${Math.round(performance.avgGoalProgress)} %`,
+          value:
+            performance.avgGoalProgress === null
+              ? "—"
+              : `${Math.round(performance.avgGoalProgress)} %`,
           icon: Target,
         },
       ],

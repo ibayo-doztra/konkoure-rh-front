@@ -183,16 +183,6 @@
       "count": 1
     }
   },
-  "src/locales/en/public.ts": {
-    "prettier/prettier": {
-      "count": 3
-    }
-  },
-  "src/locales/fr/public.ts": {
-    "prettier/prettier": {
-      "count": 5
-    }
-  },
   "src/router.tsx": {
     "prettier/prettier": {
       "count": 2
@@ -239,21 +229,6 @@
       "count": 3
     }
   },
-  "src/routes/_authenticated.app.performance.reviews.$id.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 26
-    }
-  },
-  "src/routes/_authenticated.app.performance.reviews.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 11
-    }
-  },
-  "src/routes/_authenticated.app.performance.reviews.new.$planId.$employeeId.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    }
-  },
   "src/routes/_authenticated.app.recruitment.candidates.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 24
@@ -280,10 +255,7 @@
   },
   "src/routes/_authenticated.app.settings.index.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 14
-    },
-    "prettier/prettier": {
-      "count": 73
+      "count": 2
     }
   },
   "src/routes/_authenticated.app.settings.integrations.tsx": {

@@ -240,7 +240,13 @@ export default {
     signSuccess: "Évaluation signée",
     okrsTitle: "OKR du collaborateur ({{count}})",
     notFound: "Évaluation introuvable",
+    notOpenedTitle: "Évaluation pas encore ouverte",
+    notOpenedDesc:
+      "Les RH ouvrent les évaluations par cycle, dans les paramètres. Celle de cet employé sur ce plan n'existe pas encore.",
+    backToGoals: "Retour aux objectifs",
+    sendBackComment: "Motif du renvoi",
     errors: {
+      sendBackCommentRequired: "Indiquez le motif du renvoi",
       commentAllGoals: "Commentez tous les objectifs ({{count}} manquant(s))",
       globalCommentRequired: "Ajoutez un commentaire global",
       scoreRequired: "Attribuez-vous une note",

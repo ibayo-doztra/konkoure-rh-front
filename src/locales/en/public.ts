@@ -41,7 +41,8 @@ export default {
     phoneInvalid: "Invalid number: 9 digits starting with 6 (e.g. 624 00 00 00).",
     cardHint:
       "Card payments require 3-D Secure validation: you'll be redirected to our provider's secure page.",
-    momoHint: "You'll receive a confirmation request on your phone. Stay on this page until it's validated.",
+    momoHint:
+      "You'll receive a confirmation request on your phone. Stay on this page until it's validated.",
     continueToCard: "Continue to secure payment",
     payAmount: "Pay {{amount}} GNF",
     alreadyAccount: "Already have an account?",
@@ -49,13 +50,15 @@ export default {
     startingPaymentError: "Could not start the payment",
 
     retourTitle: "Payment confirmation",
-    retourSubtitle: "This screen updates automatically as soon as your operator confirms the payment.",
+    retourSubtitle:
+      "This screen updates automatically as soon as your operator confirms the payment.",
     missingClaim: "Missing tracking code. Enter it on the tracking page to find your payment.",
     trackingPage: "Tracking page",
     backToPayment: "Back to payment",
 
     suiviTitle: "Payment tracking",
-    suiviSubtitle: "Find the status of your subscription payment at any time using your tracking code.",
+    suiviSubtitle:
+      "Find the status of your subscription payment at any time using your tracking code.",
     claimLabel: "Tracking code",
     claimInvalid: "Invalid code: use the one shown after your payment.",
     showStatus: "Show payment status",

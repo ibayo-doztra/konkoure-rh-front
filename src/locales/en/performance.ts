@@ -239,7 +239,13 @@ export default {
     signSuccess: "Review signed",
     okrsTitle: "Team member OKRs ({{count}})",
     notFound: "Review not found",
+    notOpenedTitle: "Review not opened yet",
+    notOpenedDesc:
+      "HR open reviews per cycle, in the settings. This employee's review on this plan does not exist yet.",
+    backToGoals: "Back to goals",
+    sendBackComment: "Reason for sending back",
     errors: {
+      sendBackCommentRequired: "Give the reason for sending it back",
       commentAllGoals: "Comment on all goals ({{count}} missing)",
       globalCommentRequired: "Add an overall comment",
       scoreRequired: "Give yourself a score",

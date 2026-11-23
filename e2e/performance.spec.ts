@@ -226,3 +226,95 @@ test("un OKR soumis, renvoyé puis validé reçoit sa progression et un point de
   await expect(okrCard.getByText("Local trouvé au centre-ville.")).toBeVisible();
   await expect(okrCard.getByText(/· 50%/)).toBeVisible();
 });
+
+test("les RH ouvrent un cycle ; l'évaluation est remplie, renvoyée, validée puis signée", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const memberEmail = await createMember(request, owner);
+  const year = new Date().getFullYear();
+  const plan = await apiPost<{ id: string }>(request, owner, "/org/performance/plans", {
+    name: `Plan annuel ${year}`,
+    periodStart: `${year}-01-01`,
+    periodEnd: `${year}-12-31`,
+    status: "active",
+  });
+  const headers = {
+    Authorization: `Bearer ${owner.accessToken}`,
+    "X-Organization-Id": owner.organizationId,
+  };
+  const employees = await request.get(`${API_URL}/api/v1/org/employees`, { headers });
+  const { data: staff } = (await employees.json()) as { data: { id: string; firstName: string }[] };
+  const memberId = staff.find((e) => e.firstName === "Aïssatou")!.id;
+  await apiPost(request, owner, "/org/performance/goals", {
+    title: "Réduire les délais de paiement",
+    employeeId: memberId,
+    planId: plan.id,
+    weight: 50,
+  });
+  const switchTo = async (email: string, url: string) => {
+    await page.context().clearCookies();
+    await signIn(page, email);
+    await expect(page).toHaveURL(APP_URL);
+    await open(page, url);
+  };
+
+  // HR create the cycle and open it on the plan: one review per present employee.
+  await switchTo(owner.email, "/app/settings");
+  await page.getByRole("button", { name: "Nouveau cycle" }).click();
+  const cycleDialog = page.getByRole("dialog");
+  await cycleDialog.getByLabel("Nom").fill(`Évaluation ${year}`);
+  await cycleDialog.getByLabel("Début de période").fill(`${year}-01-01`);
+  await cycleDialog.getByLabel("Fin de période").fill(`${year}-12-31`);
+  await cycleDialog.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("Cycle créé")).toBeVisible();
+  await page.getByRole("button", { name: "Ouvrir", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByText(/Cycle ouvert — \d+ évaluations générées/)).toBeVisible();
+
+  // The employee reaches it from the goals screen and submits it.
+  await switchTo(memberEmail, "/app/performance/goals");
+  await page.getByRole("button", { name: "Évaluer" }).click();
+  await expect(page).toHaveURL(/\/app\/performance\/reviews\/[0-9a-f-]{36}$/);
+  const reviewUrl = new URL(page.url()).pathname;
+  await page.getByLabel("Commentaire employé").fill("Délais ramenés à 30 jours.");
+  await page.getByLabel("Auto-évaluation").fill("Une année solide.");
+  await page.getByRole("combobox", { name: "Note que je m'attribue" }).click();
+  await page.getByRole("option", { name: "3 — Atteint les attentes" }).click();
+  await page.getByRole("button", { name: "Soumettre au manager" }).click();
+  await expect(page.getByText("Évaluation soumise à votre manager")).toBeVisible();
+
+  // HR send it back with a reason.
+  await switchTo(owner.email, reviewUrl);
+  await expect(page.getByText("Délais ramenés à 30 jours.")).toBeVisible();
+  await page.getByRole("button", { name: "Renvoyer" }).click();
+  await page.getByLabel(/Motif du renvoi/).fill("Précisez les montants recouvrés.");
+  await page.getByRole("dialog").getByRole("button", { name: "Renvoyer" }).click();
+  await expect(page.getByText("Évaluation renvoyée à son propriétaire")).toBeVisible();
+
+  // The employee reads the reason and submits again.
+  await switchTo(memberEmail, reviewUrl);
+  await expect(page.getByText("Précisez les montants recouvrés.")).toBeVisible();
+  await page
+    .getByLabel("Commentaire employé")
+    .fill("Délais à 30 jours, 120 millions GNF recouvrés.");
+  await page.getByRole("button", { name: "Soumettre au manager" }).click();
+  await expect(page.getByText("Évaluation soumise à votre manager")).toBeVisible();
+
+  // HR validate with a score and a global comment.
+  await switchTo(owner.email, reviewUrl);
+  await page.getByLabel("Commentaire manager").fill("Objectif tenu.");
+  await page.getByLabel("Évaluation manager").fill("Très bon travail sur le recouvrement.");
+  await page.getByRole("combobox", { name: "Note attribuée" }).click();
+  await page.getByRole("option", { name: "3 — Atteint les attentes" }).click();
+  await page.getByRole("button", { name: "Valider" }).click();
+  await expect(page.getByText("Évaluation validée avec succès")).toBeVisible();
+
+  // The employee signs.
+  await switchTo(memberEmail, reviewUrl);
+  await expect(page.getByText("Très bon travail sur le recouvrement.")).toBeVisible();
+  await page.getByRole("button", { name: "Signer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Signer" }).click();
+  await expect(page.getByText("Évaluation signée", { exact: true }).first()).toBeVisible();
+});

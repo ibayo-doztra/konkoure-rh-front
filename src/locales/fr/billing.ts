@@ -166,6 +166,14 @@ export default {
     openCycleConfirmDesc:
       "Une évaluation sera générée pour chaque employé actif et une notification leur sera envoyée.",
     noActiveEmployee: "Aucun employé actif",
+    cycleStatuses: { draft: "Brouillon", open: "Ouvert", closed: "Clôturé" },
+    generateReviews: "Générer les évaluations",
+    generateReviewsTitle: "Générer les évaluations manquantes ?",
+    reviewPlan: "Plan évalué",
+    reviewNoPlan: "Aucun plan",
+    reviewPlanHint:
+      "Les objectifs non annulés de chaque employé sur ce plan sont rattachés à son évaluation.",
+    deletePlanAria: "Supprimer le plan {{name}}",
     cycleOpened: "Cycle ouvert — {{count}} évaluations générées",
     closeCycleConfirm: "Clôturer ce cycle ?",
     closeCycleConfirmDesc:

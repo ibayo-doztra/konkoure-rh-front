@@ -1,16 +1,43 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Loader2, PenLine, Save, Send, Undo2 } from "lucide-react";
+import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { pendingQuery } from "@/lib/api/pending";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  cyclesQuery,
+  okrsQuery,
+  performanceKey,
+  plansQuery,
+  REVIEW_STATUS_CLASS,
+  reviewQuery,
+  saveManagerReview,
+  saveSelfReview,
+  SELF_EDITABLE,
+  sendBackReview,
+  signReview,
+  submitSelfReview,
+  validateReview,
+  type Review,
+} from "@/lib/api/performance";
 import { useOrg } from "@/hooks/useOrg";
-import { useAuth } from "@/hooks/useAuth";
-import { useMyEmployee } from "@/hooks/useMyEmployee";
+import { useConfirm } from "@/hooks/useConfirm";
+import { usePerformanceAccess } from "@/hooks/usePerformanceAccess";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -19,9 +46,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
-import { Loader2, PenLine, Save, Send, Undo2 } from "lucide-react";
-import { useConfirm } from "@/hooks/useConfirm";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/app/performance/reviews/$id")({
   component: ReviewDetailPage,
@@ -29,26 +53,15 @@ export const Route = createFileRoute("/_authenticated/app/performance/reviews/$i
 
 const SCORE_VALUES = ["1", "2", "3", "4", "5"] as const;
 
-const REVIEW_STATUS_CLS: Record<string, string> = {
-  not_started: "bg-muted text-muted-foreground",
-  in_progress: "bg-warning/10 text-warning",
-  sent_back: "bg-destructive/10 text-destructive",
-  submitted: "bg-success/10 text-success",
-  validated: "bg-success/15 text-success",
-  signed: "bg-success/15 text-success",
-};
-
 function ScoreLegend() {
   const { t } = useTranslation();
   return (
     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
       {SCORE_VALUES.map((v) => (
         <li key={v}>
-          <span className="font-medium text-foreground">
-            {t(`reviews.scoreOptions.${v}` as any)}
-          </span>
-          {"\u00A0"}
-          {t(`reviews.scoreDescriptions.${v}` as any)}
+          <span className="font-medium text-foreground">{t(`reviews.scoreOptions.${v}`)}</span>
+          {" "}
+          {t(`reviews.scoreDescriptions.${v}`)}
         </li>
       ))}
     </ul>
@@ -58,326 +71,284 @@ function ScoreLegend() {
 function ReviewDetailPage() {
   const { t } = useTranslation();
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const { org } = useOrg();
-  const { user } = useAuth();
-  const { myEmployee, isSuperAdmin, requireEmployee } = useMyEmployee();
-  const { confirm, confirmDialog } = useConfirm();
+  const review = useQuery({ ...reviewQuery(org?.id ?? "", id), enabled: !!org });
 
-  const [review, setReview] = useState<any>(null);
-  const [employee, setEmployee] = useState<any>(null);
-  const [plan, setPlan] = useState<any>(null);
-  const [goals, setGoals] = useState<any[]>([]);
-  const [okrs, setOkrs] = useState<any[]>([]);
-
-  const [selfComments, setSelfComments] = useState<Record<string, string>>({});
-  const [mgrComments, setMgrComments] = useState<Record<string, string>>({});
-  const [selfGlobal, setSelfGlobal] = useState("");
-  const [selfScore, setSelfScore] = useState<number | null>(null);
-  const [mgrGlobal, setMgrGlobal] = useState("");
-  const [mgrScore, setMgrScore] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    const { data: r, error: rErr } = await pendingQuery("GET /org/performance/reviews");
-    if (rErr) {
-      toast.error(rErr.message);
-      setLoading(false);
-      return;
-    }
-    if (!r) {
-      setLoading(false);
-      return;
-    }
-    setReview(r);
-
-    // Charge l'employé séparément (aucune FK déclarée pour le join PostgREST)
-    let employeeRow: any = null;
-    if ((r as any).employee_id) {
-      const { data: emp } = await pendingQuery("GET /org/employees");
-      employeeRow = emp ?? null;
-    }
-    setEmployee(employeeRow);
-
-    let planRow: any = null;
-    if ((r as any).plan_id) {
-      const { data: p } = await pendingQuery("GET /org/performance/plans");
-      planRow = p ?? null;
-    }
-    setPlan(planRow);
-
-    setSelfGlobal(r.self_global_comment ?? "");
-    setSelfScore(r.self_score ?? null);
-    setMgrGlobal((r as any).manager_global_comment ?? "");
-    setMgrScore((r as any).manager_score ?? null);
-
-    const goalsMap = new Map<string, any>();
-    const { data: gByReview } = await pendingQuery("GET /org/performance/goals");
-    (gByReview ?? []).forEach((g: any) => goalsMap.set(g.id, g));
-
-    if ((r as any).plan_id && (r as any).employee_id) {
-      const { data: gByPlan } = await pendingQuery("GET /org/performance/goals");
-      (gByPlan ?? []).forEach((g: any) => {
-        if (!goalsMap.has(g.id)) goalsMap.set(g.id, g);
-      });
-    }
-    setGoals(Array.from(goalsMap.values()));
-
-    // OKR du collaborateur sur la période du plan (lecture seule)
-    if ((r as any).employee_id) {
-      const { data: okrRows } = await pendingQuery("GET /org/performance/okrs");
-      let list = okrRows ?? [];
-      if (planRow?.period_start && planRow?.period_end) {
-        const quarters = new Set<string>();
-        const start = new Date(planRow.period_start);
-        const end = new Date(planRow.period_end);
-        const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-        while (cursor <= end) {
-          quarters.add(`Q${Math.floor(cursor.getMonth() / 3) + 1}-${cursor.getFullYear()}`);
-          cursor.setMonth(cursor.getMonth() + 1);
-        }
-        const filtered = list.filter((o: any) => quarters.has(o.quarter));
-        if (filtered.length) list = filtered;
-      }
-      setOkrs(list);
-    } else {
-      setOkrs([]);
-    }
-
-    const { data: c } = await pendingQuery("GET /org/performance/reviews/:id");
-    const sm: Record<string, string> = {};
-    const mm: Record<string, string> = {};
-    (c ?? []).forEach((x: any) => {
-      sm[x.goal_id] = x.self_comment ?? "";
-      mm[x.goal_id] = x.manager_comment ?? "";
-    });
-    setSelfComments(sm);
-    setMgrComments(mm);
-    setLoading(false);
-  };
-  useEffect(() => {
-    void load();
-  }, [id]);
-
-  const isOwner = employee?.user_id === user?.id;
-  const isManager = !!review?.manager_id && review.manager_id === myEmployee?.id;
-  const status: string = review?.status ?? "not_started";
-  const isSubmitted = status === "submitted";
-  const isSentBack = status === "sent_back";
-  const isValidated = status === "validated";
-  const isSigned = status === "signed";
-  const canEditSelf =
-    isOwner && (status === "not_started" || status === "in_progress" || isSentBack);
-  const canEditManager =
-    !isOwner && (isManager || isSuperAdmin) && !!review?.submitted_at && !isValidated && !isSigned;
-  const hasManagerFeedback =
-    !!review?.manager_score ||
-    !!(review?.manager_global_comment ?? "").trim() ||
-    Object.values(mgrComments).some((v) => (v ?? "").trim().length > 0);
-  const canSign = isOwner && isValidated;
-
-  const updateGoalStatus = async (goalId: string, status: string) => {
-    if (!canEditSelf || isSubmitted) return;
-    const { error } = await pendingQuery("PATCH /org/performance/goals");
-    if (error) return toast.error(error.message);
-    setGoals((g) => g.map((x) => (x.id === goalId ? { ...x, status } : x)));
-  };
-
-  const persistComments = async (which: "self" | "manager") => {
-    if (!org || !review) return true;
-    const map = which === "self" ? selfComments : mgrComments;
-    const rows = goals.map((g) => ({
-      organization_id: org.id,
-      review_id: review.id,
-      goal_id: g.id,
-      ...(which === "self"
-        ? { self_comment: map[g.id] ?? "" }
-        : { manager_comment: map[g.id] ?? "" }),
-    }));
-    if (!rows.length) return true;
-    const { error } = await pendingQuery("PUT /org/performance/reviews/:id");
-    if (error) {
-      toast.error(error.message);
-      return false;
-    }
-    return true;
-  };
-
-  const saveSelfDraft = async (showToast = true) => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    setBusy(true);
-    if (!(await persistComments("self"))) {
-      setBusy(false);
-      return;
-    }
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (showToast) toast.success(t("reviews.draftSaved"));
-    await load();
-  };
-
-  const submitSelf = async () => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    const missing = goals.filter((g) => !(selfComments[g.id] ?? "").trim());
-    if (missing.length)
-      return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
-    if (!selfGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
-    if (!selfScore) return toast.error(t("reviews.errors.scoreRequired"));
-    setBusy(true);
-    await saveSelfDraft(false);
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (review.manager_id) {
-      const mgr = await pendingQuery("GET /org/employees");
-      if (mgr.data?.user_id && org) {
-        await pendingQuery("POST /me/notifications");
-      }
-    }
-    toast.success(t("reviews.submittedToManager"));
-    navigate({ to: "/app/performance/reviews" });
-  };
-
-  const saveManagerDraft = async (showToast = true) => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    setBusy(true);
-    if (!(await persistComments("manager"))) {
-      setBusy(false);
-      return;
-    }
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (showToast) toast.success(t("reviews.managerReviewSaved"));
-    await load();
-  };
-
-  const submitManager = async () => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    const missing = goals.filter((g) => !(mgrComments[g.id] ?? "").trim());
-    if (missing.length)
-      return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
-    if (!mgrGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
-    if (!mgrScore) return toast.error(t("reviews.errors.managerScoreRequired"));
-    setBusy(true);
-    await saveManagerDraft(false);
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (employee?.user_id && org) {
-      await pendingQuery("POST /me/notifications");
-    }
-    toast.success(t("reviews.managerReviewSubmitted"));
-    await load();
-  };
-
-  const sendBack = async () => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    const ok = await confirm({
-      title: t("reviews.sendBackConfirmTitle"),
-      subtitle: employee ? `${employee.first_name} ${employee.last_name}` : undefined,
-      description: t("reviews.sendBackConfirmDesc"),
-      actionLabel: t("reviews.sendBack"),
-    });
-    if (!ok) return;
-    setBusy(true);
-    if (!(await persistComments("manager"))) {
-      setBusy(false);
-      return;
-    }
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (employee?.user_id && org) {
-      await pendingQuery("POST /me/notifications");
-    }
-    toast.success(t("reviews.sendBackSuccess"));
-    await load();
-  };
-
-  const signReview = async () => {
-    if (!review) return;
-    if ((await requireEmployee()) === false) return;
-    const ok = await confirm({
-      title: t("reviews.signConfirmTitle"),
-      subtitle: plan?.name,
-      description: t("reviews.signConfirmDesc"),
-      actionLabel: t("reviews.sign"),
-    });
-    if (!ok) return;
-    setBusy(true);
-    const { error } = await pendingQuery("PATCH /org/performance/reviews");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (review.manager_id && org) {
-      const mgr = await pendingQuery("GET /org/employees");
-      if (mgr.data?.user_id) {
-        await pendingQuery("POST /me/notifications");
-      }
-    }
-    toast.success(t("reviews.signSuccess"));
-    await load();
-  };
-
-  if (loading)
+  if (review.isPending) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
-  if (!review)
-    return <p className="py-12 text-center text-muted-foreground">{t("reviews.notFound")}</p>;
+  }
+  if (!review.data) {
+    return (
+      <p className="py-12 text-center text-muted-foreground">
+        {review.isError && review.error ? apiErrorMessage(review.error) : t("reviews.notFound")}
+      </p>
+    );
+  }
+  // Remounted on every server change, so the drafts restart from the saved values.
+  return <ReviewForm key={review.data.updatedAt} review={review.data} />;
+}
 
-  const managerSubmitted = !!review?.manager_submitted_at;
+/** The text shown read-only, never in a disabled field (07 §5.7). */
+function ReadOnlyText({ value }: { value: string | null | undefined }) {
+  return (
+    <p className="min-h-[3.5rem] whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
+      {value ?? ""}
+    </p>
+  );
+}
+
+function ScoreSelect({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  value: number | null;
+  onChange: (v: number) => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Label htmlFor={id}>{label}</Label>
+        <Select
+          value={value ? String(value) : ""}
+          onValueChange={(v) => onChange(Number(v))}
+          disabled={disabled}
+        >
+          <SelectTrigger id={id} className="w-full sm:w-64">
+            <SelectValue placeholder={t("reviews.chooseScore")} />
+          </SelectTrigger>
+          <SelectContent>
+            {SCORE_VALUES.map((v) => (
+              <SelectItem key={v} value={v}>
+                {t(`reviews.scoreOptions.${v}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <ScoreLegend />
+    </div>
+  );
+}
+
+function ReviewForm({ review }: { review: Review }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { org } = useOrg();
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const { confirm, confirmDialog } = useConfirm();
+  const access = usePerformanceAccess();
+  const plans = useQuery({ ...plansQuery(organizationId), enabled: !!org });
+  const cycles = useQuery({ ...cyclesQuery(organizationId), enabled: !!org });
+  const okrs = useQuery({ ...okrsQuery(organizationId), enabled: !!org });
+
+  const [selfComments, setSelfComments] = useState<Record<string, string>>(() =>
+    Object.fromEntries(review.goals.map((g) => [g.id, g.selfComment ?? ""])),
+  );
+  const [mgrComments, setMgrComments] = useState<Record<string, string>>(() =>
+    Object.fromEntries(review.goals.map((g) => [g.id, g.managerComment ?? ""])),
+  );
+  const [selfGlobal, setSelfGlobal] = useState(review.selfGlobalComment ?? "");
+  const [selfScore, setSelfScore] = useState<number | null>(review.selfScore);
+  const [mgrGlobal, setMgrGlobal] = useState(review.managerGlobalComment ?? "");
+  const [mgrScore, setMgrScore] = useState<number | null>(review.managerScore);
+  const [sendBackOpen, setSendBackOpen] = useState(false);
+  const [sendBackComment, setSendBackComment] = useState("");
+
+  const status = review.status;
+  const isEvaluated = access.isSelf(review.employeeId);
+  // HR or the manager, never on one's own evaluation (06 §9).
+  const isEvaluator =
+    !isEvaluated &&
+    (access.isAdmin ||
+      (!!access.myEmployeeId && review.managerId === access.myEmployeeId) ||
+      access.inMyTeam(review.employeeId));
+  const canEditSelf = isEvaluated && SELF_EDITABLE.includes(status);
+  const canEditManager = isEvaluator && status === "submitted";
+  const canSign = isEvaluated && status === "validated";
+  const managerVisible =
+    status === "submitted" ||
+    status === "sent_back" ||
+    status === "validated" ||
+    status === "signed";
+
+  const plan = review.planId ? plans.data?.find((p) => p.id === review.planId) : undefined;
+  const cycle = review.cycleId ? cycles.data?.find((c) => c.id === review.cycleId) : undefined;
+  const period = plan ?? cycle;
+  const employeeName = access.nameOf(review.employeeId) ?? "—";
+
+  // The employee's OKR over the period, read-only.
+  const relatedOkrs = useMemo(() => {
+    const own = (okrs.data ?? []).filter((o) => o.employeeId === review.employeeId);
+    if (!period) return own;
+    const quarters = new Set<string>();
+    const end = new Date(period.periodEnd);
+    for (
+      const cursor = new Date(period.periodStart);
+      cursor <= end;
+      cursor.setMonth(cursor.getMonth() + 1)
+    ) {
+      quarters.add(`${cursor.getFullYear()}-Q${Math.floor(cursor.getMonth() / 3) + 1}`);
+    }
+    return own.filter((o) => quarters.has(o.quarter));
+  }, [okrs.data, review.employeeId, period]);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) });
+  const onError = (e: unknown) => toast.error(apiErrorMessage(e));
+
+  const selfPayload = () => ({
+    selfScore,
+    selfGlobalComment: selfGlobal.trim() || null,
+    goals: review.goals.map((g) => ({
+      goalId: g.id,
+      comment: (selfComments[g.id] ?? "").trim() || null,
+    })),
+  });
+  const managerPayload = () => ({
+    managerScore: mgrScore,
+    managerGlobalComment: mgrGlobal.trim() || null,
+    goals: review.goals.map((g) => ({
+      goalId: g.id,
+      comment: (mgrComments[g.id] ?? "").trim() || null,
+    })),
+  });
+
+  const saveSelf = useMutation({
+    mutationFn: async (submit: boolean) => {
+      await saveSelfReview(review.id, selfPayload());
+      if (submit) await submitSelfReview(review.id);
+      return submit;
+    },
+    onSuccess: async (submitted) => {
+      await refresh();
+      if (submitted) {
+        toast.success(t("reviews.submittedToManager"));
+        void navigate({ to: "/app/performance/reviews" });
+      } else {
+        toast.success(t("reviews.draftSaved"));
+      }
+    },
+    onError,
+  });
+
+  const saveManager = useMutation({
+    mutationFn: async (action: "save" | "validate") => {
+      await saveManagerReview(review.id, managerPayload());
+      if (action === "validate") await validateReview(review.id);
+      return action;
+    },
+    onSuccess: (action) => {
+      toast.success(
+        action === "validate"
+          ? t("reviews.managerReviewSubmitted")
+          : t("reviews.managerReviewSaved"),
+      );
+      return refresh();
+    },
+    onError,
+  });
+
+  const sendBack = useMutation({
+    mutationFn: async (comment: string) => {
+      await saveManagerReview(review.id, managerPayload());
+      return sendBackReview(review.id, comment);
+    },
+    onSuccess: () => {
+      toast.success(t("reviews.sendBackSuccess"));
+      setSendBackOpen(false);
+      return refresh();
+    },
+    onError,
+  });
+
+  const sign = useMutation({
+    mutationFn: () => signReview(review.id),
+    onSuccess: () => {
+      toast.success(t("reviews.signSuccess"));
+      return refresh();
+    },
+    onError,
+  });
+
+  const busy = saveSelf.isPending || saveManager.isPending || sendBack.isPending || sign.isPending;
+
+  const submitSelf = () => {
+    const missing = review.goals.filter((g) => !(selfComments[g.id] ?? "").trim());
+    if (missing.length) {
+      return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
+    }
+    if (!selfGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
+    if (!selfScore) return toast.error(t("reviews.errors.scoreRequired"));
+    saveSelf.mutate(true);
+  };
+
+  const validate = () => {
+    if (!mgrGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
+    if (!mgrScore) return toast.error(t("reviews.errors.managerScoreRequired"));
+    saveManager.mutate("validate");
+  };
+
+  const askSign = async () => {
+    const ok = await confirm({
+      title: t("reviews.signConfirmTitle"),
+      subtitle: plan?.name ?? cycle?.name,
+      description: t("reviews.signConfirmDesc"),
+      actionLabel: t("reviews.sign"),
+    });
+    if (ok) sign.mutate();
+  };
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <PageHeader
-        title={t("reviews.evaluationOf", {
-          name: `${employee?.first_name} ${employee?.last_name}`,
-        })}
+        title={t("reviews.evaluationOf", { name: employeeName })}
         description={
-          plan
-            ? `${plan.name} — ${plan.period_start} → ${plan.period_end}`
+          period
+            ? `${period.name} — ${formatDate(period.periodStart)} → ${formatDate(period.periodEnd)}`
             : t("reviews.evaluationDefault")
         }
         actions={
-          <Badge className={REVIEW_STATUS_CLS[review.status] ?? REVIEW_STATUS_CLS.not_started}>
-            {t(`reviews.statuses.${review.status}` as any)}
-          </Badge>
+          <Badge className={REVIEW_STATUS_CLASS[status]}>{t(`reviews.statuses.${status}`)}</Badge>
         }
       />
 
-      {isOwner && isSubmitted && (
+      {isEvaluated && status === "submitted" && (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             {t("reviews.submittedReadOnly", {
-              date: review.submitted_at
-                ? t("reviews.submittedOn", { date: formatDate(review.submitted_at) })
+              date: review.submittedAt
+                ? t("reviews.submittedOn", { date: formatDate(review.submittedAt) })
                 : "",
             })}
           </CardContent>
         </Card>
       )}
 
-      {isOwner && isSentBack && (
+      {status === "sent_back" && (
         <Card className="border-destructive/40">
           <CardContent className="p-4 text-sm">
             <p className="font-medium text-destructive">{t("reviews.sentBackBannerTitle")}</p>
             <p className="mt-1 text-muted-foreground">{t("reviews.sentBackBannerDesc")}</p>
+            {review.sentBackComment && (
+              <p className="mt-2 whitespace-pre-wrap">{review.sentBackComment}</p>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {isOwner && isValidated && (
+      {isEvaluated && status === "validated" && (
         <Card className="border-success/40">
           <CardContent className="p-4 text-sm">
             <p className="font-medium text-success">{t("reviews.validatedBannerTitle")}</p>
@@ -386,20 +357,20 @@ function ReviewDetailPage() {
         </Card>
       )}
 
-      {isOwner && isSigned && (
+      {isEvaluated && status === "signed" && (
         <Card className="border-success/40">
           <CardContent className="p-4 text-sm">
             <p className="font-medium text-success">{t("reviews.signedBannerTitle")}</p>
             <p className="mt-1 text-muted-foreground">
               {t("reviews.signedBannerDesc", {
-                date: review.signed_at ? formatDate(review.signed_at) : "",
+                date: review.signedAt ? formatDate(review.signedAt) : "",
               })}
             </p>
           </CardContent>
         </Card>
       )}
 
-      {!isOwner && !isManager && !isSuperAdmin && (
+      {!isEvaluated && !isEvaluator && (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             {t("reviews.readOnlyOther")}
@@ -407,12 +378,12 @@ function ReviewDetailPage() {
         </Card>
       )}
 
-      {okrs.length > 0 && (
+      {relatedOkrs.length > 0 && (
         <section className="mb-4 space-y-3">
-          <h2 className="font-semibold">{t("reviews.okrsTitle", { count: okrs.length })}</h2>
+          <h2 className="font-semibold">{t("reviews.okrsTitle", { count: relatedOkrs.length })}</h2>
           <Card>
             <CardContent className="space-y-3 p-4">
-              {okrs.map((o) => (
+              {relatedOkrs.map((o) => (
                 <div key={o.id} className="rounded-lg border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">{o.objective}</p>
@@ -421,7 +392,7 @@ function ReviewDetailPage() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {o.quarter} · {t(`okrs.reviewStatuses.${o.review_status ?? "draft"}`)}
+                    {o.quarter} · {t(`okrs.reviewStatuses.${o.reviewStatus}`)}
                   </p>
                 </div>
               ))}
@@ -431,16 +402,16 @@ function ReviewDetailPage() {
       )}
 
       <section className="space-y-3">
-        <h2 className="font-semibold">{t("reviews.goalsCount", { count: goals.length })}</h2>
-        {goals.length === 0 && (
+        <h2 className="font-semibold">{t("reviews.goalsCount", { count: review.goals.length })}</h2>
+        {review.goals.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
               {t("reviews.noGoalsLinked")}
             </CardContent>
           </Card>
         )}
-        {goals.map((g) => (
-          <Card key={g.id}>
+        {review.goals.map((g) => (
+          <Card key={g.id} data-testid="review-goal">
             <CardContent className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -452,54 +423,37 @@ function ReviewDetailPage() {
                     </p>
                   )}
                 </div>
-                {canEditSelf ? (
-                  <Select value={g.status} onValueChange={(v) => updateGoalStatus(g.id, v)}>
-                    <SelectTrigger className="h-8 w-36">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(["not_started", "in_progress", "late", "achieved"] as const).map((k) => (
-                        <SelectItem key={k} value={k}>
-                          {t(`reviews.goalStatuses.${k}` as any)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge variant="secondary">
-                    {t(`reviews.goalStatuses.${g.status}` as any, { defaultValue: g.status })}
-                  </Badge>
-                )}
+                <Badge variant="secondary">{t(`goals.statuses.${g.status}`)}</Badge>
               </div>
               <div>
-                <Label>{t("reviews.employeeComment")}</Label>
+                <Label htmlFor={`self-${g.id}`}>{t("reviews.employeeComment")}</Label>
                 {canEditSelf ? (
                   <Textarea
+                    id={`self-${g.id}`}
                     rows={3}
+                    maxLength={5000}
                     value={selfComments[g.id] ?? ""}
                     onChange={(e) => setSelfComments((m) => ({ ...m, [g.id]: e.target.value }))}
                     placeholder={t("reviews.employeeCommentPlaceholder")}
                   />
                 ) : (
-                  <p className="min-h-[3.5rem] whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
-                    {selfComments[g.id] ?? ""}
-                  </p>
+                  <ReadOnlyText value={selfComments[g.id]} />
                 )}
               </div>
-              {(isSubmitted || managerSubmitted || canEditManager || hasManagerFeedback) && (
+              {managerVisible && (
                 <div>
-                  <Label>{t("reviews.managerComment")}</Label>
-                  {canEditManager && !managerSubmitted ? (
+                  <Label htmlFor={`mgr-${g.id}`}>{t("reviews.managerComment")}</Label>
+                  {canEditManager ? (
                     <Textarea
+                      id={`mgr-${g.id}`}
                       rows={3}
+                      maxLength={5000}
                       value={mgrComments[g.id] ?? ""}
                       onChange={(e) => setMgrComments((m) => ({ ...m, [g.id]: e.target.value }))}
                       placeholder={t("reviews.managerCommentPlaceholder")}
                     />
                   ) : (
-                    <p className="min-h-[3.5rem] whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
-                      {mgrComments[g.id] ?? ""}
-                    </p>
+                    <ReadOnlyText value={mgrComments[g.id]} />
                   )}
                 </div>
               )}
@@ -514,98 +468,63 @@ function ReviewDetailPage() {
           {canEditSelf ? (
             <Textarea
               rows={4}
+              maxLength={10000}
+              aria-label={t("reviews.selfAssessment")}
               value={selfGlobal}
               onChange={(e) => setSelfGlobal(e.target.value)}
               placeholder={t("reviews.selfAssessmentPlaceholder")}
             />
           ) : (
-            <p className="min-h-[3.5rem] whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
-              {selfGlobal}
-            </p>
+            <ReadOnlyText value={selfGlobal} />
           )}
-          <div className="space-y-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Label>{t("reviews.myScore")}</Label>
-              <Select
-                value={selfScore ? String(selfScore) : ""}
-                onValueChange={(v) => setSelfScore(Number(v))}
-                disabled={!canEditSelf}
-              >
-                <SelectTrigger className="w-full sm:w-64">
-                  <SelectValue placeholder={t("reviews.chooseScore")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCORE_VALUES.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      <span>{t(`reviews.scoreOptions.${v}` as any)}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <ScoreLegend />
-          </div>
+          <ScoreSelect
+            id="self-score"
+            label={t("reviews.myScore")}
+            value={selfScore}
+            onChange={setSelfScore}
+            disabled={!canEditSelf}
+          />
         </CardContent>
       </Card>
 
-      {(isSubmitted || canEditManager || hasManagerFeedback) && (
+      {managerVisible && (
         <Card>
           <CardContent className="space-y-3 p-4 sm:p-6">
             <h2 className="font-semibold">{t("reviews.managerAssessment")}</h2>
-            {!isSubmitted && !hasManagerFeedback && !canEditManager && (
-              <p className="text-sm text-muted-foreground">
-                {t("reviews.managerAssessmentWaiting")}
-              </p>
-            )}
-            {canEditManager && !managerSubmitted ? (
+            {canEditManager ? (
               <Textarea
                 rows={4}
+                maxLength={10000}
+                aria-label={t("reviews.managerAssessment")}
                 value={mgrGlobal}
                 onChange={(e) => setMgrGlobal(e.target.value)}
                 placeholder={t("reviews.managerScorePlaceholder")}
               />
+            ) : mgrGlobal ? (
+              <ReadOnlyText value={mgrGlobal} />
             ) : (
-              mgrGlobal && (
-                <p className="min-h-[3.5rem] whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
-                  {mgrGlobal}
-                </p>
-              )
+              <p className="text-sm text-muted-foreground">
+                {t("reviews.managerAssessmentWaiting")}
+              </p>
             )}
-            <div className="space-y-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Label>{t("reviews.assignedScore")}</Label>
-                <Select
-                  value={mgrScore ? String(mgrScore) : ""}
-                  onValueChange={(v) => setMgrScore(Number(v))}
-                  disabled={!canEditManager || managerSubmitted}
-                >
-                  <SelectTrigger className="w-full sm:w-64">
-                    <SelectValue placeholder={t("reviews.chooseScore")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SCORE_VALUES.map((v) => (
-                      <SelectItem key={v} value={v}>
-                        <span>{t(`reviews.scoreOptions.${v}` as any)}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <ScoreLegend />
-            </div>
+            <ScoreSelect
+              id="manager-score"
+              label={t("reviews.assignedScore")}
+              value={mgrScore}
+              onChange={setMgrScore}
+              disabled={!canEditManager}
+            />
           </CardContent>
         </Card>
       )}
 
-      {review.status === "signed" && review.signed_at && (
+      {status === "signed" && review.signedAt && (
         <Card>
           <CardContent className="p-4 text-sm sm:p-6">
             <p className="text-muted-foreground">{t("reviews.signatureLabel")}</p>
-            <p className="mt-1 font-medium text-foreground">
-              {`${employee?.first_name ?? ""} ${employee?.last_name ?? ""}`.trim()}
-            </p>
+            <p className="mt-1 font-medium text-foreground">{employeeName}</p>
             <p className="text-muted-foreground">
-              {t("reviews.signatureOn", { date: formatDate(review.signed_at) })}
+              {t("reviews.signatureOn", { date: formatDate(review.signedAt) })}
             </p>
           </CardContent>
         </Card>
@@ -613,7 +532,7 @@ function ReviewDetailPage() {
 
       {canEditSelf && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
-          <Button variant="outline" onClick={() => saveSelfDraft()} disabled={busy}>
+          <Button variant="outline" onClick={() => saveSelf.mutate(false)} disabled={busy}>
             <Save className="mr-2 h-4 w-4" />
             {t("reviews.save")}
           </Button>
@@ -626,30 +545,69 @@ function ReviewDetailPage() {
 
       {canSign && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
-          <Button onClick={signReview} disabled={busy}>
+          <Button onClick={() => void askSign()} disabled={busy}>
             <PenLine className="mr-2 h-4 w-4" />
             {t("reviews.sign")}
           </Button>
         </div>
       )}
 
-      {canEditManager && !managerSubmitted && (
+      {canEditManager && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
-          <Button variant="outline" onClick={() => saveManagerDraft()} disabled={busy}>
+          <Button variant="outline" onClick={() => saveManager.mutate("save")} disabled={busy}>
             <Save className="mr-2 h-4 w-4" />
             {t("reviews.save")}
           </Button>
-          <Button variant="outlineDanger" onClick={sendBack} disabled={busy}>
+          <Button variant="outlineDanger" onClick={() => setSendBackOpen(true)} disabled={busy}>
             <Undo2 className="mr-2 h-4 w-4" />
             {t("reviews.sendBack")}
           </Button>
-          <Button onClick={submitManager} disabled={busy}>
+          <Button onClick={validate} disabled={busy}>
             <Send className="mr-2 h-4 w-4" />
             {t("reviews.submitManagerReview")}
           </Button>
         </div>
       )}
-      {confirmDialog}
+
+      <Dialog open={sendBackOpen} onOpenChange={setSendBackOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("reviews.sendBackConfirmTitle")}</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <p className="text-sm font-medium">{employeeName}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("reviews.sendBackConfirmDesc")}</p>
+            <div className="mt-4">
+              <Label htmlFor="review-sendback">
+                {t("reviews.sendBackComment")} <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="review-sendback"
+                rows={4}
+                maxLength={5000}
+                value={sendBackComment}
+                onChange={(e) => setSendBackComment(e.target.value)}
+              />
+            </div>
+            <DialogActions>
+              <Button variant="outline" onClick={() => setSendBackOpen(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="outlineDanger"
+                disabled={busy}
+                onClick={() => {
+                  const comment = sendBackComment.trim();
+                  if (!comment) return toast.error(t("reviews.errors.sendBackCommentRequired"));
+                  sendBack.mutate(comment);
+                }}
+              >
+                {t("reviews.sendBack")}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
