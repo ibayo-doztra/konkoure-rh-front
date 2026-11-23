@@ -167,3 +167,62 @@ test("un employé planifie puis termine une activité liée à son objectif", as
   await page.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(page.getByTestId("activity-card")).toHaveCount(0);
 });
+
+test("un OKR soumis, renvoyé puis validé reçoit sa progression et un point de suivi", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const memberEmail = await createMember(request, owner);
+  const okrCard = page.getByTestId("okr-card").filter({ hasText: "Doubler les ventes à Labé" });
+  const switchTo = async (email: string) => {
+    await page.context().clearCookies();
+    await signIn(page, email);
+    await expect(page).toHaveURL(APP_URL);
+    await open(page, "/app/performance/okrs");
+  };
+
+  await switchTo(memberEmail);
+  await page.getByRole("button", { name: "Nouveau", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Objectif").fill("Doubler les ventes à Labé");
+  await dialog
+    .getByLabel(/Résultats clés/)
+    .fill("Ouvrir un point de vente\nRecruter trois commerciaux");
+  await dialog.getByRole("button", { name: "Créer", exact: true }).click();
+  await expect(page.getByText("Objectif créé")).toBeVisible();
+  await expect(okrCard.getByText("Brouillon")).toBeVisible();
+  await okrCard.getByRole("button", { name: "Soumettre au manager" }).click();
+  await expect(okrCard.getByText("En attente de validation")).toBeVisible();
+
+  // HR send it back with a mandatory comment.
+  await switchTo(owner.email);
+  await expect(okrCard.getByText("Aïssatou Bah", { exact: false })).toBeVisible();
+  await okrCard.getByRole("button", { name: "Renvoyer" }).click();
+  await page.getByLabel(/Commentaire du manager/).fill("Chiffrez le nombre de points de vente.");
+  await page.getByRole("dialog").getByRole("button", { name: "Renvoyer" }).click();
+  await expect(okrCard.getByText("À revoir")).toBeVisible();
+
+  // The holder reads the comment and submits again.
+  await switchTo(memberEmail);
+  await expect(okrCard.getByText("Chiffrez le nombre de points de vente.")).toBeVisible();
+  await okrCard.getByRole("button", { name: "Soumettre au manager" }).click();
+  await expect(okrCard.getByText("En attente de validation")).toBeVisible();
+
+  await switchTo(owner.email);
+  await okrCard.getByRole("button", { name: "Valider" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Valider" }).click();
+  await expect(okrCard.getByText("Validé")).toBeVisible();
+
+  // Back to the holder: one key result out of two, then a check-in.
+  await switchTo(memberEmail);
+  await okrCard.getByRole("checkbox", { name: "Ouvrir un point de vente" }).click();
+  await expect(okrCard.getByText("50%")).toBeVisible();
+  await okrCard.getByRole("button", { name: "Points de suivi" }).click();
+  await okrCard
+    .getByRole("textbox", { name: "Points de suivi" })
+    .fill("Local trouvé au centre-ville.");
+  await okrCard.getByRole("button", { name: "Ajouter" }).click();
+  await expect(okrCard.getByText("Local trouvé au centre-ville.")).toBeVisible();
+  await expect(okrCard.getByText(/· 50%/)).toBeVisible();
+});

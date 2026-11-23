@@ -232,49 +232,26 @@
   "src/routes/_authenticated.app.performance.achievements.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    },
-    "prettier/prettier": {
-      "count": 31
     }
   },
   "src/routes/_authenticated.app.performance.feedback.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    },
-    "prettier/prettier": {
-      "count": 37
-    }
-  },
-  "src/routes/_authenticated.app.performance.okrs.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 20
-    },
-    "prettier/prettier": {
-      "count": 135
     }
   },
   "src/routes/_authenticated.app.performance.reviews.$id.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 26
-    },
-    "prettier/prettier": {
-      "count": 45
     }
   },
   "src/routes/_authenticated.app.performance.reviews.index.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 11
-    },
-    "prettier/prettier": {
-      "count": 23
     }
   },
   "src/routes/_authenticated.app.performance.reviews.new.$planId.$employeeId.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 10
-    },
-    "prettier/prettier": {
-      "count": 5
     }
   },
   "src/routes/_authenticated.app.recruitment.candidates.tsx": {

@@ -33,7 +33,11 @@ function ScoreLegend() {
     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
       {SCORE_VALUES.map((v) => (
         <li key={v}>
-          <span className="font-medium text-foreground">{t(`reviews.scoreOptions.${v}` as any)}</span>{"\u00A0"}{t(`reviews.scoreDescriptions.${v}` as any)}
+          <span className="font-medium text-foreground">
+            {t(`reviews.scoreOptions.${v}` as any)}
+          </span>
+          {"\u00A0"}
+          {t(`reviews.scoreDescriptions.${v}` as any)}
         </li>
       ))}
     </ul>
@@ -179,14 +183,14 @@ function NewReviewPage() {
       </p>
     );
 
-  const title = t("reviews.newEvaluationTitle", { name: `${employee.first_name} ${employee.last_name}`, plan: plan.name });
+  const title = t("reviews.newEvaluationTitle", {
+    name: `${employee.first_name} ${employee.last_name}`,
+    plan: plan.name,
+  });
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={title}
-        description={`${plan.period_start} → ${plan.period_end}`}
-      />
+      <PageHeader title={title} description={`${plan.period_start} → ${plan.period_end}`} />
 
       {!isOwner && (
         <Card>
@@ -217,9 +221,7 @@ function NewReviewPage() {
                   </p>
                 )}
                 {g.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {g.description}
-                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{g.description}</p>
                 )}
               </div>
               <div>
@@ -227,9 +229,7 @@ function NewReviewPage() {
                 <Textarea
                   rows={3}
                   value={selfComments[g.id] ?? ""}
-                  onChange={(e) =>
-                    setSelfComments((m) => ({ ...m, [g.id]: e.target.value }))
-                  }
+                  onChange={(e) => setSelfComments((m) => ({ ...m, [g.id]: e.target.value }))}
                   disabled={!isOwner}
                   placeholder={t("reviews.employeeCommentPlaceholder")}
                 />

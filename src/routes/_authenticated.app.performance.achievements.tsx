@@ -10,8 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -25,7 +38,11 @@ export const Route = createFileRoute("/_authenticated/app/performance/achievemen
 
 function useAchievementSchema(t: (k: string) => string) {
   return z.object({
-    title: z.string().trim().min(3, t("achievements.errors.titleMin")).max(200, t("achievements.errors.titleMax")),
+    title: z
+      .string()
+      .trim()
+      .min(3, t("achievements.errors.titleMin"))
+      .max(200, t("achievements.errors.titleMax")),
     impact: z.string().trim().max(500).optional(),
     goal_id: z.string().uuid().nullable().optional(),
   });
@@ -52,7 +69,9 @@ function AchievementsPage() {
     setGoals(gs ?? []);
     setItems(ach ?? []);
   };
-  useEffect(() => { void load(); }, [org]);
+  useEffect(() => {
+    void load();
+  }, [org]);
 
   const save = async () => {
     if (!org) return;
@@ -73,7 +92,15 @@ function AchievementsPage() {
   };
 
   const remove = async (id: string) => {
-    if (!(await confirm({ title: t("achievements.deleteConfirm"), description: t("achievements.deleteConfirmDesc"), actionLabel: t("common.delete"), actionVariant: "destructive" }))) return;
+    if (
+      !(await confirm({
+        title: t("achievements.deleteConfirm"),
+        description: t("achievements.deleteConfirmDesc"),
+        actionLabel: t("common.delete"),
+        actionVariant: "destructive",
+      }))
+    )
+      return;
     const { error } = await pendingQuery("DELETE /org/performance/achievements");
     if (error) return toast.error(error.message);
     void load();
@@ -84,33 +111,71 @@ function AchievementsPage() {
   return (
     <div>
       {confirmDialog}
-      <PageHeader title={t("achievements.title")} description={t("achievements.description")}
+      <PageHeader
+        title={t("achievements.title")}
+        description={t("achievements.description")}
         actions={
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setForm(empty); }}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4"/>{t("achievements.newAchievement")}</Button></DialogTrigger>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) setForm(empty);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("achievements.newAchievement")}
+              </Button>
+            </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{t("achievements.newAchievement")}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{t("achievements.newAchievement")}</DialogTitle>
+              </DialogHeader>
               <DialogBody>
                 <div className="space-y-4">
                   <div>
-                    <Label>{t("achievements.achievementTitle")} <span className="text-destructive">*</span></Label>
-                    <Input value={form.title} maxLength={200} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                    <Label>
+                      {t("achievements.achievementTitle")}{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      value={form.title}
+                      maxLength={200}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    />
                   </div>
                   <div>
                     <Label>{t("achievements.impact")}</Label>
-                    <Textarea rows={3} maxLength={500} value={form.impact} onChange={(e) => setForm({ ...form, impact: e.target.value })} />
+                    <Textarea
+                      rows={3}
+                      maxLength={500}
+                      value={form.impact}
+                      onChange={(e) => setForm({ ...form, impact: e.target.value })}
+                    />
                   </div>
                   <div>
                     <Label>{t("achievements.linkedGoal")}</Label>
-                    <Select value={form.goal_id || "none"} onValueChange={(v) => setForm({ ...form, goal_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder={t("achievements.none")} /></SelectTrigger>
+                    <Select
+                      value={form.goal_id || "none"}
+                      onValueChange={(v) => setForm({ ...form, goal_id: v === "none" ? "" : v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("achievements.none")} />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">{t("achievements.none")}</SelectItem>
-                        {goals.map((g) => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
+                        {goals.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.title}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full" onClick={save} disabled={!canSubmit}>{t("achievements.save")}</Button>
+                  <Button className="w-full" onClick={save} disabled={!canSubmit}>
+                    {t("achievements.save")}
+                  </Button>
                 </div>
               </DialogBody>
             </DialogContent>
@@ -121,23 +186,33 @@ function AchievementsPage() {
         {items.map((a) => {
           const goal = goals.find((g) => g.id === a.goal_id);
           return (
-            <Card key={a.id}><CardContent className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <p className="font-semibold">{a.title}</p>
-                    {goal && <Badge variant="outline">{goal.title}</Badge>}
+            <Card key={a.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <p className="font-semibold">{a.title}</p>
+                      {goal && <Badge variant="outline">{goal.title}</Badge>}
+                    </div>
+                    {a.impact && <p className="mt-1 text-sm text-muted-foreground">{a.impact}</p>}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDate(a.achieved_at)}
+                    </p>
                   </div>
-                  {a.impact && <p className="mt-1 text-sm text-muted-foreground">{a.impact}</p>}
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(a.achieved_at)}</p>
+                  <Button size="icon" variant="ghost" onClick={() => remove(a.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </CardContent></Card>
+              </CardContent>
+            </Card>
           );
         })}
-        {items.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t("achievements.empty")}</p>}
+        {items.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("achievements.empty")}
+          </p>
+        )}
       </div>
     </div>
   );

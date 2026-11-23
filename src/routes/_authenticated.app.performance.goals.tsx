@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { apiErrorMessage } from "@/lib/api/client";
-import { allEmployeesQuery } from "@/lib/api/hr";
 import {
   createGoal,
   deleteGoal,
@@ -23,8 +22,7 @@ import {
   type WritableGoalStatus,
 } from "@/lib/api/performance";
 import { useOrg } from "@/hooks/useOrg";
-import { useMyEmployee } from "@/hooks/useMyEmployee";
-import { useRole } from "@/hooks/useRole";
+import { usePerformanceAccess } from "@/hooks/usePerformanceAccess";
 import { useConfirm } from "@/hooks/useConfirm";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -94,16 +92,15 @@ function GoalsPage() {
   const { confirm, confirmDialog } = useConfirm();
   const { org } = useOrg();
   const organizationId = org?.id ?? "";
-  const { myEmployee } = useMyEmployee();
-  const { roles, isAdmin } = useRole();
+  const access = usePerformanceAccess();
+  const { canProgress, nameOf, myEmployeeId } = access;
   // 07 §5.2: only managers and administrators pick the holder; an employee creates for himself.
-  const canAssignHolder = isAdmin || roles.includes("manager");
+  const canAssignHolder = access.isAdmin || access.isManager;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const goals = useQuery({ ...goalsQuery(organizationId), enabled: !!org });
   const plans = useQuery({ ...plansQuery(organizationId), enabled: !!org });
-  const employees = useQuery({ ...allEmployeesQuery(organizationId), enabled: !!org });
 
   const [filterPlan, setFilterPlan] = useState<string>("all");
   const [open, setOpen] = useState(false);
@@ -126,39 +123,9 @@ function GoalsPage() {
   const planList = useMemo(() => plans.data ?? [], [plans.data]);
   const planById = useMemo(() => new Map(planList.map((p) => [p.id, p])), [planList]);
   const activePlans = useMemo(() => planList.filter((p) => p.status === "active"), [planList]);
-  const nameOf = useMemo(() => {
-    const names = new Map(
-      (employees.data ?? []).map((e) => [e.id, `${e.firstName} ${e.lastName}`]),
-    );
-    if (myEmployee) {
-      names.set(
-        myEmployee.id,
-        `${myEmployee.first_name ?? ""} ${myEmployee.last_name ?? ""}`.trim(),
-      );
-    }
-    return (id: string) => names.get(id) ?? null;
-  }, [employees.data, myEmployee]);
-  // PATCH /goals/:id/progress: the holder or their manager (06 §9), never HR as such.
-  const canProgress = useMemo(() => {
-    const me = myEmployee?.id;
-    const isManager = roles.includes("manager");
-    const managerOf = new Map((employees.data ?? []).map((e) => [e.id, e.managerId ?? null]));
-    const inMyTeam = (id: string) => {
-      const seen = new Set<string>();
-      for (let m = managerOf.get(id) ?? null; m && !seen.has(m); m = managerOf.get(m) ?? null) {
-        if (m === me) return true;
-        seen.add(m);
-      }
-      return false;
-    };
-    return (employeeId: string) =>
-      employeeId === me ||
-      // A manager without HR rights only sees his team and himself.
-      (isManager && (!isAdmin || (!!me && inMyTeam(employeeId))));
-  }, [employees.data, myEmployee?.id, roles, isAdmin]);
   const assignable = useMemo(
-    () => (employees.data ?? []).filter((e) => e.id !== myEmployee?.id),
-    [employees.data, myEmployee?.id],
+    () => access.employees.filter((e) => e.id !== myEmployeeId),
+    [access.employees, myEmployeeId],
   );
 
   const filteredItems = useMemo(() => {
@@ -242,7 +209,7 @@ function GoalsPage() {
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     const holder = canAssignHolder && form.employeeId ? form.employeeId : undefined;
-    if (!holder && !myEmployee) return toast.error(t("goals.errors.noEmployeeRecord"));
+    if (!holder && !myEmployeeId) return toast.error(t("goals.errors.noEmployeeRecord"));
     create.mutate({
       ...parsed.data,
       employeeId: holder,
