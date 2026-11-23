@@ -71,8 +71,8 @@ function FeedbackPage() {
   const team = items.filter((f) => f.toEmployeeId !== me && f.fromEmployeeId !== me);
   const showTeam = access.isAdmin || access.isManager;
 
-  // No feedback to oneself (422).
-  const options = access.employees
+  // Any colleague from the directory, except oneself (422).
+  const options = access.directory
     .filter((e) => e.id !== me)
     .map((e) => ({
       id: e.id,
@@ -138,7 +138,7 @@ function FeedbackPage() {
     );
   };
 
-  // Null author: a private feedback. Unknown name: a colleague outside what the reader may list.
+  // Null author: a private feedback. Unknown name: someone no longer in the directory.
   const name = (id: string | null) =>
     id ? (access.nameOf(id) ?? t("feedback.colleague")) : t("feedback.anonymous");
 

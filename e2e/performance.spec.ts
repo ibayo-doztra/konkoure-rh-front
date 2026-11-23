@@ -319,7 +319,7 @@ test("les RH ouvrent un cycle ; l'évaluation est remplie, renvoyée, validée p
   await expect(page.getByText("Évaluation signée", { exact: true }).first()).toBeVisible();
 });
 
-test("les RH félicitent un employé, qui note une réalisation liée à son objectif", async ({
+test("feedback entre les RH et un employé, puis une réalisation liée à son objectif", async ({
   page,
   request,
 }) => {
@@ -343,11 +343,18 @@ test("les RH félicitent un employé, qui note une réalisation liée à son obj
   await dialog.getByRole("button", { name: "Envoyer" }).click();
   await expect(page.getByText("Feedback envoyé")).toBeVisible();
 
-  // The recipient reads it and cannot delete it. An employee cannot list colleagues yet
-  // (no directory endpoint), so the author shows as "Un collègue", never "Anonyme".
+  // The recipient reads it, with the author's name from the directory, and cannot delete it.
   await switchTo(memberEmail, "/app/performance/feedback");
-  await expect(card.getByText("Un collègue → Aïssatou Bah")).toBeVisible();
+  await expect(card.getByText("Mamadou Diallo → Aïssatou Bah")).toBeVisible();
   await expect(card.getByRole("button", { name: "Supprimer le feedback" })).toHaveCount(0);
+
+  // An employee picks any colleague from the directory.
+  await page.getByRole("button", { name: "Donner un feedback" }).click();
+  await dialog.getByRole("combobox").first().click();
+  await page.getByRole("option", { name: /Mamadou Diallo/ }).click();
+  await dialog.getByLabel(/Message/).fill("Partagez le calendrier de clôture plus tôt.");
+  await dialog.getByRole("button", { name: "Envoyer" }).click();
+  await expect(page.getByText("Feedback envoyé")).toBeVisible();
 
   // Achievement on the employee's own goal.
   const year = new Date().getFullYear();

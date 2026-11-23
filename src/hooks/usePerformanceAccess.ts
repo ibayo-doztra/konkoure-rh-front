@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { allEmployeesQuery } from "@/lib/api/hr";
+import { allEmployeesQuery, directoryQuery } from "@/lib/api/hr";
 import { useMyEmployee } from "@/hooks/useMyEmployee";
 import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
@@ -14,6 +14,8 @@ export function usePerformanceAccess() {
   const { myEmployee } = useMyEmployee();
   const { roles, isAdmin } = useRole();
   const employees = useQuery({ ...allEmployeesQuery(org?.id ?? ""), enabled: !!org });
+  // Names of colleagues outside the reader's scope (a plain employee lists only himself).
+  const directory = useQuery({ ...directoryQuery(org?.id ?? ""), enabled: !!org });
   const me = myEmployee?.id ?? null;
   const isManager = roles.includes("manager");
 
@@ -36,7 +38,9 @@ export function usePerformanceAccess() {
       return false;
     };
     const nameOf = (employeeId: string) => {
-      const e = (employees.data ?? []).find((x) => x.id === employeeId);
+      const e =
+        (employees.data ?? []).find((x) => x.id === employeeId) ??
+        (directory.data ?? []).find((x) => x.id === employeeId);
       if (e) return `${e.firstName} ${e.lastName}`;
       if (employeeId === me && myEmployee) {
         return `${myEmployee.first_name ?? ""} ${myEmployee.last_name ?? ""}`.trim() || null;
@@ -45,6 +49,8 @@ export function usePerformanceAccess() {
     };
     return {
       employees: employees.data ?? [],
+      /** Every active colleague, readable by all members. */
+      directory: directory.data ?? [],
       myEmployeeId: me,
       isAdmin,
       isManager,
@@ -56,5 +62,5 @@ export function usePerformanceAccess() {
       canDecide: (employeeId: string) => !isSelf(employeeId) && (isAdmin || inMyTeam(employeeId)),
       nameOf,
     };
-  }, [employees.data, me, myEmployee, isAdmin, isManager]);
+  }, [employees.data, directory.data, me, myEmployee, isAdmin, isManager]);
 }
