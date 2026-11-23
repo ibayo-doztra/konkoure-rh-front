@@ -1,8 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { pendingFn } from "@/lib/api/pending";
-import { fetchCareersJob, type RequiredDocument } from "@/lib/api/recruitment";
+import { ApiError } from "@/lib/api/client";
+import {
+  checkApplication,
+  fetchCareersJob,
+  isAlreadyApplied,
+  submitApplication,
+  type RequiredDocument,
+} from "@/lib/api/recruitment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,8 +84,16 @@ export const Route = createFileRoute("/careers/$slug/$jobSlug")({
 
 type SubmissionPhase = "idle" | "preparing" | "uploading" | "processing";
 
-/** `POST /public/careers/:orgSlug/jobs/:jobSlug/apply` (multipart) comes with lot 7 part 2. */
-const submitApplication = pendingFn("POST /public/careers/:orgSlug/jobs/:jobSlug/apply");
+/** Message of a refused application (06 §11). */
+function applicationError(t: (k: string) => string, e: unknown): string {
+  if (!(e instanceof ApiError)) return t("careers.errors.network");
+  if (e.status === 0) return t("careers.errors.network");
+  if (e.status === 410 || e.status === 404) return t("careers.errors.jobUnavailable");
+  if (e.status === 413) return t("careers.errors.tooLarge");
+  if (e.status === 429) return t("careers.errors.rateLimited");
+  if (e.status === 422) return e.details[0]?.message || t("careers.errors.documentRejected");
+  return t("careers.errors.sendFailed");
+}
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = [
@@ -228,34 +242,37 @@ function JobApplicationPage() {
 
     setSubmitting(true);
     setSubmissionPhase("preparing");
-    let activePhase: SubmissionPhase = "preparing";
     try {
-      // Let React paint the blocking overlay before file or network work begins.
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      // Duplicate check first, so no file is sent for nothing.
+      await checkApplication(slug, jobSlug, {
+        email: parsed.data.email,
+        phone: parsed.data.phone,
       });
-      activePhase = "uploading";
-      setSubmissionPhase(activePhase);
-      const body = new FormData();
-      body.append("fullName", parsed.data.full_name);
-      body.append("email", parsed.data.email);
-      body.append("phone", parsed.data.phone);
+      setSubmissionPhase("uploading");
+      const pieces: Record<string, File> = {};
       for (const d of docs) {
         const f = files[d.key];
-        if (!f) continue;
-        body.append(d.key === "cv" ? "cv" : `documents[${d.key}]`, f);
+        if (f && d.key !== "cv" && d.key !== "cover_letter") pieces[d.key] = f;
       }
-      await submitApplication({ orgSlug: slug, jobSlug, body });
+      await submitApplication(slug, jobSlug, {
+        fullName: parsed.data.full_name,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        cv: files.cv as File,
+        coverLetter: files.cover_letter ?? undefined,
+        documents: pieces,
+      });
       markApplied(applied, job.deadline);
       setSubmitted(true);
       toast.success(t("careers.submittedTitle"), { duration: 3000 });
-    } catch {
-      toast.error(
-        activePhase === "uploading"
-          ? t("careers.errors.uploadFailed")
-          : t("careers.errors.network"),
-        { duration: 4000 },
-      );
+    } catch (error) {
+      if (isAlreadyApplied(error)) {
+        markApplied(applied, job.deadline);
+        setAlreadyApplied(true);
+        toast.error(t("careers.errors.alreadyApplied"), { duration: 5000 });
+      } else {
+        toast.error(applicationError(t, error), { duration: 5000 });
+      }
     } finally {
       setSubmitting(false);
       setSubmissionPhase("idle");
@@ -392,8 +409,10 @@ function JobApplicationPage() {
               <form onSubmit={submit} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label>{t("careers.fullNameReq")}</Label>
+                    <Label htmlFor="apply-name">{t("careers.fullNameReq")}</Label>
                     <Input
+                      id="apply-name"
+                      autoComplete="name"
                       required
                       disabled={submitting}
                       value={form.full_name}
@@ -401,8 +420,10 @@ function JobApplicationPage() {
                     />
                   </div>
                   <div>
-                    <Label>{t("careers.emailReq")}</Label>
+                    <Label htmlFor="apply-email">{t("careers.emailReq")}</Label>
                     <Input
+                      id="apply-email"
+                      autoComplete="email"
                       type="email"
                       required
                       disabled={submitting}
@@ -412,8 +433,10 @@ function JobApplicationPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>{t("careers.phoneReq")}</Label>
+                  <Label htmlFor="apply-phone">{t("careers.phoneReq")}</Label>
                   <Input
+                    id="apply-phone"
+                    autoComplete="tel"
                     type="tel"
                     required
                     disabled={submitting}
@@ -432,10 +455,11 @@ function JobApplicationPage() {
                   )}
                   {docs.map((d) => (
                     <div key={d.key}>
-                      <Label className="text-sm">
+                      <Label htmlFor={`apply-doc-${d.key}`} className="text-sm">
                         {d.label} {d.required && <span className="text-destructive">*</span>}
                       </Label>
                       <Input
+                        id={`apply-doc-${d.key}`}
                         type="file"
                         disabled={submitting}
                         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"

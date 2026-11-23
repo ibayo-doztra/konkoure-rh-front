@@ -30,4 +30,6 @@ export const API_ENV: Record<string, string> = {
   LOG_LEVEL: "warn",
   MAIL_MAILER: "resend",
   RESEND_API_KEY: "e2e-fake-key",
+  // Uploads go to the API's local disk, served under /uploads (refused in production).
+  FILE_STORAGE_DISK: "fs",
 };

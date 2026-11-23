@@ -1,6 +1,6 @@
 // Job offers and public careers pages — 06-api-reference §8 and §11 (module `recruitment`).
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import { api, ApiError } from "@/lib/api/client";
+import { api, API_BASE_URL, ApiError } from "@/lib/api/client";
 import type { ContractType } from "@/lib/api/hr";
 
 export const JOBS_PAGE_SIZE = 20;
@@ -169,4 +169,181 @@ export function fetchCareersJob(orgSlug: string, jobSlug: string) {
       `/public/careers/${encodeURIComponent(orgSlug)}/jobs/${encodeURIComponent(jobSlug)}`,
     ),
   );
+}
+
+// ------------------------------------------------------------ Public application (06 §11)
+
+const applyPath = (orgSlug: string, jobSlug: string) =>
+  `/public/careers/${encodeURIComponent(orgSlug)}/jobs/${encodeURIComponent(jobSlug)}/apply`;
+
+/**
+ * Duplicate check before any file is sent: same offer with the same e-mail
+ * or phone gives `409` with the rule `already_applied`.
+ */
+export function checkApplication(
+  orgSlug: string,
+  jobSlug: string,
+  input: { email: string; phone: string },
+) {
+  return api.post<{ available: true }>(`${applyPath(orgSlug, jobSlug)}/check`, input);
+}
+
+export interface ApplicationInput {
+  fullName: string;
+  email: string;
+  /** `NNN NN NN NN`. */
+  phone: string;
+  cv: File;
+  coverLetter?: File;
+  /** Pieces of the offer by key. */
+  documents: Record<string, File>;
+}
+
+/** Multipart. 410 closed or expired, 413 too large, 422 bad pieces, 429 too many attempts. */
+export function submitApplication(orgSlug: string, jobSlug: string, input: ApplicationInput) {
+  const body = new FormData();
+  body.append("fullName", input.fullName);
+  body.append("email", input.email);
+  body.append("phone", input.phone);
+  body.append("cv", input.cv);
+  if (input.coverLetter) body.append("coverLetter", input.coverLetter);
+  for (const [key, file] of Object.entries(input.documents)) body.append(`documents[${key}]`, file);
+  // Honeypot (05 §4): always empty for a person.
+  body.append("website", "");
+  return api.post<{ candidateId: string; message: string }>(applyPath(orgSlug, jobSlug), body);
+}
+
+/** The duplicate rule of `/apply/check` and `/apply`. */
+export const isAlreadyApplied = (e: unknown) =>
+  e instanceof ApiError && e.status === 409 && e.details.some((d) => d.rule === "already_applied");
+
+// ----------------------------------------------------------------- Candidates (06 §8)
+
+export const CANDIDATE_STAGES = [
+  "new",
+  "screening",
+  "interview",
+  "offer",
+  "hired",
+  "rejected",
+] as const;
+export type CandidateStage = (typeof CANDIDATE_STAGES)[number];
+
+export interface Candidate {
+  id: string;
+  jobId: string;
+  jobTitle: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  stage: CandidateStage;
+  source: string | null;
+  /** Keys of the stored pieces: `cv`, `cover_letter` and the offer's keys. */
+  documents: string[];
+  /** AI scoring (lot 7 part 3): null until scored. */
+  aiScore: number | null;
+  aiJustification: string | null;
+  aiStrengths: string[] | null;
+  aiWeaknesses: string[] | null;
+  aiCandidateName: string | null;
+  aiIsValidCv: boolean | null;
+  aiFraudAlert: boolean | null;
+  aiScoredAt: string | null;
+  rejectedReason: string | null;
+  hiredEmployeeId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateNote {
+  id: string;
+  candidateId: string;
+  /** User account of the author. */
+  authorId: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface CandidateEvent {
+  id: string;
+  type: "created" | "stage_changed" | "scored" | "note_added" | "note_deleted" | (string & {});
+  /** User account, null for the public form or the system. */
+  actorId: string | null;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+/** Every candidate the reader may see, for the pipeline. */
+export const candidatesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...recruitmentKey(organizationId), "candidates"],
+    queryFn: () => api.all<Candidate>("/org/recruitment/candidates"),
+  });
+
+/** Every offer, for the candidate filter. */
+export const allJobsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...recruitmentKey(organizationId), "jobs", "all"],
+    queryFn: () => api.all<Job>("/org/recruitment/jobs"),
+  });
+
+const candidatePath = (id: string) => `/org/recruitment/candidates/${encodeURIComponent(id)}`;
+
+export const candidateNotesQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: [...recruitmentKey(organizationId), "candidates", id, "notes"],
+    queryFn: () => api.get<CandidateNote[]>(`${candidatePath(id)}/notes`),
+  });
+
+export const candidateEventsQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: [...recruitmentKey(organizationId), "candidates", id, "events"],
+    queryFn: () => api.get<CandidateEvent[]>(`${candidatePath(id)}/events`),
+  });
+
+/**
+ * Pipeline move. `hired` goes through `hireCandidate`; moving back or out of
+ * `rejected` is reserved to owner and hr_admin (403).
+ */
+export function moveCandidate(id: string, stage: CandidateStage, reason?: string) {
+  return api.post<Candidate>(`${candidatePath(id)}/stage`, reason ? { stage, reason } : { stage });
+}
+
+/** Creates the employee record; the offer stays open. 403 E_QUOTA_EXCEEDED, 409 e-mail taken. */
+export function hireCandidate(
+  id: string,
+  input: { firstName?: string; lastName?: string; hireDate?: string },
+  idempotencyKey: string,
+) {
+  return api.post<{ candidate: Candidate; employeeId: string }>(
+    `${candidatePath(id)}/hire`,
+    input,
+    {
+      idempotencyKey,
+    },
+  );
+}
+
+/**
+ * Signed URL valid 15 minutes, for `cv`, `cover_letter` or a key of the offer.
+ * S3 gives an absolute URL; the API's local disk (non-production) a path on
+ * the API, resolved here against its origin.
+ */
+export async function candidateDocumentUrl(id: string, key: string) {
+  const signed = await api.get<{ url: string; expiresIn: number }>(
+    `${candidatePath(id)}/documents/${encodeURIComponent(key)}/url`,
+  );
+  const apiOrigin = /^https?:\/\//.test(API_BASE_URL)
+    ? new URL(API_BASE_URL).origin
+    : window.location.origin;
+  return { ...signed, url: new URL(signed.url, apiOrigin).toString() };
+}
+
+export function addCandidateNote(id: string, body: string) {
+  return api.post<CandidateNote>(`${candidatePath(id)}/notes`, { body });
+}
+
+/** The author or owner / hr_admin. */
+export function deleteCandidateNote(id: string, noteId: string) {
+  return api.delete(`${candidatePath(id)}/notes/${encodeURIComponent(noteId)}`);
 }

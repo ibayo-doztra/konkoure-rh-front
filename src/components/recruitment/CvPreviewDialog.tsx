@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { pendingQuery } from "@/lib/api/pending";
+import { candidateDocumentUrl } from "@/lib/api/recruitment";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Download, ExternalLink, FileWarning } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+/** A stored piece of a candidate: `cv`, `cover_letter` or a key of the offer. */
+export interface CandidateFile {
+  candidateId: string;
+  key: string;
+}
+
 type Props = {
-  /** Storage path inside the `applications` bucket, or an absolute URL. */
-  fileRef: string | null;
+  file: CandidateFile | null;
   title?: string | null;
   onClose: () => void;
 };
@@ -26,13 +31,13 @@ function guessKind(ref: string): "pdf" | "image" | "other" {
   return "other";
 }
 
-export function CvPreviewDialog({ fileRef, title, onClose }: Props) {
+export function CvPreviewDialog({ file, title, onClose }: Props) {
   const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!fileRef) {
+    if (!file) {
       setUrl(null);
       setError(null);
       return;
@@ -40,28 +45,24 @@ export function CvPreviewDialog({ fileRef, title, onClose }: Props) {
     let cancelled = false;
     setUrl(null);
     setError(null);
-    void (async () => {
-      if (/^https?:\/\//i.test(fileRef)) {
-        if (!cancelled) setUrl(fileRef);
-        return;
-      }
-      const { data, error: err } = await pendingQuery("GET signed-url (storage applications.createSignedUrl)");
-      if (cancelled) return;
-      if (err || !data?.signedUrl) {
-        setError(t("recruitment.candidates.cvOpenError"));
-        return;
-      }
-      setUrl(data.signedUrl);
-    })();
+    // Signed URL issued by the API, valid 15 minutes (06 §8).
+    candidateDocumentUrl(file.candidateId, file.key).then(
+      (signed) => {
+        if (!cancelled) setUrl(signed.url);
+      },
+      () => {
+        if (!cancelled) setError(t("recruitment.candidates.cvOpenError"));
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [fileRef, t]);
+  }, [file, t]);
 
-  const kind = fileRef ? guessKind(fileRef) : "other";
+  const kind = url ? guessKind(url) : "other";
 
   return (
-    <Dialog open={!!fileRef} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={!!file} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>{title ?? t("recruitment.candidates.cvPreviewTitle")}</DialogTitle>
