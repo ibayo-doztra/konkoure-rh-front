@@ -314,3 +314,22 @@ export function assignBadge(employeeId: string, badgeUid: string, idempotencyKey
 export function revokeBadge(employeeId: string) {
   return api.delete(badgePath(employeeId));
 }
+
+// ------------------------------------------------- Directory (06 §4, added 2026-11-23)
+
+/** A colleague as every member may see them: active and on leave only. */
+export interface DirectoryEntry {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+  departmentId: string | null;
+  photoUrl: string | null;
+}
+
+/** Every colleague, sorted by last then first name, for selectors and names. */
+export const directoryQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "directory"],
+    queryFn: () => api.all<DirectoryEntry>("/org/employees/directory"),
+  });
