@@ -43,7 +43,8 @@ async function createMember(request: APIRequestContext, owner: Owner) {
 async function createGoalInUi(
   page: Page,
   plan: string,
-  goal: { title: string; weight: string; holder: string },
+  /** Without a holder, the goal is for the reader (an employee sees no such field). */
+  goal: { title: string; weight: string; holder?: string },
 ) {
   await page.getByRole("button", { name: "Nouvel objectif" }).click();
   const dialog = page.getByRole("dialog");
@@ -52,8 +53,10 @@ async function createGoalInUi(
   await dialog.getByRole("button", { name: "Continuer" }).click();
   await dialog.getByLabel("Titre").fill(goal.title);
   await dialog.getByLabel("Pondération (%)").fill(goal.weight);
-  await dialog.getByRole("combobox", { name: "Propriétaire" }).click();
-  await page.getByRole("option", { name: goal.holder }).click();
+  if (goal.holder) {
+    await dialog.getByRole("combobox", { name: "Propriétaire" }).click();
+    await page.getByRole("option", { name: goal.holder }).click();
+  }
   await dialog.getByRole("button", { name: "Créer l'objectif" }).click();
 }
 
@@ -118,4 +121,49 @@ test("les RH fixent l'objectif d'un employé, qui le fait progresser puis le sup
   await row.getByRole("button", { name: "Supprimer l'objectif" }).click();
   await page.getByRole("button", { name: "Supprimer" }).click();
   await expect(page.getByText("Aucun objectif")).toBeVisible();
+});
+
+test("un employé planifie puis termine une activité liée à son objectif", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const memberEmail = await createMember(request, owner);
+  const year = new Date().getFullYear();
+  await apiPost(request, owner, "/org/performance/plans", {
+    name: `Plan annuel ${year}`,
+    periodStart: `${year}-01-01`,
+    periodEnd: `${year}-12-31`,
+    status: "active",
+  });
+
+  await signIn(page, memberEmail);
+  await expect(page).toHaveURL(APP_URL);
+  await open(page, "/app/performance/goals");
+  await createGoalInUi(page, `Plan annuel ${year}`, {
+    title: "Ouvrir l'agence de Kindia",
+    weight: "40",
+  });
+  await expect(page.getByText("Objectif créé")).toBeVisible();
+
+  await open(page, "/app/performance/activities");
+  await page.getByRole("button", { name: "Nouvelle activité" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox", { name: "Objectif lié" }).click();
+  await page.getByRole("option", { name: "Ouvrir l'agence de Kindia" }).click();
+  await dialog.getByLabel("Titre").fill("Signer le bail du local");
+  await dialog.getByRole("button", { name: "Créer", exact: true }).click();
+  await expect(page.getByText("Activité créée")).toBeVisible();
+
+  const planned = page.getByRole("region", { name: "Planifiée" });
+  const done = page.getByRole("region", { name: "Terminée" });
+  await expect(planned.getByText("Signer le bail du local")).toBeVisible();
+
+  await planned.getByRole("combobox", { name: /Statut de/ }).click();
+  await page.getByRole("option", { name: "Terminée" }).click();
+  await expect(done.getByText("Signer le bail du local")).toBeVisible();
+
+  await done.getByRole("button", { name: "Supprimer « Signer le bail du local »" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page.getByTestId("activity-card")).toHaveCount(0);
 });

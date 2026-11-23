@@ -65,6 +65,29 @@ export interface GoalInput {
   planId?: string | null;
 }
 
+export const ACTIVITY_STATUSES = ["planned", "in_progress", "done"] as const;
+export type ActivityStatus = (typeof ACTIVITY_STATUSES)[number];
+
+export interface GoalActivity {
+  id: string;
+  goalId: string;
+  employeeId: string | null;
+  title: string;
+  description: string | null;
+  status: ActivityStatus;
+  plannedDate: string | null;
+  /** Set when the status becomes `done`, cleared when it leaves it. */
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface ActivityInput {
+  title: string;
+  description?: string | null;
+  status?: ActivityStatus;
+  plannedDate?: string | null;
+}
+
 export type GoalUpdate = Partial<Omit<GoalInput, "employeeId">> & { status?: WritableGoalStatus };
 
 /** Every performance query of an organization, to refresh them together after a change. */
@@ -85,6 +108,13 @@ export const goalsQuery = (organizationId: string) =>
     queryFn: () => api.all<Goal>("/org/performance/goals"),
   });
 
+/** Activities of every goal the reader may see, across goals. */
+export const activitiesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "activities"],
+    queryFn: () => api.all<GoalActivity>("/org/performance/activities"),
+  });
+
 const goalPath = (id: string) => `/org/performance/goals/${encodeURIComponent(id)}`;
 
 export function createGoal(input: GoalInput) {
@@ -102,4 +132,19 @@ export function updateGoalProgress(id: string, progress: number) {
 
 export function deleteGoal(id: string) {
   return api.delete(goalPath(id));
+}
+
+const activityPath = (goalId: string, id: string) =>
+  `${goalPath(goalId)}/activities/${encodeURIComponent(id)}`;
+
+export function createActivity(goalId: string, input: ActivityInput) {
+  return api.post<GoalActivity>(`${goalPath(goalId)}/activities`, input);
+}
+
+export function updateActivity(goalId: string, id: string, input: Partial<ActivityInput>) {
+  return api.patch<GoalActivity>(activityPath(goalId, id), input);
+}
+
+export function deleteActivity(goalId: string, id: string) {
+  return api.delete(activityPath(goalId, id));
 }

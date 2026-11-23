@@ -307,14 +307,16 @@ export default {
 
   activities: {
     title: "Activités",
-    description: "Actions opérationnelles liées aux goals",
+    description: "Actions opérationnelles liées aux objectifs",
     newActivity: "Nouvelle activité",
-    linkedGoal: "Goal lié",
+    linkedGoal: "Objectif lié",
     select: "Sélectionner",
     activityTitle: "Titre",
     plannedDate: "Date prévue",
     create: "Créer",
-    createNeedsGoal: "Créez d'abord un goal pour pouvoir y attacher des activités.",
+    createNeedsGoal: "Créez d'abord un objectif pour pouvoir y attacher des activités.",
+    statusAria: "Statut de « {{title}} »",
+    deleteAria: "Supprimer « {{title}} »",
     statuses: {
       planned: "Planifiée",
       in_progress: "En cours",
@@ -326,7 +328,7 @@ export default {
     deleteConfirmDesc:
       "Cette action est irréversible. L'activité sera retirée du suivi de l'objectif associé.",
     errors: {
-      selectGoal: "Sélectionnez un goal",
+      selectGoal: "Sélectionnez un objectif",
       titleMin: "Titre : 3 caractères minimum",
       titleMax: "200 caractères max",
     },

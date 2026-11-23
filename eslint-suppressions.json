@@ -237,14 +237,6 @@
       "count": 31
     }
   },
-  "src/routes/_authenticated.app.performance.activities.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prettier/prettier": {
-      "count": 41
-    }
-  },
   "src/routes/_authenticated.app.performance.feedback.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3

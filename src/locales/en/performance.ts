@@ -314,6 +314,8 @@ export default {
     plannedDate: "Planned date",
     create: "Create",
     createNeedsGoal: "First create a goal so you can attach activities to it.",
+    statusAria: "Status of “{{title}}”",
+    deleteAria: "Delete “{{title}}”",
     statuses: {
       planned: "Planned",
       in_progress: "In progress",
