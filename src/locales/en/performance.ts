@@ -239,7 +239,13 @@ export default {
     signSuccess: "Review signed",
     okrsTitle: "Team member OKRs ({{count}})",
     notFound: "Review not found",
+    notOpenedTitle: "Review not opened yet",
+    notOpenedDesc:
+      "HR open reviews per cycle, in the settings. This employee's review on this plan does not exist yet.",
+    backToGoals: "Back to goals",
+    sendBackComment: "Reason for sending back",
     errors: {
+      sendBackCommentRequired: "Give the reason for sending it back",
       commentAllGoals: "Comment on all goals ({{count}} missing)",
       globalCommentRequired: "Add an overall comment",
       scoreRequired: "Give yourself a score",
@@ -272,7 +278,11 @@ export default {
     linkedOkr: "Linked OKR",
     noOkr: "None",
     anonymous: "Anonymous",
+    colleague: "A colleague",
     sentSuccess: "Feedback sent",
+    deleteConfirm: "Delete this feedback?",
+    deleteConfirmDesc: "It disappears for its recipient as well as for you.",
+    deleteAria: "Delete the feedback",
     kinds: {
       kudos: "Kudos",
       suggestion: "Suggestion",
@@ -286,6 +296,7 @@ export default {
     errors: {
       recipientRequired: "Choose a recipient",
       messageRequired: "The message must be at least 3 characters",
+      noEmployeeRecord: "Your account is not linked to an employee record.",
     },
   },
 
@@ -326,6 +337,8 @@ export default {
     linkedGoal: "Linked goal",
     none: "None",
     save: "Save",
+    achievedAt: "Achievement date",
+    deleteAria: "Delete “{{title}}”",
     savedSuccess: "Achievement saved",
     deleteConfirm: "Delete this achievement?",
     deleteConfirmDesc:
@@ -334,6 +347,8 @@ export default {
     errors: {
       titleMin: "Title: 3 characters minimum",
       titleMax: "200 characters max",
+      dateRequired: "Give the achievement date",
+      noEmployeeRecord: "Your account is not linked to an employee record.",
     },
   },
   recruitment: {

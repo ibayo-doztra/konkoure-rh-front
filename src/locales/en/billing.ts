@@ -165,6 +165,14 @@ export default {
     openCycleConfirmDesc:
       "A review will be generated for every active employee and a notification will be sent to them.",
     noActiveEmployee: "No active employee",
+    cycleStatuses: { draft: "Draft", open: "Open", closed: "Closed" },
+    generateReviews: "Generate reviews",
+    generateReviewsTitle: "Generate the missing reviews?",
+    reviewPlan: "Plan under review",
+    reviewNoPlan: "No plan",
+    reviewPlanHint:
+      "Each employee's goals on this plan, except cancelled ones, are attached to their review.",
+    deletePlanAria: "Delete the plan {{name}}",
     cycleOpened: "Cycle opened — {{count}} reviews generated",
     closeCycleConfirm: "Close this cycle?",
     closeCycleConfirmDesc: "Reviews in progress can no longer be edited once the cycle is closed.",

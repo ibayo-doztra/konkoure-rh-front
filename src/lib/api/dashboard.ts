@@ -31,7 +31,8 @@ export interface Dashboard {
   performance: {
     reviewsInProgress: number;
     reviewsSigned: number;
-    avgGoalProgress: number;
+    /** Null while the organization has no goal. */
+    avgGoalProgress: number | null;
   } | null;
   series: {
     headcountByMonth: { month: string; total: number }[] | null;

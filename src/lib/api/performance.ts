@@ -101,6 +101,76 @@ export const plansQuery = (organizationId: string) =>
     queryFn: () => api.all<PerformancePlan>("/org/performance/plans"),
   });
 
+export type CycleFrequency = "annual" | "semestrial" | "quarterly" | "custom";
+export type CycleStatus = "draft" | "open" | "closed";
+
+export interface PerformanceCycle {
+  id: string;
+  name: string;
+  frequency: CycleFrequency;
+  periodStart: string;
+  periodEnd: string;
+  selfEvalOpensAt: string | null;
+  selfEvalClosesAt: string | null;
+  status: CycleStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CycleInput {
+  name: string;
+  frequency: CycleFrequency;
+  periodStart: string;
+  periodEnd: string;
+  selfEvalOpensAt?: string | null;
+  selfEvalClosesAt?: string | null;
+}
+
+export interface PlanInput {
+  name: string;
+  periodStart: string;
+  periodEnd: string;
+  status?: PlanStatus;
+}
+
+export const cyclesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "cycles"],
+    queryFn: () => api.all<PerformanceCycle>("/org/performance/cycles"),
+  });
+
+const cyclePath = (id: string) => `/org/performance/cycles/${encodeURIComponent(id)}`;
+const planPath = (id: string) => `/org/performance/plans/${encodeURIComponent(id)}`;
+
+/** Created in `draft`. */
+export function createCycle(input: CycleInput) {
+  return api.post<PerformanceCycle>("/org/performance/cycles", input);
+}
+
+/** `draft → open`; `409` from any other state. */
+export function openCycle(id: string) {
+  return api.post<PerformanceCycle>(`${cyclePath(id)}/open`);
+}
+
+/** `open → closed`. */
+export function closeCycle(id: string) {
+  return api.post<PerformanceCycle>(`${cyclePath(id)}/close`);
+}
+
+export function createPlan(input: PlanInput) {
+  return api.post<PerformancePlan>("/org/performance/plans", input);
+}
+
+/** Activating re-checks every employee's weights (`422 E_WEIGHT_OVERFLOW`). */
+export function updatePlan(id: string, input: Partial<PlanInput>) {
+  return api.patch<PerformancePlan>(planPath(id), input);
+}
+
+/** Soft delete: goals keep their `planId`. */
+export function deletePlan(id: string) {
+  return api.delete(planPath(id));
+}
+
 /** Goals the reader may see: self, team (manager) or everyone (owner, hr_admin). */
 export const goalsQuery = (organizationId: string) =>
   queryOptions({
@@ -269,4 +339,206 @@ export function deleteOkr(id: string) {
 
 export function createOkrCheckin(okrId: string, message: string) {
   return api.post<OkrCheckin>(`${okrPath(okrId)}/checkins`, { message });
+}
+
+// ------------------------------------------------------------ Evaluations (07 §5.7)
+
+export type ReviewStatus =
+  "not_started" | "in_progress" | "submitted" | "sent_back" | "validated" | "signed";
+
+export interface ReviewSummary {
+  id: string;
+  cycleId: string | null;
+  planId: string | null;
+  employeeId: string;
+  managerId: string | null;
+  status: ReviewStatus;
+  submittedAt: string | null;
+  validatedAt: string | null;
+  signedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReviewGoal = Goal & {
+  selfComment: string | null;
+  selfRating: number | null;
+  /** Null for the evaluated employee until sent back, validated or signed. */
+  managerComment: string | null;
+  managerRating: number | null;
+};
+
+export interface Review extends ReviewSummary {
+  selfScore: number | null;
+  selfGlobalComment: string | null;
+  managerScore: number | null;
+  managerGlobalComment: string | null;
+  managerSubmittedAt: string | null;
+  sentBackAt: string | null;
+  sentBackComment: string | null;
+  validatedBy: string | null;
+  signedBy: string | null;
+  goals: ReviewGoal[];
+}
+
+export interface GoalComment {
+  goalId: string;
+  comment?: string | null;
+  rating?: number | null;
+}
+
+/** Badge classes of a review status (semantic tokens). */
+export const REVIEW_STATUS_CLASS: Record<ReviewStatus, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  in_progress: "bg-warning/10 text-warning",
+  sent_back: "bg-destructive/10 text-destructive",
+  submitted: "bg-success/10 text-success-foreground",
+  validated: "bg-success/15 text-success-foreground",
+  signed: "bg-success/15 text-success-foreground",
+};
+
+/** Self assessment is editable in these states. */
+export const SELF_EDITABLE: readonly ReviewStatus[] = ["not_started", "in_progress", "sent_back"];
+
+const reviewPath = (id: string) => `/org/performance/reviews/${encodeURIComponent(id)}`;
+
+export const reviewsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "reviews"],
+    queryFn: () => api.all<ReviewSummary>("/org/performance/reviews"),
+  });
+
+export const reviewQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "reviews", id],
+    queryFn: () => api.get<Review>(reviewPath(id)),
+    retry: false,
+  });
+
+/** HR open one evaluation per present employee of an open cycle; existing ones are skipped. */
+export function openReviews(
+  input: { cycleId: string; planId?: string; employeeIds?: string[] },
+  idempotencyKey: string,
+) {
+  return api.post<{ created: string[]; skipped: number }>("/org/performance/reviews", input, {
+    idempotencyKey,
+  });
+}
+
+export function saveSelfReview(
+  id: string,
+  input: { selfScore?: number | null; selfGlobalComment?: string | null; goals?: GoalComment[] },
+) {
+  return api.patch<Review>(`${reviewPath(id)}/self`, input);
+}
+
+export function submitSelfReview(id: string) {
+  return api.post<Review>(`${reviewPath(id)}/submit-self`);
+}
+
+export function saveManagerReview(
+  id: string,
+  input: {
+    managerScore?: number | null;
+    managerGlobalComment?: string | null;
+    goals?: GoalComment[];
+  },
+) {
+  return api.patch<Review>(`${reviewPath(id)}/manager`, input);
+}
+
+/** Needs `managerScore` and `managerGlobalComment` (`422` otherwise). */
+export function validateReview(id: string) {
+  return api.post<Review>(`${reviewPath(id)}/validate`);
+}
+
+/** The comment is mandatory. */
+export function sendBackReview(id: string, comment: string) {
+  return api.post<Review>(`${reviewPath(id)}/send-back`, { comment });
+}
+
+export function signReview(id: string) {
+  return api.post<Review>(`${reviewPath(id)}/sign`);
+}
+
+// ------------------------------------------------- Feedback and achievements (07 §5.9)
+
+export const FEEDBACK_KINDS = ["kudos", "suggestion", "concern"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+
+export interface Feedback {
+  id: string;
+  /** Null on a private feedback, except for HR and the author. */
+  fromEmployeeId: string | null;
+  toEmployeeId: string;
+  kind: FeedbackKind;
+  message: string;
+  okrId: string | null;
+  goalId: string | null;
+  isPrivate: boolean;
+  visibleToManager: boolean;
+  createdAt: string;
+}
+
+export interface FeedbackInput {
+  toEmployeeId: string;
+  kind: FeedbackKind;
+  message: string;
+  okrId?: string;
+  goalId?: string;
+  isPrivate?: boolean;
+  visibleToManager?: boolean;
+}
+
+export interface Achievement {
+  id: string;
+  employeeId: string;
+  goalId: string | null;
+  title: string;
+  description: string | null;
+  impact: string | null;
+  achievedAt: string;
+  /** User account of the author. */
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface AchievementInput {
+  title: string;
+  achievedAt: string;
+  employeeId?: string;
+  goalId?: string;
+  description?: string;
+  impact?: string;
+}
+
+/** Received and sent, the team's for a manager, everything for HR. */
+export const feedbackQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "feedback"],
+    queryFn: () => api.all<Feedback>("/org/performance/feedback"),
+  });
+
+export const achievementsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "achievements"],
+    queryFn: () => api.all<Achievement>("/org/performance/achievements"),
+  });
+
+export function createFeedback(input: FeedbackInput) {
+  return api.post<Feedback>("/org/performance/feedback", input);
+}
+
+/** The author or HR, never the recipient. */
+export function deleteFeedback(id: string) {
+  return api.delete(`/org/performance/feedback/${encodeURIComponent(id)}`);
+}
+
+export function createAchievement(input: AchievementInput) {
+  return api.post<Achievement>("/org/performance/achievements", input);
+}
+
+/** The author or HR. */
+export function deleteAchievement(id: string) {
+  return api.delete(`/org/performance/achievements/${encodeURIComponent(id)}`);
 }

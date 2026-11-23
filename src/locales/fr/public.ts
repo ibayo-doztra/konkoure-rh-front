@@ -34,14 +34,16 @@ export default {
     resendCode: "Renvoyer le code",
     codeSent: "Code envoyé. Consultez votre boîte e-mail.",
     codeSendError: "Envoi du code impossible. Réessayez.",
-    codeHint: "Un code est envoyé à cette adresse pour confirmer que c'est bien vous avant le paiement.",
+    codeHint:
+      "Un code est envoyé à cette adresse pour confirmer que c'est bien vous avant le paiement.",
     payerPhoneCardLabel: "Numéro de téléphone (requis par l'opérateur de paiement)",
     payerPhoneMomoLabel: "Numéro Mobile Money",
     phonePlaceholder: "624 00 00 00",
     phoneInvalid: "Numéro invalide : 9 chiffres commençant par 6 (ex. 624 00 00 00).",
     cardHint:
       "La carte bancaire exige une validation 3-D Secure : vous serez redirigé vers la page sécurisée de notre prestataire.",
-    momoHint: "Vous recevrez une demande de confirmation sur votre téléphone. Restez sur cette page jusqu'à la validation.",
+    momoHint:
+      "Vous recevrez une demande de confirmation sur votre téléphone. Restez sur cette page jusqu'à la validation.",
     continueToCard: "Continuer vers le paiement sécurisé",
     payAmount: "Payer {{amount}} GNF",
     alreadyAccount: "Vous avez déjà un compte ?",
@@ -49,13 +51,16 @@ export default {
     startingPaymentError: "Impossible de démarrer le paiement",
 
     retourTitle: "Confirmation de votre paiement",
-    retourSubtitle: "Cet écran se met à jour automatiquement dès que votre opérateur confirme le paiement.",
-    missingClaim: "Code de suivi manquant. Saisissez-le sur la page de suivi pour retrouver votre paiement.",
+    retourSubtitle:
+      "Cet écran se met à jour automatiquement dès que votre opérateur confirme le paiement.",
+    missingClaim:
+      "Code de suivi manquant. Saisissez-le sur la page de suivi pour retrouver votre paiement.",
     trackingPage: "Page de suivi",
     backToPayment: "Retour au paiement",
 
     suiviTitle: "Suivi de votre paiement",
-    suiviSubtitle: "Retrouvez à tout moment l'état de votre paiement d'abonnement grâce à votre code de suivi.",
+    suiviSubtitle:
+      "Retrouvez à tout moment l'état de votre paiement d'abonnement grâce à votre code de suivi.",
     claimLabel: "Code de suivi",
     claimInvalid: "Code invalide : reprenez celui affiché après votre paiement.",
     showStatus: "Afficher l'état du paiement",

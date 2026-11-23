@@ -240,7 +240,13 @@ export default {
     signSuccess: "Évaluation signée",
     okrsTitle: "OKR du collaborateur ({{count}})",
     notFound: "Évaluation introuvable",
+    notOpenedTitle: "Évaluation pas encore ouverte",
+    notOpenedDesc:
+      "Les RH ouvrent les évaluations par cycle, dans les paramètres. Celle de cet employé sur ce plan n'existe pas encore.",
+    backToGoals: "Retour aux objectifs",
+    sendBackComment: "Motif du renvoi",
     errors: {
+      sendBackCommentRequired: "Indiquez le motif du renvoi",
       commentAllGoals: "Commentez tous les objectifs ({{count}} manquant(s))",
       globalCommentRequired: "Ajoutez un commentaire global",
       scoreRequired: "Attribuez-vous une note",
@@ -273,7 +279,11 @@ export default {
     linkedOkr: "Objectif OKR lié",
     noOkr: "Aucun",
     anonymous: "Anonyme",
+    colleague: "Un collègue",
     sentSuccess: "Feedback envoyé",
+    deleteConfirm: "Supprimer ce feedback ?",
+    deleteConfirmDesc: "Il disparaîtra pour son destinataire comme pour vous.",
+    deleteAria: "Supprimer le feedback",
     kinds: {
       kudos: "Félicitation",
       suggestion: "Suggestion",
@@ -287,6 +297,7 @@ export default {
     errors: {
       recipientRequired: "Choisissez un destinataire",
       messageRequired: "Le message doit faire au moins 3 caractères",
+      noEmployeeRecord: "Votre compte n'est lié à aucune fiche employé.",
     },
   },
 
@@ -324,9 +335,11 @@ export default {
     newAchievement: "Nouvelle réalisation",
     achievementTitle: "Titre",
     impact: "Impact",
-    linkedGoal: "Goal lié",
+    linkedGoal: "Objectif lié",
     none: "Aucun",
     save: "Enregistrer",
+    achievedAt: "Date de réalisation",
+    deleteAria: "Supprimer « {{title}} »",
     savedSuccess: "Réalisation enregistrée",
     deleteConfirm: "Supprimer cette réalisation ?",
     deleteConfirmDesc:
@@ -335,6 +348,8 @@ export default {
     errors: {
       titleMin: "Titre : 3 caractères minimum",
       titleMax: "200 caractères max",
+      dateRequired: "Indiquez la date de réalisation",
+      noEmployeeRecord: "Votre compte n'est lié à aucune fiche employé.",
     },
   },
   recruitment: {
