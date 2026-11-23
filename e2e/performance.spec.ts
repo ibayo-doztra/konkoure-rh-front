@@ -262,8 +262,13 @@ test("les RH ouvrent un cycle ; l'évaluation est remplie, renvoyée, validée p
 
   // HR create the cycle and open it on the plan: one review per present employee.
   await switchTo(owner.email, "/app/settings");
-  await page.getByRole("button", { name: "Nouveau cycle" }).click();
+  // The settings cards hydrate after the page shell: a click that lands before is lost,
+  // so retry until the dialog opens (seen on the slower CI runner).
   const cycleDialog = page.getByRole("dialog");
+  await expect(async () => {
+    await page.getByRole("button", { name: "Nouveau cycle" }).click();
+    await expect(cycleDialog).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await cycleDialog.getByLabel("Nom").fill(`Évaluation ${year}`);
   await cycleDialog.getByLabel("Début de période").fill(`${year}-01-01`);
   await cycleDialog.getByLabel("Fin de période").fill(`${year}-12-31`);
