@@ -354,6 +354,17 @@ export default {
   },
   recruitment: {
     jobs: {
+      statuses: {
+        draft: "Brouillon",
+        published: "Publiée",
+        closed: "Clôturée",
+        archived: "Archivée",
+      },
+      publishAction: "Publier",
+      close: "Clôturer",
+      closedSuccess: "Offre clôturée",
+      duplicate: "Dupliquer",
+      duplicatedSuccess: "Offre dupliquée en brouillon",
       title: "Offres d'emploi",
       newJob: "Nouvelle offre",
       editJob: "Modifier",
@@ -450,6 +461,9 @@ export default {
       },
       documentExists: "Ce document existe déjà",
       cvLabel: "CV",
+      alwaysRequired: "Toujours demandé",
+      tooManyDocuments: "{{max}} documents au plus, en plus du CV",
+      save: "Enregistrer",
     },
     qr: {
       title: "QR code de l'offre",

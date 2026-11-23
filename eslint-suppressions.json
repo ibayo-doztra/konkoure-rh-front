@@ -39,14 +39,6 @@
       "count": 12
     }
   },
-  "src/components/jobs/JobForm.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "prettier/prettier": {
-      "count": 50
-    }
-  },
   "src/components/jobs/JobQrCodeDialog.tsx": {
     "prettier/prettier": {
       "count": 4
@@ -148,11 +140,6 @@
       "count": 1
     }
   },
-  "src/lib/contract-types.ts": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
   "src/lib/currency.ts": {
     "prettier/prettier": {
       "count": 1
@@ -227,22 +214,6 @@
       "count": 315
     }
   },
-  "src/routes/_authenticated.app.recruitment.jobs.$id.edit.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 11
-    }
-  },
-  "src/routes/_authenticated.app.recruitment.jobs.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    },
-    "prettier/prettier": {
-      "count": 18
-    }
-  },
   "src/routes/_authenticated.app.settings.index.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
@@ -291,19 +262,6 @@
   "src/routes/_authenticated.tsx": {
     "prettier/prettier": {
       "count": 6
-    }
-  },
-  "src/routes/careers.$slug.$jobSlug.tsx": {
-    "prettier/prettier": {
-      "count": 66
-    }
-  },
-  "src/routes/careers.$slug.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "prettier/prettier": {
-      "count": 11
     }
   },
   "src/routes/demo.tsx": {

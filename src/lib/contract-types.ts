@@ -1,16 +1,24 @@
 import i18n from "@/lib/i18n";
+import type { ContractType } from "@/lib/api/hr";
 
-export const CONTRACT_TYPES = [
-  { value: "stage", label: "Stage" },
-  { value: "cdd", label: "CDD" },
-  { value: "cdi", label: "CDI" },
-] as const;
+export type { ContractType };
 
-export type ContractType = (typeof CONTRACT_TYPES)[number]["value"];
+/** Contract types of the API (06 §4 and §8), in display order. */
+export const CONTRACT_TYPES: readonly ContractType[] = [
+  "cdi",
+  "cdd",
+  "stage",
+  "freelance",
+  "apprenticeship",
+  "daily",
+];
+
+/** The locale key of `daily` predates the API value. */
+const LABEL_KEY: Partial<Record<string, string>> = { daily: "journalier" };
 
 export function contractTypeLabel(v?: string | null): string {
   if (!v) return i18n.t("hrm.contractTypes.unknown");
-  const key = `hrm.contractTypes.${v}`;
+  const key = `hrm.contractTypes.${LABEL_KEY[v] ?? v}`;
   const translated = i18n.t(key);
-  return translated === key ? (CONTRACT_TYPES.find((c) => c.value === v)?.label ?? i18n.t("hrm.contractTypes.unknown")) : translated;
+  return translated === key ? v : translated;
 }

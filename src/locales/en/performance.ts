@@ -353,6 +353,17 @@ export default {
   },
   recruitment: {
     jobs: {
+      statuses: {
+        draft: "Draft",
+        published: "Published",
+        closed: "Closed",
+        archived: "Archived",
+      },
+      publishAction: "Publish",
+      close: "Close",
+      closedSuccess: "Offer closed",
+      duplicate: "Duplicate",
+      duplicatedSuccess: "Offer duplicated as a draft",
       title: "Job postings",
       newJob: "New job",
       editJob: "Edit",
@@ -448,6 +459,9 @@ export default {
       },
       documentExists: "This document already exists",
       cvLabel: "CV",
+      alwaysRequired: "Always required",
+      tooManyDocuments: "{{max}} documents at most, on top of the CV",
+      save: "Save",
     },
     qr: {
       title: "Job QR code",
