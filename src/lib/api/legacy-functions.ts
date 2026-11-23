@@ -4,22 +4,6 @@
 // replacing these imports with a real `src/lib/api/<domain>.ts` module.
 import { pendingFn } from "@/lib/api/pending";
 
-// Timeclock
-export const scanNfcBadge = pendingFn("POST /org/timeclock/scan");
-export type ScanNfcBadgeResult =
-  | {
-      ok: true;
-      type: "ARRIVEE" | "DEPART";
-      timestamp: string;
-      deduped: boolean;
-      employee: { id: string; first_name: string; last_name: string; photo_url: string | null };
-    }
-  | {
-      ok: false;
-      error: "FORBIDDEN" | "BADGE_UNKNOWN_OR_INACTIVE" | "INTERNAL_ERROR";
-      message: string;
-    };
-
 // Recruitment / careers
 export const getPublicOrganization = pendingFn("GET /public/careers/:orgSlug");
 export const createPublicApplicationUpload = pendingFn(
