@@ -318,3 +318,68 @@ test("les RH ouvrent un cycle ; l'évaluation est remplie, renvoyée, validée p
   await page.getByRole("dialog").getByRole("button", { name: "Signer" }).click();
   await expect(page.getByText("Évaluation signée", { exact: true }).first()).toBeVisible();
 });
+
+test("les RH félicitent un employé, qui note une réalisation liée à son objectif", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const memberEmail = await createMember(request, owner);
+  const switchTo = async (email: string, url: string) => {
+    await page.context().clearCookies();
+    await signIn(page, email);
+    await expect(page).toHaveURL(APP_URL);
+    await open(page, url);
+  };
+  const card = page.getByTestId("feedback-card").filter({ hasText: "Merci pour la clôture" });
+
+  // The owner has an employee record (created with the organization).
+  await switchTo(owner.email, "/app/performance/feedback");
+  await page.getByRole("button", { name: "Donner un feedback" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").first().click();
+  await page.getByRole("option", { name: /Aïssatou Bah/ }).click();
+  await dialog.getByLabel(/Message/).fill("Merci pour la clôture du mois.");
+  await dialog.getByRole("button", { name: "Envoyer" }).click();
+  await expect(page.getByText("Feedback envoyé")).toBeVisible();
+
+  // The recipient reads it and cannot delete it. An employee cannot list colleagues yet
+  // (no directory endpoint), so the author shows as "Un collègue", never "Anonyme".
+  await switchTo(memberEmail, "/app/performance/feedback");
+  await expect(card.getByText("Un collègue → Aïssatou Bah")).toBeVisible();
+  await expect(card.getByRole("button", { name: "Supprimer le feedback" })).toHaveCount(0);
+
+  // Achievement on the employee's own goal.
+  const year = new Date().getFullYear();
+  await apiPost(request, owner, "/org/performance/plans", {
+    name: `Plan annuel ${year}`,
+    periodStart: `${year}-01-01`,
+    periodEnd: `${year}-12-31`,
+    status: "active",
+  });
+  await open(page, "/app/performance/goals");
+  await createGoalInUi(page, `Plan annuel ${year}`, { title: "Fiabiliser la paie", weight: "30" });
+  await expect(page.getByText("Objectif créé")).toBeVisible();
+
+  await open(page, "/app/performance/achievements");
+  await page.getByRole("button", { name: "Nouvelle réalisation" }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Titre").fill("Paie de novembre sans erreur");
+  await form.getByRole("combobox", { name: "Objectif lié" }).click();
+  await page.getByRole("option", { name: "Fiabiliser la paie" }).click();
+  await form.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Réalisation enregistrée")).toBeVisible();
+  const achievement = page.getByTestId("achievement-card");
+  await expect(achievement.getByText("Paie de novembre sans erreur")).toBeVisible();
+  await expect(achievement.getByText("Fiabiliser la paie")).toBeVisible();
+  await achievement.getByRole("button", { name: /Supprimer/ }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page.getByText("Aucune réalisation")).toBeVisible();
+
+  // The author withdraws the feedback.
+  await switchTo(owner.email, "/app/performance/feedback");
+  await page.getByRole("tab", { name: /Envoyés/ }).click();
+  await card.getByRole("button", { name: "Supprimer le feedback" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page.getByTestId("feedback-card")).toHaveCount(0);
+});

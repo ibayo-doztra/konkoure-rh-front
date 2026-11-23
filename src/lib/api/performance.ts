@@ -460,3 +460,85 @@ export function sendBackReview(id: string, comment: string) {
 export function signReview(id: string) {
   return api.post<Review>(`${reviewPath(id)}/sign`);
 }
+
+// ------------------------------------------------- Feedback and achievements (07 §5.9)
+
+export const FEEDBACK_KINDS = ["kudos", "suggestion", "concern"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+
+export interface Feedback {
+  id: string;
+  /** Null on a private feedback, except for HR and the author. */
+  fromEmployeeId: string | null;
+  toEmployeeId: string;
+  kind: FeedbackKind;
+  message: string;
+  okrId: string | null;
+  goalId: string | null;
+  isPrivate: boolean;
+  visibleToManager: boolean;
+  createdAt: string;
+}
+
+export interface FeedbackInput {
+  toEmployeeId: string;
+  kind: FeedbackKind;
+  message: string;
+  okrId?: string;
+  goalId?: string;
+  isPrivate?: boolean;
+  visibleToManager?: boolean;
+}
+
+export interface Achievement {
+  id: string;
+  employeeId: string;
+  goalId: string | null;
+  title: string;
+  description: string | null;
+  impact: string | null;
+  achievedAt: string;
+  /** User account of the author. */
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface AchievementInput {
+  title: string;
+  achievedAt: string;
+  employeeId?: string;
+  goalId?: string;
+  description?: string;
+  impact?: string;
+}
+
+/** Received and sent, the team's for a manager, everything for HR. */
+export const feedbackQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "feedback"],
+    queryFn: () => api.all<Feedback>("/org/performance/feedback"),
+  });
+
+export const achievementsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...performanceKey(organizationId), "achievements"],
+    queryFn: () => api.all<Achievement>("/org/performance/achievements"),
+  });
+
+export function createFeedback(input: FeedbackInput) {
+  return api.post<Feedback>("/org/performance/feedback", input);
+}
+
+/** The author or HR, never the recipient. */
+export function deleteFeedback(id: string) {
+  return api.delete(`/org/performance/feedback/${encodeURIComponent(id)}`);
+}
+
+export function createAchievement(input: AchievementInput) {
+  return api.post<Achievement>("/org/performance/achievements", input);
+}
+
+/** The author or HR. */
+export function deleteAchievement(id: string) {
+  return api.delete(`/org/performance/achievements/${encodeURIComponent(id)}`);
+}
