@@ -54,13 +54,15 @@ function ReviewsPage() {
     const planById = Object.fromEntries(plansList.map((x: any) => [x.id, x]));
     const reviewsWithPlan = (r.data ?? []).map((row: any) => ({
       ...row,
-      performance_plans: row.plan_id ? planById[row.plan_id] ?? null : null,
+      performance_plans: row.plan_id ? (planById[row.plan_id] ?? null) : null,
     }));
     setReviews(reviewsWithPlan);
     setPlans(plansList);
     setEmployees(e.data ?? []);
   };
-  useEffect(() => { void load(); }, [org?.id]);
+  useEffect(() => {
+    void load();
+  }, [org?.id]);
 
   const myEmp = employees.find((e) => e.user_id === user?.id);
 
@@ -109,15 +111,14 @@ function ReviewsPage() {
 
   return (
     <div>
-      <PageHeader
-        title={t("reviews.title")}
-        description={t("reviews.description")}
-      />
+      <PageHeader title={t("reviews.title")} description={t("reviews.description")} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="mine">
-            {isSelf ? t("reviews.myReviews") : t("reviews.reviewsOf", { name: fullName(selectedEmployee) })}
+            {isSelf
+              ? t("reviews.myReviews")
+              : t("reviews.reviewsOf", { name: fullName(selectedEmployee) })}
           </TabsTrigger>
           <TabsTrigger value="plans">{t("reviews.byPlan")}</TabsTrigger>
         </TabsList>
@@ -140,24 +141,35 @@ function ReviewsPage() {
           )}
 
           {visibleReviews.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-              {isSelf ? t("reviews.noReviewsYet") : t("reviews.noReviewsForEmployee")}
-            </CardContent></Card>
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                {isSelf ? t("reviews.noReviewsYet") : t("reviews.noReviewsForEmployee")}
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-3">
               {visibleReviews.map((r) => {
                 const statusCls = REVIEW_STATUS_CLS[r.status] ?? REVIEW_STATUS_CLS.not_started;
-                const statusLabel = t(`reviews.statuses.${r.status}` as any, { defaultValue: t("reviews.statuses.not_started") });
+                const statusLabel = t(`reviews.statuses.${r.status}` as any, {
+                  defaultValue: t("reviews.statuses.not_started"),
+                });
                 const plan = r.performance_plans;
                 return (
                   <Card key={r.id}>
                     <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
                       <div className="min-w-0">
-                        <p className="font-semibold">{t("reviews.reviewNamePrefix")} {plan?.name ?? t("reviews.review")}</p>
+                        <p className="font-semibold">
+                          {t("reviews.reviewNamePrefix")} {plan?.name ?? t("reviews.review")}
+                        </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusCls}`}>{statusLabel}</span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusCls}`}
+                          >
+                            {statusLabel}
+                          </span>
                           {plan && (
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
                               {plan.period_start} → {plan.period_end}
                             </span>
                           )}
@@ -167,9 +179,13 @@ function ReviewsPage() {
                         <Link to="/app/performance/reviews/$id" params={{ id: r.id }}>
                           {!isSelf
                             ? t("reviews.consult")
-                            : r.status === "submitted" || r.status === "signed" ? t("reviews.view")
-                            : r.status === "in_progress" || r.status === "sent_back" || r.status === "validated" ? t("reviews.continueAction")
-                            : t("reviews.start")}
+                            : r.status === "submitted" || r.status === "signed"
+                              ? t("reviews.view")
+                              : r.status === "in_progress" ||
+                                  r.status === "sent_back" ||
+                                  r.status === "validated"
+                                ? t("reviews.continueAction")
+                                : t("reviews.start")}
                           <ArrowRight className="ml-1 h-4 w-4" />
                         </Link>
                       </Button>
@@ -181,31 +197,47 @@ function ReviewsPage() {
           )}
         </TabsContent>
 
-
         <TabsContent value="plans" className="mt-4">
           {plans.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-              {t("reviews.noPlans")}
-            </CardContent></Card>
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                {t("reviews.noPlans")}
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-3">
               {plans.map((p) => {
                 const planReviews = reviews.filter((r) => r.plan_id === p.id);
-                const submitted = planReviews.filter((r) => ["submitted", "validated", "signed"].includes(r.status)).length;
+                const submitted = planReviews.filter((r) =>
+                  ["submitted", "validated", "signed"].includes(r.status),
+                ).length;
                 const statusVariant = PLAN_STATUS_VARIANT[p.status] ?? PLAN_STATUS_VARIANT.draft;
-                const statusLabel = t(`reviews.planStatuses.${p.status}` as any, { defaultValue: t("reviews.planStatuses.draft") });
+                const statusLabel = t(`reviews.planStatuses.${p.status}` as any, {
+                  defaultValue: t("reviews.planStatuses.draft"),
+                });
                 return (
                   <Card key={p.id}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold">{t("reviews.reviewNamePrefix")} {p.name}</p>
+                            <p className="font-semibold">
+                              {t("reviews.reviewNamePrefix")} {p.name}
+                            </p>
                             <Badge variant={statusVariant}>{statusLabel}</Badge>
                           </div>
                           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{p.period_start} → {p.period_end}</span>
-                            <span className="flex items-center gap-1"><Users className="h-3 w-3" />{t("reviews.submittedCount", { submitted, total: planReviews.length })}</span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {p.period_start} → {p.period_end}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {t("reviews.submittedCount", {
+                                submitted,
+                                total: planReviews.length,
+                              })}
+                            </span>
                           </div>
                         </div>
                       </div>

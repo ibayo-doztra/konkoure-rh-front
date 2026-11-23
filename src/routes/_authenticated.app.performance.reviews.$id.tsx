@@ -11,7 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { Loader2, PenLine, Save, Send, Undo2 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -38,7 +44,11 @@ function ScoreLegend() {
     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
       {SCORE_VALUES.map((v) => (
         <li key={v}>
-          <span className="font-medium text-foreground">{t(`reviews.scoreOptions.${v}` as any)}</span>{"\u00A0"}{t(`reviews.scoreDescriptions.${v}` as any)}
+          <span className="font-medium text-foreground">
+            {t(`reviews.scoreOptions.${v}` as any)}
+          </span>
+          {"\u00A0"}
+          {t(`reviews.scoreDescriptions.${v}` as any)}
         </li>
       ))}
     </ul>
@@ -77,7 +87,10 @@ function ReviewDetailPage() {
       setLoading(false);
       return;
     }
-    if (!r) { setLoading(false); return; }
+    if (!r) {
+      setLoading(false);
+      return;
+    }
     setReview(r);
 
     // Charge l'employé séparément (aucune FK déclarée pour le join PostgREST)
@@ -106,7 +119,9 @@ function ReviewDetailPage() {
 
     if ((r as any).plan_id && (r as any).employee_id) {
       const { data: gByPlan } = await pendingQuery("GET /org/performance/goals");
-      (gByPlan ?? []).forEach((g: any) => { if (!goalsMap.has(g.id)) goalsMap.set(g.id, g); });
+      (gByPlan ?? []).forEach((g: any) => {
+        if (!goalsMap.has(g.id)) goalsMap.set(g.id, g);
+      });
     }
     setGoals(Array.from(goalsMap.values()));
 
@@ -131,7 +146,6 @@ function ReviewDetailPage() {
       setOkrs([]);
     }
 
-
     const { data: c } = await pendingQuery("GET /org/performance/reviews/:id");
     const sm: Record<string, string> = {};
     const mm: Record<string, string> = {};
@@ -143,7 +157,9 @@ function ReviewDetailPage() {
     setMgrComments(mm);
     setLoading(false);
   };
-  useEffect(() => { void load(); }, [id]);
+  useEffect(() => {
+    void load();
+  }, [id]);
 
   const isOwner = employee?.user_id === user?.id;
   const isManager = !!review?.manager_id && review.manager_id === myEmployee?.id;
@@ -152,7 +168,8 @@ function ReviewDetailPage() {
   const isSentBack = status === "sent_back";
   const isValidated = status === "validated";
   const isSigned = status === "signed";
-  const canEditSelf = isOwner && (status === "not_started" || status === "in_progress" || isSentBack);
+  const canEditSelf =
+    isOwner && (status === "not_started" || status === "in_progress" || isSentBack);
   const canEditManager =
     !isOwner && (isManager || isSuperAdmin) && !!review?.submitted_at && !isValidated && !isSigned;
   const hasManagerFeedback =
@@ -175,11 +192,16 @@ function ReviewDetailPage() {
       organization_id: org.id,
       review_id: review.id,
       goal_id: g.id,
-      ...(which === "self" ? { self_comment: map[g.id] ?? "" } : { manager_comment: map[g.id] ?? "" }),
+      ...(which === "self"
+        ? { self_comment: map[g.id] ?? "" }
+        : { manager_comment: map[g.id] ?? "" }),
     }));
     if (!rows.length) return true;
     const { error } = await pendingQuery("PUT /org/performance/reviews/:id");
-    if (error) { toast.error(error.message); return false; }
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
     return true;
   };
 
@@ -187,7 +209,10 @@ function ReviewDetailPage() {
     if (!review) return;
     if ((await requireEmployee()) === false) return;
     setBusy(true);
-    if (!(await persistComments("self"))) { setBusy(false); return; }
+    if (!(await persistComments("self"))) {
+      setBusy(false);
+      return;
+    }
     const { error } = await pendingQuery("PATCH /org/performance/reviews");
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -199,7 +224,8 @@ function ReviewDetailPage() {
     if (!review) return;
     if ((await requireEmployee()) === false) return;
     const missing = goals.filter((g) => !(selfComments[g.id] ?? "").trim());
-    if (missing.length) return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
+    if (missing.length)
+      return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
     if (!selfGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
     if (!selfScore) return toast.error(t("reviews.errors.scoreRequired"));
     setBusy(true);
@@ -221,7 +247,10 @@ function ReviewDetailPage() {
     if (!review) return;
     if ((await requireEmployee()) === false) return;
     setBusy(true);
-    if (!(await persistComments("manager"))) { setBusy(false); return; }
+    if (!(await persistComments("manager"))) {
+      setBusy(false);
+      return;
+    }
     const { error } = await pendingQuery("PATCH /org/performance/reviews");
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -233,7 +262,8 @@ function ReviewDetailPage() {
     if (!review) return;
     if ((await requireEmployee()) === false) return;
     const missing = goals.filter((g) => !(mgrComments[g.id] ?? "").trim());
-    if (missing.length) return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
+    if (missing.length)
+      return toast.error(t("reviews.errors.commentAllGoals", { count: missing.length }));
     if (!mgrGlobal.trim()) return toast.error(t("reviews.errors.globalCommentRequired"));
     if (!mgrScore) return toast.error(t("reviews.errors.managerScoreRequired"));
     setBusy(true);
@@ -259,7 +289,10 @@ function ReviewDetailPage() {
     });
     if (!ok) return;
     setBusy(true);
-    if (!(await persistComments("manager"))) { setBusy(false); return; }
+    if (!(await persistComments("manager"))) {
+      setBusy(false);
+      return;
+    }
     const { error } = await pendingQuery("PATCH /org/performance/reviews");
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -294,25 +327,43 @@ function ReviewDetailPage() {
     await load();
   };
 
-
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (!review) return <p className="py-12 text-center text-muted-foreground">{t("reviews.notFound")}</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  if (!review)
+    return <p className="py-12 text-center text-muted-foreground">{t("reviews.notFound")}</p>;
 
   const managerSubmitted = !!review?.manager_submitted_at;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("reviews.evaluationOf", { name: `${employee?.first_name} ${employee?.last_name}` })}
-        description={plan ? `${plan.name} — ${plan.period_start} → ${plan.period_end}` : t("reviews.evaluationDefault")}
-        actions={<Badge className={REVIEW_STATUS_CLS[review.status] ?? REVIEW_STATUS_CLS.not_started}>{t(`reviews.statuses.${review.status}` as any)}</Badge>}
+        title={t("reviews.evaluationOf", {
+          name: `${employee?.first_name} ${employee?.last_name}`,
+        })}
+        description={
+          plan
+            ? `${plan.name} — ${plan.period_start} → ${plan.period_end}`
+            : t("reviews.evaluationDefault")
+        }
+        actions={
+          <Badge className={REVIEW_STATUS_CLS[review.status] ?? REVIEW_STATUS_CLS.not_started}>
+            {t(`reviews.statuses.${review.status}` as any)}
+          </Badge>
+        }
       />
 
       {isOwner && isSubmitted && (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
-            {t("reviews.submittedReadOnly", { date: review.submitted_at ? t("reviews.submittedOn", { date: formatDate(review.submitted_at) }) : "" })}
+            {t("reviews.submittedReadOnly", {
+              date: review.submitted_at
+                ? t("reviews.submittedOn", { date: formatDate(review.submitted_at) })
+                : "",
+            })}
           </CardContent>
         </Card>
       )}
@@ -340,16 +391,20 @@ function ReviewDetailPage() {
           <CardContent className="p-4 text-sm">
             <p className="font-medium text-success">{t("reviews.signedBannerTitle")}</p>
             <p className="mt-1 text-muted-foreground">
-              {t("reviews.signedBannerDesc", { date: review.signed_at ? formatDate(review.signed_at) : "" })}
+              {t("reviews.signedBannerDesc", {
+                date: review.signed_at ? formatDate(review.signed_at) : "",
+              })}
             </p>
           </CardContent>
         </Card>
       )}
 
       {!isOwner && !isManager && !isSuperAdmin && (
-        <Card><CardContent className="p-4 text-sm text-muted-foreground">
-          {t("reviews.readOnlyOther")}
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {t("reviews.readOnlyOther")}
+          </CardContent>
+        </Card>
       )}
 
       {okrs.length > 0 && (
@@ -361,7 +416,9 @@ function ReviewDetailPage() {
                 <div key={o.id} className="rounded-lg border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">{o.objective}</p>
-                    <span className="text-sm tabular-nums text-muted-foreground">{o.progress}%</span>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {o.progress}%
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {o.quarter} · {t(`okrs.reviewStatuses.${o.review_status ?? "draft"}`)}
@@ -373,13 +430,14 @@ function ReviewDetailPage() {
         </section>
       )}
 
-
       <section className="space-y-3">
         <h2 className="font-semibold">{t("reviews.goalsCount", { count: goals.length })}</h2>
         {goals.length === 0 && (
-          <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {t("reviews.noGoalsLinked")}
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              {t("reviews.noGoalsLinked")}
+            </CardContent>
+          </Card>
         )}
         {goals.map((g) => (
           <Card key={g.id}>
@@ -389,21 +447,28 @@ function ReviewDetailPage() {
                   <p className="font-semibold">{g.title}</p>
                   {g.measurement && (
                     <p className="mt-1 text-sm">
-                      <span className="text-muted-foreground">{t("reviews.indicatorLabel")}</span>{g.measurement}
+                      <span className="text-muted-foreground">{t("reviews.indicatorLabel")}</span>
+                      {g.measurement}
                     </p>
                   )}
                 </div>
                 {canEditSelf ? (
                   <Select value={g.status} onValueChange={(v) => updateGoalStatus(g.id, v)}>
-                    <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 w-36">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {(["not_started", "in_progress", "late", "achieved"] as const).map((k) => (
-                        <SelectItem key={k} value={k}>{t(`reviews.goalStatuses.${k}` as any)}</SelectItem>
+                        <SelectItem key={k} value={k}>
+                          {t(`reviews.goalStatuses.${k}` as any)}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Badge variant="secondary">{t(`reviews.goalStatuses.${g.status}` as any, { defaultValue: g.status })}</Badge>
+                  <Badge variant="secondary">
+                    {t(`reviews.goalStatuses.${g.status}` as any, { defaultValue: g.status })}
+                  </Badge>
                 )}
               </div>
               <div>
@@ -461,8 +526,14 @@ function ReviewDetailPage() {
           <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Label>{t("reviews.myScore")}</Label>
-              <Select value={selfScore ? String(selfScore) : ""} onValueChange={(v) => setSelfScore(Number(v))} disabled={!canEditSelf}>
-                <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder={t("reviews.chooseScore")} /></SelectTrigger>
+              <Select
+                value={selfScore ? String(selfScore) : ""}
+                onValueChange={(v) => setSelfScore(Number(v))}
+                disabled={!canEditSelf}
+              >
+                <SelectTrigger className="w-full sm:w-64">
+                  <SelectValue placeholder={t("reviews.chooseScore")} />
+                </SelectTrigger>
                 <SelectContent>
                   {SCORE_VALUES.map((v) => (
                     <SelectItem key={v} value={v}>
@@ -482,7 +553,9 @@ function ReviewDetailPage() {
           <CardContent className="space-y-3 p-4 sm:p-6">
             <h2 className="font-semibold">{t("reviews.managerAssessment")}</h2>
             {!isSubmitted && !hasManagerFeedback && !canEditManager && (
-              <p className="text-sm text-muted-foreground">{t("reviews.managerAssessmentWaiting")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("reviews.managerAssessmentWaiting")}
+              </p>
             )}
             {canEditManager && !managerSubmitted ? (
               <Textarea
@@ -501,8 +574,14 @@ function ReviewDetailPage() {
             <div className="space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Label>{t("reviews.assignedScore")}</Label>
-                <Select value={mgrScore ? String(mgrScore) : ""} onValueChange={(v) => setMgrScore(Number(v))} disabled={!canEditManager || managerSubmitted}>
-                  <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder={t("reviews.chooseScore")} /></SelectTrigger>
+                <Select
+                  value={mgrScore ? String(mgrScore) : ""}
+                  onValueChange={(v) => setMgrScore(Number(v))}
+                  disabled={!canEditManager || managerSubmitted}
+                >
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder={t("reviews.chooseScore")} />
+                  </SelectTrigger>
                   <SelectContent>
                     {SCORE_VALUES.map((v) => (
                       <SelectItem key={v} value={v}>
@@ -525,7 +604,9 @@ function ReviewDetailPage() {
             <p className="mt-1 font-medium text-foreground">
               {`${employee?.first_name ?? ""} ${employee?.last_name ?? ""}`.trim()}
             </p>
-            <p className="text-muted-foreground">{t("reviews.signatureOn", { date: formatDate(review.signed_at) })}</p>
+            <p className="text-muted-foreground">
+              {t("reviews.signatureOn", { date: formatDate(review.signed_at) })}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -533,10 +614,12 @@ function ReviewDetailPage() {
       {canEditSelf && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
           <Button variant="outline" onClick={() => saveSelfDraft()} disabled={busy}>
-            <Save className="mr-2 h-4 w-4" />{t("reviews.save")}
+            <Save className="mr-2 h-4 w-4" />
+            {t("reviews.save")}
           </Button>
           <Button onClick={submitSelf} disabled={busy}>
-            <Send className="mr-2 h-4 w-4" />{t("reviews.submitToManager")}
+            <Send className="mr-2 h-4 w-4" />
+            {t("reviews.submitToManager")}
           </Button>
         </div>
       )}
@@ -544,7 +627,8 @@ function ReviewDetailPage() {
       {canSign && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
           <Button onClick={signReview} disabled={busy}>
-            <PenLine className="mr-2 h-4 w-4" />{t("reviews.sign")}
+            <PenLine className="mr-2 h-4 w-4" />
+            {t("reviews.sign")}
           </Button>
         </div>
       )}
@@ -552,13 +636,16 @@ function ReviewDetailPage() {
       {canEditManager && !managerSubmitted && (
         <div className="sticky bottom-4 ml-auto flex w-full flex-wrap justify-end gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:w-fit">
           <Button variant="outline" onClick={() => saveManagerDraft()} disabled={busy}>
-            <Save className="mr-2 h-4 w-4" />{t("reviews.save")}
+            <Save className="mr-2 h-4 w-4" />
+            {t("reviews.save")}
           </Button>
           <Button variant="outlineDanger" onClick={sendBack} disabled={busy}>
-            <Undo2 className="mr-2 h-4 w-4" />{t("reviews.sendBack")}
+            <Undo2 className="mr-2 h-4 w-4" />
+            {t("reviews.sendBack")}
           </Button>
           <Button onClick={submitManager} disabled={busy}>
-            <Send className="mr-2 h-4 w-4" />{t("reviews.submitManagerReview")}
+            <Send className="mr-2 h-4 w-4" />
+            {t("reviews.submitManagerReview")}
           </Button>
         </div>
       )}
