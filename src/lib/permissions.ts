@@ -57,7 +57,9 @@ const RULES: Rule[] = [
   { path: "/app/leaves/holidays", roles: ADMINS },
   { path: "/app/leaves", roles: ALL_ROLES },
 
-  { path: "/app/talents", roles: ADMINS },
+  { path: "/app/talents/succession", roles: ADMINS },
+  // 9-box and skills matrix: a manager reads their team.
+  { path: "/app/talents", roles: [...ADMINS, "manager"] },
 
   { path: "/app/settings", roles: ADMINS },
   { path: "/app/billing", roles: ["owner"] },

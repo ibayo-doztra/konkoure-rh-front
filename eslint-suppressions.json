@@ -212,25 +212,6 @@
   "src/routes/_authenticated.app.talents.9box.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "prettier/prettier": {
-      "count": 14
-    }
-  },
-  "src/routes/_authenticated.app.talents.skills.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 8
-    }
-  },
-  "src/routes/_authenticated.app.talents.succession.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 5
     }
   },
   "src/routes/_authenticated.tsx": {
