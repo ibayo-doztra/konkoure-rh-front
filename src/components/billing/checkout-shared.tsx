@@ -4,27 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CreditCard, Smartphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { BillingCycle, PaymentMethod, Plan } from "@/lib/api/billing";
 
-export type Cycle = "mensuel" | "annuel";
+/** Cycle as written in the URLs (`?cycle=annuel`), kept for existing links. */
+export type SearchCycle = "mensuel" | "annuel";
+export type Cycle = BillingCycle;
 export type PlanCode = "starter" | "pro" | "enterprise";
-export type Method = "orange_money" | "mtn_momo" | "card";
+export type Method = PaymentMethod;
 
 export const PLAN_CODES: PlanCode[] = ["starter", "pro", "enterprise"];
 
-export interface PlanRow {
-  id: string;
-  code: string;
-  nom: string;
-  prix_gnf: number;
-  max_employes: number;
-  credits_ia_mois: number;
-  sort_order: number;
-}
+export const cycleFromSearch = (value: SearchCycle): Cycle =>
+  value === "annuel" ? "yearly" : "monthly";
+export const cycleToSearch = (value: Cycle): SearchCycle =>
+  value === "yearly" ? "annuel" : "mensuel";
+
+export type PlanRow = Plan;
 
 export function useMethods(): { value: Method; label: string; hint: string }[] {
   const { t } = useTranslation();
   return [
-    { value: "orange_money", label: t("checkout.methodOrangeMoney"), hint: t("checkout.methodMobileHint") },
+    {
+      value: "orange_money",
+      label: t("checkout.methodOrangeMoney"),
+      hint: t("checkout.methodMobileHint"),
+    },
     { value: "mtn_momo", label: t("checkout.methodMtnMomo"), hint: t("checkout.methodMobileHint") },
     { value: "card", label: t("checkout.methodCard"), hint: t("checkout.methodCardHint") },
   ];
@@ -55,7 +59,7 @@ export function PlanPicker({
   return (
     <div className="grid gap-2 sm:grid-cols-3">
       {plans
-        .filter((p) => p.prix_gnf > 0)
+        .filter((p) => p.priceMonthlyGnf > 0)
         .map((p) => {
           const active = p.code === planCode;
           return (
@@ -64,12 +68,14 @@ export function PlanPicker({
               type="button"
               onClick={() => onSelect(p.code as PlanCode)}
               className={`rounded-lg border p-4 text-left transition-colors ${
-                active ? "border-primary bg-accent/40" : "border-border bg-card hover:border-primary"
+                active
+                  ? "border-primary bg-accent/40"
+                  : "border-border bg-card hover:border-primary"
               }`}
             >
-              <span className="block text-sm font-semibold text-foreground">{p.nom}</span>
+              <span className="block text-sm font-semibold text-foreground">{p.name}</span>
               <span className="block text-xs text-muted-foreground">
-                {t("checkout.upToEmployees", { count: p.max_employes })}
+                {t("checkout.upToEmployees", { count: p.maxEmployees })}
               </span>
             </button>
           );
@@ -78,31 +84,25 @@ export function PlanPicker({
   );
 }
 
-export function CyclePicker({
-  cycle,
-  onSelect,
-}: {
-  cycle: Cycle;
-  onSelect: (c: Cycle) => void;
-}) {
+export function CyclePicker({ cycle, onSelect }: { cycle: Cycle; onSelect: (c: Cycle) => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
         size="sm"
-        variant={cycle === "mensuel" ? "default" : "outline"}
-        onClick={() => onSelect("mensuel")}
+        variant={cycle === "monthly" ? "default" : "outline"}
+        onClick={() => onSelect("monthly")}
       >
         {t("checkout.cycleMonthly")}
       </Button>
       <Button
         size="sm"
-        variant={cycle === "annuel" ? "default" : "outline"}
-        onClick={() => onSelect("annuel")}
+        variant={cycle === "yearly" ? "default" : "outline"}
+        onClick={() => onSelect("yearly")}
       >
         {t("checkout.cycleYearly")}
       </Button>
-      {cycle === "annuel" && <Badge variant="success">{t("checkout.twoMonthsFree")}</Badge>}
+      {cycle === "yearly" && <Badge variant="success">{t("checkout.twoMonthsFree")}</Badge>}
     </div>
   );
 }
@@ -126,7 +126,7 @@ export function AmountSummary({
       <p className="text-xs text-muted-foreground">
         {t("checkout.offerBilling", {
           plan: planName ?? "—",
-          cycle: cycle === "annuel" ? t("checkout.billingYearly") : t("checkout.billingMonthly"),
+          cycle: cycle === "yearly" ? t("checkout.billingYearly") : t("checkout.billingMonthly"),
         })}
       </p>
     </div>
@@ -163,13 +163,7 @@ export function MethodPicker({ onSelect }: { onSelect: (m: Method) => void }) {
   );
 }
 
-export function SelectedMethodBar({
-  method,
-  onChange,
-}: {
-  method: Method;
-  onChange: () => void;
-}) {
+export function SelectedMethodBar({ method, onChange }: { method: Method; onChange: () => void }) {
   const { t } = useTranslation();
   const METHODS = useMethods();
   return (

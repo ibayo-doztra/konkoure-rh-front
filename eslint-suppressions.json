@@ -24,16 +24,6 @@
       "count": 3
     }
   },
-  "src/components/billing/PaymentStatusTracker.tsx": {
-    "prettier/prettier": {
-      "count": 5
-    }
-  },
-  "src/components/billing/checkout-shared.tsx": {
-    "prettier/prettier": {
-      "count": 4
-    }
-  },
   "src/components/employees/EmployeeCombobox.tsx": {
     "prettier/prettier": {
       "count": 12
@@ -170,27 +160,6 @@
       "count": 6
     }
   },
-  "src/routes/_authenticated.app.billing.checkout.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "prettier/prettier": {
-      "count": 7
-    }
-  },
-  "src/routes/_authenticated.app.billing.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 11
-    }
-  },
-  "src/routes/_authenticated.app.billing.return.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/routes/_authenticated.app.module-indisponible.tsx": {
     "prettier/prettier": {
       "count": 4
@@ -288,9 +257,6 @@
   "src/routes/paiement.index.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    },
-    "prettier/prettier": {
-      "count": 7
     }
   },
   "src/routes/paiement.retour.tsx": {

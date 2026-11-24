@@ -14,10 +14,6 @@ export const recordPublicApplication = pendingFn(
 );
 
 // Billing
-export const getSubscription = pendingFn("GET /org/billing/subscription");
-export const getPaymentStatus = pendingFn("GET /org/billing/payments/:id");
-export const cancelSubscription = pendingFn("POST /org/billing/cancel");
-export const startSubscriptionPayment = pendingFn("POST /org/billing/checkout");
 export const listPublicPlans = pendingFn("GET /public/plans");
 export const requestPrepaidEmailCode = pendingFn("POST /public/prepaid/codes");
 export const startPrepaidPayment = pendingFn("POST /public/payments/checkout");
@@ -47,11 +43,6 @@ export const disconnectSocialAccount = pendingFn("DELETE /org/integrations/socia
 export const checkProviderConfig = pendingFn("GET /org/integrations/social/accounts");
 export const publishJobToSocials = pendingFn("POST /org/recruitment/jobs/:id/social-posts");
 export const listJobSocialPosts = pendingFn("GET /org/recruitment/jobs/:id/social-posts");
-
-// Billing checkout
-export const createDirectPayment = pendingFn("POST /org/billing/checkout");
-export const createDjomyPayment = pendingFn("POST /org/billing/checkout");
-export const refreshPaymentStatus = pendingFn("GET /org/billing/payments/:id");
 
 // Platform back office — organizations & users
 export const listAdminOrganizations = pendingFn("GET /platform/organizations");

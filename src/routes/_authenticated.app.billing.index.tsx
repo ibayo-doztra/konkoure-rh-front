@@ -1,7 +1,27 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
-import { pendingQuery } from "@/lib/api/pending";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Check, FileDown, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  billingKey,
+  cancelSubscription,
+  invoicePdfUrl,
+  invoicesQuery,
+  paymentsQuery,
+  planPrice,
+  plansQuery,
+  resumeSubscription,
+  subscriptionQuery,
+  usageQuery,
+  type BillingCycle,
+  type Invoice,
+  type PaymentStatus,
+  type Plan,
+  type Subscription,
+} from "@/lib/api/billing";
 import { useOrg } from "@/hooks/useOrg";
 import { useSubscription } from "@/hooks/useSubscription";
 import {
@@ -12,271 +32,315 @@ import {
   PLAN_ORDER,
   type ModuleKey,
 } from "@/lib/entitlements";
-import { cancelSubscription } from "@/lib/api/legacy-functions";
-import { claimPrepaidPayment } from "@/lib/api/legacy-functions";
-import { clearPendingClaim, peekPendingClaim } from "@/lib/pending-claim";
-import { PaymentStatusTracker } from "@/components/billing/PaymentStatusTracker";
+import { cycleToSearch, gnf, type PlanCode } from "@/components/billing/checkout-shared";
 import { PageHeader } from "@/components/PageHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ListPager } from "@/components/ListPager";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/format";
-import { Check } from "lucide-react";
-import { toast } from "sonner";
-import { useConfirm } from "@/hooks/useConfirm";
 
 export const Route = createFileRoute("/_authenticated/app/billing/")({
   head: () => ({
     meta: [
       { title: "Abonnement — Konkouré RH" },
-      { name: "description", content: "Gérez l'abonnement de votre organisation Konkouré : offre, cycle de facturation et paiements Mobile Money." },
+      {
+        name: "description",
+        content:
+          "Gérez l'abonnement de votre organisation Konkouré : offre, cycle de facturation et paiements Mobile Money.",
+      },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: BillingPage,
 });
 
-type Cycle = "mensuel" | "annuel";
+const PAYMENT_STATUS_VARIANT: Record<
+  PaymentStatus,
+  "default" | "secondary" | "destructive" | "success" | "outline"
+> = {
+  pending: "secondary",
+  processing: "secondary",
+  succeeded: "success",
+  failed: "destructive",
+  expired: "outline",
+  refunded: "outline",
+};
 
-interface PlanRow {
-  id: string;
-  code: string;
-  nom: string;
-  prix_gnf: number;
-  max_employes: number;
-  credits_ia_mois: number;
-  sort_order: number;
-}
-
-const gnf = (v: number) =>
-  new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(v)).replace(/\u202f|\u00a0/g, " ");
-
-function statutLabel(t: (k: string) => string, statut: string): string {
-  const map: Record<string, string> = {
-    trialing: t("billing.statusTrialing"),
-    active: t("billing.statusActive"),
-    past_due: t("billing.statusPastDue"),
-    suspended: t("billing.statusSuspended"),
-    canceled: t("billing.statusCanceled"),
-    expired: t("billing.statusExpired"),
-  };
-  return map[statut] ?? statut;
-}
-
-/**
- * Suivi d'un paiement effectué avant la création du compte, tant qu'il n'est
- * pas rattaché à l'organisation courante.
- */
-function PendingClaimPanel() {
-  const { t } = useTranslation();
-  const { org } = useOrg();
-  const claimFn = claimPrepaidPayment;
-  const [token, setToken] = useState<string | null>(null);
-  const [paid, setPaid] = useState(false);
-  const [claimed, setClaimed] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setToken(peekPendingClaim());
-  }, []);
-
-  const onStatus = useCallback((summary: { status: string; claimed: boolean } | null) => {
-    setPaid(summary?.status === "success");
-    setClaimed(!!summary?.claimed);
-  }, []);
-
-  useEffect(() => {
-    if (claimed) {
-      clearPendingClaim();
-      const t = setTimeout(() => setToken(null), 4000);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [claimed]);
-
-  if (!token) return null;
-
-  const onClaim = async () => {
-    if (!org) return;
-    setBusy(true);
-    try {
-      const res: any = await claimFn({ data: { claimToken: token, organizationId: org.id } });
-      if (res?.claimed) {
-        clearPendingClaim();
-        setToken(null);
-        toast.success(t("billing.claimSuccess"));
-        window.location.reload();
-      } else if (res?.reason === "EMAIL_MISMATCH") {
-        toast.error(t("billing.claimEmailMismatch"));
-      } else if (res?.reason === "NOT_PAID") {
-        toast.warning(t("billing.claimNotPaid"));
-      } else {
-        clearPendingClaim();
-        setToken(null);
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("billing.claimError"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <PaymentStatusTracker
-      claimToken={token}
-      hideActions
-      onStatus={onStatus}
-      extraActions={
-        paid && !claimed ? (
-          <Button size="sm" disabled={busy || !org} onClick={() => void onClaim()}>
-            {t("billing.claimRattach")}
-          </Button>
-        ) : null
-      }
-    />
-  );
-}
-
+/** Subscription, usage, plans, payments and invoices of the organization (owner). */
 function BillingPage() {
   const { t } = useTranslation();
-  const { confirm, confirmDialog } = useConfirm();
   const { org } = useOrg();
-  const navigate = useNavigate();
-  const { subscription, loading } = useSubscription();
-  const [plans, setPlans] = useState<PlanRow[]>([]);
-  const [cycle, setCycle] = useState<Cycle>("mensuel");
-
-  const cancelFn = cancelSubscription;
-
-  useEffect(() => {
-    void pendingQuery("GET /org/billing/plans");
-  }, []);
-
-  const amountFor = (p: PlanRow) => (cycle === "annuel" ? p.prix_gnf * 10 : p.prix_gnf);
-
-  const onCancel = async () => {
-    if (!org) return;
-    if (!(await confirm({ title: t("billing.cancelConfirm"), description: t("billing.cancelConfirmDesc"), actionLabel: t("common.confirm"), actionVariant: "destructive" }))) return;
-    try {
-      await cancelFn({ data: { organizationId: org.id } });
-      toast.success(t("billing.cancelSuccess"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("billing.cancelError"));
-    }
-  };
+  const organizationId = org?.id ?? "";
+  const { subscription: session } = useSubscription();
+  const subscription = useQuery({ ...subscriptionQuery(organizationId), enabled: !!org });
+  const plans = useQuery({ ...plansQuery(organizationId), enabled: !!org });
 
   return (
     <div className="space-y-6">
-      {confirmDialog}
       <PageHeader title={t("billing.pageTitle")} description={t("billing.pageDescription")} />
 
-      <PendingClaimPanel />
+      {subscription.isPending ? (
+        <Skeleton className="h-32 w-full" />
+      ) : subscription.isError ? (
+        <p className="text-sm text-destructive">{apiErrorMessage(subscription.error)}</p>
+      ) : (
+        <SubscriptionCard subscription={subscription.data} plans={plans.data ?? []} />
+      )}
 
-
-
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t("billing.currentPlan")}</p>
-            <p className="text-xl font-bold">
-              {loading ? "…" : subscription.planName}{" "}
-              <Badge
-                variant={
-                  subscription.graceCanceled
-                    ? "outline"
-                    : subscription.planEffective
-                      ? "success"
-                      : "secondary"
-                }
-              >
-                {subscription.graceCanceled
-                  ? t("billing.canceledUntil", { date: formatDate(subscription.periodeFin!) })
-                  : subscription.statut === "canceled"
-                    ? t("billing.statusExpired")
-                    : statutLabel(t, subscription.statut)}
-              </Badge>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {t("billing.upToEmployees", { count: subscription.maxEmployes })}
-              {subscription.periodeFin
-                ? t("billing.dueOn", { date: formatDate(subscription.periodeFin) })
-                : ""}
-            </p>
-            {subscription.trialActive && subscription.trialEndsAt && (
-              <p className="text-sm text-muted-foreground">
-                {t("billing.trialActive", {
-                  count: daysLeft(subscription.trialEndsAt),
-                  date: formatDate(subscription.trialEndsAt),
-                })}
-              </p>
-            )}
-            {subscription.graceCanceled && (
-              <p className="text-sm text-muted-foreground">{t("billing.graceCanceledNote")}</p>
-            )}
-          </div>
-          {subscription.prixGnf > 0 && subscription.statut !== "canceled" && (
-            <Button variant="outline" onClick={() => void onCancel()}>
-              {t("billing.cancelSubscription")}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      <UsageCard />
 
       <ModulesCard
-        planCode={subscription.planCode}
-        modules={subscription.modules}
-        trialActive={subscription.trialActive}
+        planCode={session.planCode}
+        modules={session.modules}
+        trialActive={session.trialActive}
       />
 
+      <PlansGrid plans={plans.data} currentPlanId={subscription.data?.plan?.id ?? null} />
+      <p className="text-xs text-muted-foreground">{t("billing.enterpriseHint")}</p>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PaymentsCard plans={plans.data ?? []} />
+        <InvoicesCard />
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionCard({ subscription, plans }: { subscription: Subscription; plans: Plan[] }) {
+  const { t } = useTranslation();
+  const { org } = useOrg();
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const { refetch: reloadSession } = useSubscription();
+  const [confirm, setConfirm] = useState<"cancel" | "resume" | null>(null);
+  const plan = plans.find((p) => p.id === subscription.plan?.id);
+  const paid = (plan?.priceMonthlyGnf ?? 0) > 0;
+  const periodRuns = new Date(subscription.currentPeriodEnd).getTime() > Date.now();
+  const canceledUntilTerm = subscription.cancelAtPeriodEnd && periodRuns;
+  const canCancel =
+    paid && ["active", "past_due"].includes(subscription.status) && !subscription.cancelAtPeriodEnd;
+  const canResume = subscription.status === "canceled" && canceledUntilTerm;
+  const trialActive =
+    subscription.status === "trialing" &&
+    !!subscription.trialEndsAt &&
+    new Date(subscription.trialEndsAt).getTime() > Date.now();
+
+  const change = useMutation({
+    mutationFn: (action: "cancel" | "resume") =>
+      action === "cancel" ? cancelSubscription() : resumeSubscription(),
+    onSuccess: (_, action) => {
+      setConfirm(null);
+      toast.success(action === "cancel" ? t("billing.cancelSuccess") : t("billing.resumeSuccess"));
+      void reloadSession?.();
+      return queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
+    },
+    onError: (e) => {
+      setConfirm(null);
+      toast.error(apiErrorMessage(e));
+    },
+  });
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm text-muted-foreground">{t("billing.currentPlan")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xl font-bold">{subscription.plan?.name ?? "—"}</p>
+            <Badge
+              data-testid="subscription-status"
+              variant={
+                canceledUntilTerm
+                  ? "outline"
+                  : ["active", "trialing"].includes(subscription.status)
+                    ? "success"
+                    : "secondary"
+              }
+            >
+              {canceledUntilTerm
+                ? t("billing.canceledUntil", { date: formatDate(subscription.currentPeriodEnd) })
+                : t(`billing.statuses.${subscription.status}`)}
+            </Badge>
+          </div>
+          {plan && (
+            <p className="text-sm text-muted-foreground">
+              {t("billing.upToEmployees", { count: plan.maxEmployees })}
+              {paid && !subscription.cancelAtPeriodEnd
+                ? t("billing.dueOn", { date: formatDate(subscription.currentPeriodEnd) })
+                : ""}
+              {paid ? ` · ${t(`billing.cycles.${subscription.cycle}`)}` : ""}
+            </p>
+          )}
+          {trialActive && subscription.trialEndsAt && (
+            <p className="text-sm text-muted-foreground">
+              {t("billing.trialActive", {
+                count: daysLeft(subscription.trialEndsAt),
+                date: formatDate(subscription.trialEndsAt),
+              })}
+            </p>
+          )}
+          {canceledUntilTerm && (
+            <p className="text-sm text-muted-foreground">{t("billing.graceCanceledNote")}</p>
+          )}
+          {subscription.scheduledPlan && (
+            <p className="text-sm text-muted-foreground">
+              {t("billing.scheduledChange", {
+                plan: subscription.scheduledPlan.name,
+                date: formatDate(subscription.currentPeriodEnd),
+              })}
+            </p>
+          )}
+        </div>
+        {canCancel && (
+          <Button variant="outline" className="shrink-0" onClick={() => setConfirm("cancel")}>
+            {t("billing.cancelSubscription")}
+          </Button>
+        )}
+        {canResume && (
+          <Button className="shrink-0" onClick={() => setConfirm("resume")}>
+            {t("billing.resumeSubscription")}
+          </Button>
+        )}
+      </CardContent>
+      <ConfirmDialog
+        open={confirm !== null}
+        onOpenChange={(v) => !v && setConfirm(null)}
+        title={confirm === "resume" ? t("billing.resumeConfirm") : t("billing.cancelConfirm")}
+        description={
+          confirm === "resume"
+            ? t("billing.resumeConfirmDesc")
+            : t("billing.cancelConfirmDesc", { date: formatDate(subscription.currentPeriodEnd) })
+        }
+        actionLabel={
+          confirm === "resume" ? t("billing.resumeSubscription") : t("billing.cancelSubscription")
+        }
+        actionVariant={confirm === "resume" ? "default" : "destructive"}
+        loading={change.isPending}
+        onConfirm={() => confirm && change.mutate(confirm)}
+      />
+    </Card>
+  );
+}
+
+function UsageCard() {
+  const { t } = useTranslation();
+  const { org } = useOrg();
+  const usage = useQuery({ ...usageQuery(org?.id ?? ""), enabled: !!org });
+  if (usage.isPending) return <Skeleton className="h-28 w-full" />;
+  if (usage.isError) return null;
+  const meter = (label: string, used: number, limit: number | null) => {
+    const ratio = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-baseline justify-between gap-2 text-sm">
+          <span>{label}</span>
+          <span className="tabular-nums text-muted-foreground">
+            {limit === null
+              ? t("billing.usageUnlimited", { used })
+              : t("billing.usageOf", { used, limit })}
+          </span>
+        </div>
+        {limit !== null && <Progress value={ratio} aria-label={label} />}
+      </div>
+    );
+  };
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4 sm:p-6">
+        <h2 className="font-semibold">{t("billing.usageTitle", { period: usage.data.period })}</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {meter(
+            t("billing.usageEmployees"),
+            usage.data.employees.used,
+            usage.data.employees.limit,
+          )}
+          {meter(
+            t("billing.usageAiCredits"),
+            usage.data.aiCredits.used,
+            usage.data.aiCredits.limit,
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlansGrid({ plans, currentPlanId }: { plans?: Plan[]; currentPlanId: string | null }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  if (!plans) return <Skeleton className="h-64 w-full" />;
+  return (
+    <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Button
           size="sm"
-          variant={cycle === "mensuel" ? "default" : "outline"}
-          onClick={() => setCycle("mensuel")}
+          variant={cycle === "monthly" ? "default" : "outline"}
+          onClick={() => setCycle("monthly")}
         >
           {t("billing.cycleMonthly")}
         </Button>
         <Button
           size="sm"
-          variant={cycle === "annuel" ? "default" : "outline"}
-          onClick={() => setCycle("annuel")}
+          variant={cycle === "yearly" ? "default" : "outline"}
+          onClick={() => setCycle("yearly")}
         >
           {t("billing.cycleYearly")}
         </Button>
       </div>
-
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((p) => {
-          const current = p.code === subscription.planCode;
+          const current = p.id === currentPlanId;
+          const free = p.priceMonthlyGnf <= 0;
           return (
-            <Card key={p.id} className={current ? "border-primary" : undefined}>
+            <Card
+              key={p.id}
+              data-testid="plan-card"
+              className={current ? "border-primary" : undefined}
+            >
               <CardContent className="flex h-full flex-col gap-3 p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold">{p.nom}</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-bold">{p.name}</h3>
                   {current && <Badge variant="success">{t("billing.current")}</Badge>}
                 </div>
                 <p className="text-2xl font-black tabular-nums">
-                  {gnf(amountFor(p))} <span className="text-sm font-medium text-muted-foreground">GNF</span>
+                  {gnf(planPrice(p, cycle))}{" "}
+                  <span className="text-sm font-medium text-muted-foreground">GNF</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {cycle === "annuel" ? t("billing.perYear") : t("billing.perMonth")}
+                  {cycle === "yearly" ? t("billing.perYear") : t("billing.perMonth")}
                 </p>
                 <ul className="space-y-1.5 text-sm">
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" /> {t("billing.upToEmployeesFeature", { count: p.max_employes })}
+                    <Check className="h-4 w-4 text-primary" />
+                    {t("billing.upToEmployeesFeature", { count: p.maxEmployees })}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" /> {t("billing.aiCreditsFeature", { count: p.credits_ia_mois })}
+                    <Check className="h-4 w-4 text-primary" />
+                    {t("billing.aiCreditsFeature", { count: p.aiCreditsPerMonth })}
                   </li>
                 </ul>
                 <div className="mt-auto pt-3">
                   <Button
                     className="w-full"
-                    disabled={p.prix_gnf <= 0 || current}
+                    disabled={free || current}
                     variant={current ? "outline" : "default"}
-                    onClick={() => navigate({ to: "/app/billing/checkout", search: { plan: p.code as "starter" | "pro" | "enterprise", cycle } })}
+                    onClick={() =>
+                      navigate({
+                        to: "/app/billing/checkout",
+                        search: { plan: p.code as PlanCode, cycle: cycleToSearch(cycle) },
+                      })
+                    }
                   >
-                    {p.prix_gnf <= 0 ? t("billing.freePlan") : current ? t("billing.currentPlanBtn") : t("billing.choosePlan")}
+                    {free
+                      ? t("billing.freePlan")
+                      : current
+                        ? t("billing.currentPlanBtn")
+                        : t("billing.choosePlan")}
                   </Button>
                 </div>
               </CardContent>
@@ -284,13 +348,113 @@ function BillingPage() {
           );
         })}
       </div>
-
-      <p className="text-xs text-muted-foreground">{t("billing.enterpriseHint")}</p>
-
     </div>
   );
 }
 
+function PaymentsCard({ plans }: { plans: Plan[] }) {
+  const { t } = useTranslation();
+  const { org } = useOrg();
+  const [page, setPage] = useState(1);
+  const payments = useQuery({ ...paymentsQuery(org?.id ?? "", page), enabled: !!org });
+  const rows = payments.data?.data ?? [];
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4 sm:p-6">
+        <h2 className="font-semibold">{t("billing.paymentsTitle")}</h2>
+        {payments.isPending ? (
+          <Skeleton className="h-24 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("billing.noPayments")}</p>
+        ) : (
+          <ul className="divide-y" data-testid="payments-list">
+            {rows.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {plans.find((pl) => pl.id === p.planId)?.name ?? "—"}
+                    {p.method ? ` · ${t(`billing.methods.${p.method}`)}` : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatDate(p.createdAt)}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="tabular-nums">{gnf(p.expectedAmount)} GNF</span>
+                  <Badge variant={PAYMENT_STATUS_VARIANT[p.status]}>
+                    {t(`billing.paymentStatuses.${p.status}`)}
+                  </Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ListPager page={page} lastPage={payments.data?.meta.lastPage ?? 1} onChange={setPage} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function InvoicesCard() {
+  const { t } = useTranslation();
+  const { org } = useOrg();
+  const [page, setPage] = useState(1);
+  const invoices = useQuery({ ...invoicesQuery(org?.id ?? "", page), enabled: !!org });
+  const pdf = useMutation({
+    mutationFn: (invoice: Invoice) => invoicePdfUrl(invoice.id),
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+  const rows = invoices.data?.data ?? [];
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4 sm:p-6">
+        <h2 className="font-semibold">{t("billing.invoicesTitle")}</h2>
+        {invoices.isPending ? (
+          <Skeleton className="h-24 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("billing.noInvoices")}</p>
+        ) : (
+          <ul className="divide-y">
+            {rows.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{inv.number}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("billing.invoicePeriod", {
+                      start: formatDate(inv.periodStart),
+                      end: formatDate(inv.periodEnd),
+                    })}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="tabular-nums">{gnf(inv.amount)} GNF</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!inv.hasPdf || pdf.isPending}
+                    title={
+                      inv.hasPdf ? t("billing.downloadInvoice") : t("billing.invoicePdfPending")
+                    }
+                    aria-label={t("billing.downloadInvoiceOf", { number: inv.number })}
+                    onClick={() => pdf.mutate(inv)}
+                  >
+                    {pdf.isPending && pdf.variables?.id === inv.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ListPager page={page} lastPage={invoices.data?.meta.lastPage ?? 1} onChange={setPage} />
+      </CardContent>
+    </Card>
+  );
+}
 
 /** Jours restants avant une échéance (au moins 1 tant qu'elle n'est pas passée). */
 function daysLeft(iso: string): number {
