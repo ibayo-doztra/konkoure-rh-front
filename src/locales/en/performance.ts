@@ -178,6 +178,16 @@ export default {
       late: "Late",
       achieved: "Achieved",
     },
+    talent: {
+      title: "Talent (9-box)",
+      description:
+        "HR performance and potential scores, from 1 to 5. They place the employee in the 9-box and stay outside the signed content.",
+      performance: "Performance",
+      potential: "Potential",
+      notScored: "Not scored",
+      save: "Save the scores",
+      saved: "Talent scores saved",
+    },
     scoreOptions: {
       1: "1 — Insufficient",
       2: "2 — Needs improvement",

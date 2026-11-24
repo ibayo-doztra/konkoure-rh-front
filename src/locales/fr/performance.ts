@@ -177,6 +177,16 @@ export default {
       late: "En retard",
       achieved: "Terminé",
     },
+    talent: {
+      title: "Talents (9-box)",
+      description:
+        "Notes RH de performance et de potentiel, de 1 à 5. Elles placent l'employé dans la 9-box et restent hors du contenu signé.",
+      performance: "Performance",
+      potential: "Potentiel",
+      notScored: "Non noté",
+      save: "Enregistrer les notes",
+      saved: "Notes talents enregistrées",
+    },
     scoreOptions: {
       1: "1 — Insuffisant",
       2: "2 — À améliorer",

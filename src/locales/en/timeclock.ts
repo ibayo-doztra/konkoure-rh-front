@@ -144,9 +144,30 @@ export default {
     },
     nineBox: {
       title: "9-Box matrix",
-      description: "Performance × Potential",
+      description: "Performance × potential, per review cycle",
+      cycle: "Review cycle",
+      noCycle: "No review cycle yet.",
+      performanceAxis: "Performance →",
+      potentialAxis: "Potential →",
+      cellAxes: "{{performance}} performance · {{potential}} potential",
+      levels: { low: "low", medium: "medium", high: "high" },
+      scores: "P {{performance}} · Pot {{potential}}",
+      legend:
+        "Scores from 1 to 5: low from 1 to {{lowMax}}, medium from {{mediumMin}} to {{mediumMax}}, high from {{highMin}} to 5.",
+      unplaced: "Not placed ({{count}})",
+      unplacedHint: "Evaluations of the cycle missing the performance or the potential score.",
       footer:
-        "Horizontal axis: performance · Vertical axis: potential · 0-9 rating scale from reviews.",
+        "Performance comes from the HR score, otherwise from the manager score of a signed evaluation. Potential is scored by HR on the validated or signed evaluation.",
+      thresholds: {
+        open: "Thresholds",
+        title: "9-box thresholds",
+        description:
+          "Upper bounds of the low and medium levels, on the 1 to 5 scale, for the whole organization.",
+        lowMax: "Low level up to",
+        mediumMax: "Medium level up to",
+        invalid: "The medium level must end above the low level.",
+        saved: "Thresholds saved",
+      },
       labels: {
         riskTalent: "At-risk talent",
         performer: "Performer",

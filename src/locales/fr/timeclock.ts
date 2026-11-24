@@ -148,9 +148,31 @@ export default {
     },
     nineBox: {
       title: "Matrice 9-Box",
-      description: "Performance × Potentiel",
+      description: "Performance × potentiel, par cycle d'évaluation",
+      cycle: "Cycle d'évaluation",
+      noCycle: "Aucun cycle d'évaluation pour le moment.",
+      performanceAxis: "Performance →",
+      potentialAxis: "Potentiel →",
+      cellAxes: "Performance {{performance}} · potentiel {{potential}}",
+      levels: { low: "basse", medium: "moyenne", high: "haute" },
+      scores: "P {{performance}} · Pot {{potential}}",
+      legend:
+        "Notes de 1 à 5 : basse de 1 à {{lowMax}}, moyenne de {{mediumMin}} à {{mediumMax}}, haute de {{highMin}} à 5.",
+      unplaced: "Non placés ({{count}})",
+      unplacedHint:
+        "Évaluations du cycle auxquelles il manque la note de performance ou de potentiel.",
       footer:
-        "Axe horizontal : performance · Axe vertical : potentiel · Notation 0-9 sur les revues.",
+        "La performance vient de la note RH, sinon de la note du manager d'une évaluation signée. Le potentiel est noté par les RH sur l'évaluation validée ou signée.",
+      thresholds: {
+        open: "Seuils",
+        title: "Seuils de la 9-box",
+        description:
+          "Bornes des niveaux bas et moyen, sur l'échelle de 1 à 5, pour toute l'organisation.",
+        lowMax: "Niveau bas jusqu'à",
+        mediumMax: "Niveau moyen jusqu'à",
+        invalid: "Le niveau moyen doit finir au-dessus du niveau bas.",
+        saved: "Seuils enregistrés",
+      },
       labels: {
         riskTalent: "Talent à risque",
         performer: "Performeur",

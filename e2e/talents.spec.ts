@@ -23,12 +23,58 @@ async function apiPost<T>(request: APIRequestContext, owner: Owner, path: string
   return ((await response.json()) as { data: T }).data;
 }
 
+async function apiCall<T>(
+  request: APIRequestContext,
+  auth: { accessToken: string; organizationId: string },
+  method: "POST" | "PATCH" | "GET",
+  path: string,
+  data?: unknown,
+) {
+  const response = await request.fetch(`${API_URL}/api/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${auth.accessToken}`,
+      "X-Organization-Id": auth.organizationId,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data,
+  });
+  expect(response.ok(), `${method} ${path} → ${response.status()}`).toBeTruthy();
+  return ((await response.json()) as { data: T }).data;
+}
+
 async function createEmployee(
   request: APIRequestContext,
   owner: Owner,
   input: { firstName: string; lastName: string; email?: string; managerId?: string },
 ) {
   return apiPost<{ id: string }>(request, owner, "/org/employees", input);
+}
+
+/** An employee account linked to its record, signed in through the API. */
+async function createMember(
+  request: APIRequestContext,
+  owner: Owner,
+  input: { firstName: string; lastName: string },
+) {
+  const email = uniqueEmail(input.firstName.toLowerCase());
+  const { id } = await createEmployee(request, owner, { ...input, email });
+  await apiPost(request, owner, "/org/invitations", { email, role: "employee", employeeId: id });
+  const token = new URL(await mailLink(email, "/invitation"), API_URL).searchParams.get("token");
+  const accepted = await request.post(`${API_URL}/api/v1/auth/invitations/${token}/accept`, {
+    data: {
+      password: PASSWORD,
+      password_confirmation: PASSWORD,
+      fullName: `${input.firstName} ${input.lastName}`,
+    },
+  });
+  expect(accepted.ok()).toBeTruthy();
+  const login = await request.post(`${API_URL}/api/v1/auth/login`, {
+    data: { email, password: PASSWORD },
+  });
+  expect(login.ok()).toBeTruthy();
+  const { accessToken } = ((await login.json()) as { data: { accessToken: string } }).data;
+  return { employeeId: id, auth: { accessToken, organizationId: owner.organizationId } };
 }
 
 /** A manager account linked to its employee record, who accepted the invitation. */
@@ -50,7 +96,7 @@ async function createManager(request: APIRequestContext, owner: Owner) {
 
 /** Picks an option of a shadcn select identified by its label. */
 async function choose(page: Page, label: string, option: string) {
-  await page.getByLabel(label, { exact: true }).click();
+  await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
@@ -191,4 +237,80 @@ test("un manager consulte la matrice de son équipe sans la modifier", async ({ 
 
   await open(page, "/app/talents/succession");
   await expect(page).toHaveURL(APP_URL);
+});
+
+test("les RH notent performance et potentiel, la 9-box place les employés selon les seuils", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  grantPlan(owner.organizationId, "pro");
+  const fatoumata = await createMember(request, owner, {
+    firstName: "Fatoumata",
+    lastName: "Camara",
+  });
+  await createEmployee(request, owner, { firstName: "Ibrahima", lastName: "Sow" });
+
+  // An open cycle with one evaluation per employee.
+  const year = new Date().getFullYear();
+  const cycle = await apiCall<{ id: string }>(request, owner, "POST", "/org/performance/cycles", {
+    name: `Évaluation ${year}`,
+    frequency: "annual",
+    periodStart: `${year}-01-01`,
+    periodEnd: `${year}-12-31`,
+  });
+  await apiCall(request, owner, "POST", `/org/performance/cycles/${cycle.id}/open`);
+  await apiCall(request, owner, "POST", "/org/performance/reviews", { cycleId: cycle.id });
+  const reviews = await apiCall<{ id: string; employeeId: string }[]>(
+    request,
+    owner,
+    "GET",
+    `/org/performance/reviews?filter[cycleId]=${cycle.id}`,
+  );
+  const review = reviews.find((r) => r.employeeId === fatoumata.employeeId)!;
+
+  // Fatoumata's evaluation goes up to `validated`.
+  const path = `/org/performance/reviews/${review.id}`;
+  await apiCall(request, fatoumata.auth, "PATCH", `${path}/self`, {
+    selfScore: 4,
+    selfGlobalComment: "Une année solide.",
+  });
+  await apiCall(request, fatoumata.auth, "POST", `${path}/submit-self`);
+  await apiCall(request, owner, "PATCH", `${path}/manager`, {
+    managerScore: 4,
+    managerGlobalComment: "Très bon travail.",
+  });
+  await apiCall(request, owner, "POST", `${path}/validate`);
+
+  // HR score her in the evaluation.
+  await signIn(page, owner.email);
+  await expect(page).toHaveURL(APP_URL);
+  await open(page, `/app/performance/reviews/${review.id}`);
+  await choose(page, "Performance", "4");
+  await choose(page, "Potentiel", "5");
+  await page.getByRole("button", { name: "Enregistrer les notes" }).click();
+  await expect(page.getByText("Notes talents enregistrées")).toBeVisible();
+
+  // Default thresholds (2 / 3): 4 and 5 are high.
+  await open(page, "/app/talents/9box");
+  const star = page.getByRole("region", { name: "Star" });
+  await expect(star.getByRole("link", { name: /Fatoumata Camara/ })).toBeVisible();
+  // Ibrahima's evaluation has no score yet.
+  await expect(page.getByTestId("nine-box-unplaced")).toContainText("Ibrahima Sow");
+
+  // Raising the thresholds (3 / 4) makes a performance of 4 medium.
+  await page.getByRole("button", { name: "Seuils" }).click();
+  await choose(page, "Niveau bas jusqu'à", "3");
+  await choose(page, "Niveau moyen jusqu'à", "4");
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Seuils enregistrés")).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Haut potentiel" })
+      .getByRole("link", { name: /Fatoumata Camara/ }),
+  ).toBeVisible();
+  await expect(star.getByRole("link")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByText(/basse de 1 à 3, moyenne de 4 à 4, haute de 5 à 5/)).toBeVisible();
 });
