@@ -1,6 +1,7 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
-import { API_URL, OUTBOX, PASSWORD } from "./settings";
+import { API_DIR, API_ENV, API_URL, OUTBOX, PASSWORD } from "./settings";
 
 /** The dashboard adds its own query string (`?period=month`). */
 export const APP_URL = /\/app(\?.*)?$/;
@@ -121,4 +122,17 @@ export async function invite(request: APIRequestContext, owner: Owner, email: st
     }),
   );
   return mailLink(email, "/invitation");
+}
+
+/**
+ * Puts an organization on a plan through the API's own command, which also
+ * clears its entitlement cache (a new organization starts on the free plan).
+ */
+export function grantPlan(organizationId: string, plan: "starter" | "pro" | "enterprise") {
+  const result = spawnSync(
+    process.execPath,
+    ["ace", "subscription:grant", organizationId, plan, "--days=30"],
+    { cwd: API_DIR, env: { ...process.env, ...API_ENV }, encoding: "utf8" },
+  );
+  expect(result.status, `subscription:grant → ${result.stderr || result.stdout}`).toBe(0);
 }
