@@ -164,4 +164,9 @@ export default {
     sessionExpired: "Your session has expired. Sign in again and retry.",
     generic: "Something went wrong. Please try again shortly.",
   },
+  ai: {
+    quotaExceeded:
+      "The AI credits of the month are used up. The owner can change plans from the Subscription page.",
+    unavailable: "The AI assistant is temporarily unavailable. Try again later.",
+  },
 } as const;

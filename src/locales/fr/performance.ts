@@ -13,6 +13,9 @@ export default {
     quarterPlaceholder: "2026-Q1",
     keyResults: "Résultats clés (un par ligne)",
     keyResultsHint: "Au moins un résultat clé est requis, 20 au plus.",
+    aiSuggest: "Suggérer avec l'IA",
+    aiSuggestHint: "1 crédit IA, à partir d'un objectif d'au moins 10 caractères.",
+    aiSuggested: "Résultats clés proposés : relisez-les avant de créer l'objectif.",
     suggestSmart: "Suggérer SMART",
     aiError: "Impossible de générer des suggestions pour le moment.",
     aiRateLimit: "Trop de demandes. Réessayez dans quelques instants.",
@@ -139,6 +142,14 @@ export default {
     },
   },
   reviews: {
+    ai: {
+      title: "Synthèse IA",
+      description: "Résumé de l'évaluation pour préparer l'entretien. Jamais visible par l'évalué.",
+      generate: "Générer la synthèse",
+      regenerate: "Régénérer",
+      generated: "Synthèse générée",
+      empty: "Aucune synthèse pour le moment (1 crédit IA par génération).",
+    },
     title: "Évaluations de performance",
     description: "Vos évaluations rattachées aux plans de performance",
     myReviews: "Mes évaluations",
@@ -425,6 +436,17 @@ export default {
         "Décrivez la mission, le contexte de l'entreprise et les responsabilités principales…",
       requirementsLabel: "Exigences",
       requirementsPlaceholder: "Listez les compétences, l'expérience et les qualités attendues…",
+      aiHint:
+        "Rédigez la description et les prérequis avec l'IA, à partir du titre et du contrat (1 crédit IA).",
+      aiWrite: "Rédiger avec l'IA",
+      aiDescription:
+        "Ajoutez si besoin des précisions : missions, profil, avantages. Aucun salaire n'est transmis.",
+      aiReplaces:
+        "Le texte proposé remplacera la description et les prérequis actuels. Rien n'est enregistré avant que vous enregistriez l'offre.",
+      aiNotes: "Précisions (facultatif)",
+      aiNotesPlaceholder: "Ex. : équipe de 5 personnes, déplacements fréquents à Kindia…",
+      aiGenerate: "Générer",
+      aiGenerated: "Texte proposé : relisez-le puis enregistrez l'offre.",
       locationLabel: "Localisation",
       locationPlaceholder: "Ex : Conakry, Guinée",
       contractTypeLabel: "Type de contrat",
@@ -647,6 +669,7 @@ export default {
       deleteNote: "Supprimer la note",
       aiScoreLabel: "Score IA : {{score}}/100",
       activityDescriptions: {
+        scoringSkipped: "Analyse IA non lancée : crédits IA du mois épuisés",
         created: "Candidature reçue",
         createdWithJob: "Candidature reçue — {{job}}",
         stageChanged: "Déplacé de « {{from}} » vers « {{to}} »",

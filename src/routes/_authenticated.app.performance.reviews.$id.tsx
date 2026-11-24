@@ -2,12 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Loader2, PenLine, Save, Send, Undo2 } from "lucide-react";
+import { Loader2, PenLine, Save, Send, Sparkles, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/api/client";
+import { aiErrorMessage } from "@/lib/api/ai";
 import {
   cyclesQuery,
+  generateReviewSummary,
   okrsQuery,
   performanceKey,
   plansQuery,
@@ -528,6 +530,8 @@ function ReviewForm({ review }: { review: Review }) {
         </Card>
       )}
 
+      {isEvaluator && status !== "not_started" && <AiSummaryCard review={review} />}
+
       {canScoreTalent && <TalentScoresCard review={review} />}
 
       {status === "signed" && review.signedAt && (
@@ -702,6 +706,57 @@ function TalentScoresCard({ review }: { review: Review }) {
             {t("reviews.talent.save")}
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * AI synthesis for HR and the manager (1 AI credit), never for the evaluated
+ * employee. Kept local: refreshing the review would reset the drafts.
+ */
+function AiSummaryCard({ review }: { review: Review }) {
+  const { t } = useTranslation();
+  const [summary, setSummary] = useState<string | null>(review.aiSummary ?? null);
+  const generate = useMutation({
+    mutationFn: () => generateReviewSummary(review.id),
+    onSuccess: (updated) => {
+      setSummary(updated.aiSummary ?? null);
+      toast.success(t("reviews.ai.generated"));
+    },
+    onError: (e) => toast.error(aiErrorMessage(e)),
+  });
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <Sparkles className="h-4 w-4 text-primary" />
+              {t("reviews.ai.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t("reviews.ai.description")}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={generate.isPending}
+            onClick={() => generate.mutate()}
+          >
+            {generate.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            {summary ? t("reviews.ai.regenerate") : t("reviews.ai.generate")}
+          </Button>
+        </div>
+        {summary ? (
+          <p
+            data-testid="review-ai-summary"
+            className="whitespace-pre-wrap rounded-md bg-muted/40 px-3 py-2 text-sm"
+          >
+            {summary}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t("reviews.ai.empty")}</p>
+        )}
       </CardContent>
     </Card>
   );

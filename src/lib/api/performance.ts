@@ -312,6 +312,18 @@ export function replaceKeyResults(okrId: string, keyResults: KeyResultInput[]) {
   return api.put<Okr>(`${okrPath(okrId)}/key-results`, { keyResults });
 }
 
+export interface SuggestedKeyResult {
+  title: string;
+  metric: string | null;
+  targetValue: number | null;
+  unit: string | null;
+}
+
+/** AI key results for an objective (1 AI credit). */
+export function suggestKeyResults(input: { objective: string; context?: string; count?: number }) {
+  return api.post<{ keyResults: SuggestedKeyResult[] }>("/org/performance/okrs/suggest", input);
+}
+
 export function updateKeyResult(
   okrId: string,
   krId: string,
@@ -379,6 +391,8 @@ export interface Review extends ReviewSummary {
   validatedBy: string | null;
   signedBy: string | null;
   goals: ReviewGoal[];
+  /** AI synthesis, never shown to the evaluated employee (null for them). */
+  aiSummary?: string | null;
   /** HR talent scores (module `talents`), outside the signed content; null for the evaluated employee. */
   performanceScore?: number | null;
   potentialScore?: number | null;
@@ -462,6 +476,11 @@ export function sendBackReview(id: string, comment: string) {
 
 export function signReview(id: string) {
   return api.post<Review>(`${reviewPath(id)}/sign`);
+}
+
+/** AI synthesis of a started evaluation (owner, hr_admin, manager; 1 AI credit; 409 notStarted). */
+export function generateReviewSummary(id: string) {
+  return api.post<Review>(`${reviewPath(id)}/ai-summary`);
 }
 
 /**

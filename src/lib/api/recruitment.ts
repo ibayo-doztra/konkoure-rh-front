@@ -95,6 +95,14 @@ export function createJob(input: JobInput) {
   return api.post<Job>("/org/recruitment/jobs", input);
 }
 
+/**
+ * AI description and requirements, in plain text (1 AI credit). Nothing is
+ * saved: the form applies them, then `updateJob` saves.
+ */
+export function generateJobText(id: string, input: { notes?: string; language?: "fr" | "en" }) {
+  return api.post<{ description: string; requirements: string }>(`${jobPath(id)}/generate`, input);
+}
+
 export function updateJob(id: string, input: Partial<JobInput>) {
   return api.patch<Job>(jobPath(id), input);
 }
@@ -266,7 +274,14 @@ export interface CandidateNote {
 
 export interface CandidateEvent {
   id: string;
-  type: "created" | "stage_changed" | "scored" | "note_added" | "note_deleted" | (string & {});
+  type:
+    | "created"
+    | "stage_changed"
+    | "scored"
+    | "scoring_skipped"
+    | "note_added"
+    | "note_deleted"
+    | (string & {});
   /** User account, null for the public form or the system. */
   actorId: string | null;
   payload: Record<string, unknown> | null;

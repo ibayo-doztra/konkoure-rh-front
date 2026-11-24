@@ -165,4 +165,9 @@ export default {
     sessionExpired: "Votre session a expiré. Reconnectez-vous puis réessayez.",
     generic: "Une erreur est survenue. Réessayez dans un instant.",
   },
+  ai: {
+    quotaExceeded:
+      "Les crédits IA du mois sont épuisés. Le propriétaire peut changer d'offre depuis la page Abonnement.",
+    unavailable: "L'assistant IA est momentanément indisponible. Réessayez plus tard.",
+  },
 } as const;
