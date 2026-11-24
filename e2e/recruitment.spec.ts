@@ -118,12 +118,8 @@ async function publishedJob(request: APIRequestContext, owner: Owner, title: str
   return { ...job, headers };
 }
 
-// The API stores files on S3 only (file_storage.ts), which the e2e environment lacks:
-// enabled once a local disk can be used outside production (asked to the backend).
-test.fixme("un candidat postule sans compte, une seule fois par offre", async ({
-  page,
-  request,
-}) => {
+// CV upload: the API stores files on the local disk in e2e (FILE_STORAGE_DISK=fs).
+test("un candidat postule sans compte, une seule fois par offre", async ({ page, request }) => {
   const owner = await createOwner(request);
   grantPlan(owner.organizationId, "pro");
   const slug = await orgSlug(request, owner);
