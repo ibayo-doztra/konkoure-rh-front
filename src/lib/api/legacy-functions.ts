@@ -12,7 +12,6 @@ export const createPublicApplicationUpload = pendingFn(
 export const recordPublicApplication = pendingFn(
   "POST /public/careers/:orgSlug/jobs/:jobSlug/apply",
 );
-export const getPlatformAdminStatus = pendingFn("GET /me (isPlatformAdmin)");
 
 // Billing
 export const getSubscription = pendingFn("GET /org/billing/subscription");
@@ -48,10 +47,6 @@ export const disconnectSocialAccount = pendingFn("DELETE /org/integrations/socia
 export const checkProviderConfig = pendingFn("GET /org/integrations/social/accounts");
 export const publishJobToSocials = pendingFn("POST /org/recruitment/jobs/:id/social-posts");
 export const listJobSocialPosts = pendingFn("GET /org/recruitment/jobs/:id/social-posts");
-
-// Recruitment webhook (n8n)
-export const updateRecruitmentWebhookConfig = pendingFn("PUT /org/recruitment/webhooks");
-export const pingRecruitmentWebhook = pendingFn("POST /org/recruitment/webhooks/ping");
 
 // Billing checkout
 export const createDirectPayment = pendingFn("POST /org/billing/checkout");

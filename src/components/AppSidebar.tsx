@@ -24,7 +24,7 @@ import {
   Timer,
   Star,
   SlidersHorizontal,
-  Shield,
+  Bot,
   Nfc,
   FileCode2,
   CalendarDays,
@@ -118,6 +118,7 @@ export function AppSidebar() {
       items: [
         { to: "/app/recruitment/jobs", icon: Briefcase, label: t("nav.jobs") },
         { to: "/app/recruitment/candidates", icon: UserPlus, label: t("nav.candidates") },
+        { to: "/app/recruitment/scoring", icon: Bot, label: t("nav.scoring") },
       ],
     },
     {
@@ -160,10 +161,6 @@ export function AppSidebar() {
         { to: "/app/settings/members", icon: Users, label: t("sidebar.members") },
         { to: "/app/billing", icon: CreditCard, label: t("sidebar.subscription"), exact: true },
         { to: "/app/settings/integrations", icon: Share2, label: t("sidebar.socialNetworks") },
-
-        ...(isPlatformAdmin
-          ? [{ to: "/app/settings/platform", icon: Shield, label: t("sidebar.platform") } as Item]
-          : []),
       ],
     },
   ];
