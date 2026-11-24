@@ -15,6 +15,7 @@ import {
   reviewQuery,
   saveManagerReview,
   saveSelfReview,
+  saveTalentScores,
   SELF_EDITABLE,
   sendBackReview,
   signReview,
@@ -25,6 +26,8 @@ import {
 import { useOrg } from "@/hooks/useOrg";
 import { useConfirm } from "@/hooks/useConfirm";
 import { usePerformanceAccess } from "@/hooks/usePerformanceAccess";
+import { useSubscription } from "@/hooks/useSubscription";
+import { talentsKey } from "@/lib/api/talents";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -177,6 +180,13 @@ function ReviewForm({ review }: { review: Review }) {
   const canEditSelf = isEvaluated && SELF_EDITABLE.includes(status);
   const canEditManager = isEvaluator && status === "submitted";
   const canSign = isEvaluated && status === "validated";
+  // 9-box scores: HR only, outside the signed content, never on one's own evaluation.
+  const { hasModule } = useSubscription();
+  const canScoreTalent =
+    hasModule("talents") &&
+    access.isAdmin &&
+    !isEvaluated &&
+    (status === "validated" || status === "signed");
   const managerVisible =
     status === "submitted" ||
     status === "sent_back" ||
@@ -518,6 +528,8 @@ function ReviewForm({ review }: { review: Review }) {
         </Card>
       )}
 
+      {canScoreTalent && <TalentScoresCard review={review} />}
+
       {status === "signed" && review.signedAt && (
         <Card>
           <CardContent className="p-4 text-sm sm:p-6">
@@ -609,5 +621,88 @@ function ReviewForm({ review }: { review: Review }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** HR 9-box scores of a validated or signed evaluation (module `talents`). */
+function TalentScoresCard({ review }: { review: Review }) {
+  const { t } = useTranslation();
+  const { org } = useOrg();
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const [performance, setPerformance] = useState<number | null>(review.performanceScore ?? null);
+  const [potential, setPotential] = useState<number | null>(review.potentialScore ?? null);
+  const dirty =
+    performance !== (review.performanceScore ?? null) ||
+    potential !== (review.potentialScore ?? null);
+
+  const save = useMutation({
+    mutationFn: () =>
+      saveTalentScores(review.id, { performanceScore: performance, potentialScore: potential }),
+    onSuccess: () => {
+      toast.success(t("reviews.talent.saved"));
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) }),
+        queryClient.invalidateQueries({ queryKey: [...talentsKey(organizationId), "9box"] }),
+      ]);
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  const field = (
+    id: string,
+    label: string,
+    value: number | null,
+    onChange: (v: number | null) => void,
+  ) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Select
+        value={value ? String(value) : "none"}
+        onValueChange={(v) => onChange(v === "none" ? null : Number(v))}
+      >
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">{t("reviews.talent.notScored")}</SelectItem>
+          {SCORE_VALUES.map((v) => (
+            <SelectItem key={v} value={v}>
+              {v}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4 sm:p-6">
+        <div>
+          <h2 className="font-semibold">{t("reviews.talent.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("reviews.talent.description")}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {field(
+            "talent-performance",
+            t("reviews.talent.performance"),
+            performance,
+            setPerformance,
+          )}
+          {field("talent-potential", t("reviews.talent.potential"), potential, setPotential)}
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending}>
+            {save.isPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-4 w-4" />
+            )}
+            {t("reviews.talent.save")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

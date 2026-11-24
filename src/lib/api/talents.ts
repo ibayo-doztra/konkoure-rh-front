@@ -167,3 +167,47 @@ export const READINESS_CLASS: Record<Readiness, string> = {
   "1_2_years": "bg-warning/15 text-warning",
   "3_plus_years": "bg-muted text-muted-foreground",
 };
+
+// ------------------------------------------------------------------ 9-box
+
+export const NINE_BOX_LEVELS = ["low", "medium", "high"] as const;
+export type NineBoxLevel = (typeof NINE_BOX_LEVELS)[number];
+
+export interface NineBoxThresholds {
+  /** A score up to `lowMax` is low, up to `mediumMax` medium, above it high (scale 1..5). */
+  lowMax: number;
+  mediumMax: number;
+}
+
+export const DEFAULT_NINE_BOX_THRESHOLDS: NineBoxThresholds = { lowMax: 2, mediumMax: 3 };
+
+export interface NineBoxPlacement {
+  employeeId: string;
+  name: string | null;
+  reviewId: string;
+  reviewStatus: string;
+  /** `performanceScore`, otherwise the manager score of a signed evaluation. */
+  performanceScore: number | null;
+  potentialScore: number | null;
+}
+
+export interface NineBoxCell {
+  performance: NineBoxLevel;
+  potential: NineBoxLevel;
+  employees: NineBoxPlacement[];
+}
+
+export interface NineBox {
+  cycleId: string;
+  thresholds: NineBoxThresholds;
+  cells: NineBoxCell[];
+  /** Evaluations of the cycle missing one of the two axes. */
+  unplaced: NineBoxPlacement[];
+}
+
+/** Every evaluation of the cycle for owner / hr_admin, the team for a manager. */
+export const nineBoxQuery = (organizationId: string, cycleId: string) =>
+  queryOptions({
+    queryKey: [...talentsKey(organizationId), "9box", cycleId],
+    queryFn: () => api.get<NineBox>("/org/talents/9box", { cycleId }),
+  });

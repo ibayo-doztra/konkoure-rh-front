@@ -209,11 +209,6 @@
       "count": 41
     }
   },
-  "src/routes/_authenticated.app.talents.9box.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/routes/_authenticated.tsx": {
     "prettier/prettier": {
       "count": 6

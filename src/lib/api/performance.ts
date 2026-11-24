@@ -379,6 +379,9 @@ export interface Review extends ReviewSummary {
   validatedBy: string | null;
   signedBy: string | null;
   goals: ReviewGoal[];
+  /** HR talent scores (module `talents`), outside the signed content; null for the evaluated employee. */
+  performanceScore?: number | null;
+  potentialScore?: number | null;
 }
 
 export interface GoalComment {
@@ -459,6 +462,17 @@ export function sendBackReview(id: string, comment: string) {
 
 export function signReview(id: string) {
   return api.post<Review>(`${reviewPath(id)}/sign`);
+}
+
+/**
+ * 9-box scores (owner, hr_admin, module `talents`), on a validated or signed
+ * evaluation only (409 otherwise), never on one's own. `null` clears a score.
+ */
+export function saveTalentScores(
+  id: string,
+  input: { performanceScore?: number | null; potentialScore?: number | null },
+) {
+  return api.patch<Review>(`${reviewPath(id)}/talent`, input);
 }
 
 // ------------------------------------------------- Feedback and achievements (07 §5.9)
