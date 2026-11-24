@@ -187,3 +187,53 @@ test("les RH font avancer un candidat dans le pipeline jusqu'à l'embauche", asy
   await expect(page.getByRole("dialog", { name: /Fatoumata Camara Embauché/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Voir la fiche employé" })).toBeVisible();
 });
+
+test("les RH configurent le webhook n8n du scoring IA et renouvellent son secret", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  grantPlan(owner.organizationId, "pro");
+  await signIn(page, owner.email);
+  await expect(page).toHaveURL(APP_URL);
+  await open(page, "/app/recruitment/scoring");
+  await expect(page.getByText("Désactivé").first()).toBeVisible();
+
+  // A private address is refused by the API (05 §10).
+  await page.getByLabel("Webhook de production").fill("http://127.0.0.1/webhook");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.locator("[data-sonner-toast][data-type='error']")).toBeVisible();
+  await page.getByLabel("Webhook de production").fill("");
+
+  await page.getByLabel("Webhook de test").fill("https://n8n.example.com/webhook-test/konkoure");
+  await page.getByText("Test", { exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  // The secret is shown once, on creation.
+  const dialog = page.getByRole("dialog", { name: "Secret du webhook" });
+  const secret = (await dialog.getByTestId("webhook-secret").textContent()) ?? "";
+  expect(secret).toMatch(/^[0-9a-f]{64}$/);
+  await dialog.getByRole("button", { name: "C'est noté" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Actif : Test")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByLabel("Webhook de test")).toHaveValue(
+    "https://n8n.example.com/webhook-test/konkoure",
+  );
+  await expect(page.getByText(/Le secret n'est jamais réaffiché/)).toBeVisible();
+  await expect(page.getByTestId("webhook-secret")).toHaveCount(0);
+
+  // The e2e API cannot reach the outside: the ping reports the failure.
+  await page.getByRole("button", { name: "Tester le webhook (Test)" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Le webhook Test" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Renouveler le secret" }).click();
+  await page
+    .getByRole("dialog", { name: "Renouveler le secret ?" })
+    .getByRole("button", { name: "Renouveler le secret" })
+    .click();
+  const rotated = (await dialog.getByTestId("webhook-secret").textContent()) ?? "";
+  expect(rotated).toMatch(/^[0-9a-f]{64}$/);
+  expect(rotated).not.toBe(secret);
+});

@@ -150,11 +150,6 @@
       "count": 29
     }
   },
-  "src/lib/permissions.ts": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
   "src/lib/slug.ts": {
     "prettier/prettier": {
       "count": 7
@@ -212,14 +207,6 @@
     },
     "prettier/prettier": {
       "count": 41
-    }
-  },
-  "src/routes/_authenticated.app.settings.platform.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "prettier/prettier": {
-      "count": 10
     }
   },
   "src/routes/_authenticated.app.talents.9box.tsx": {

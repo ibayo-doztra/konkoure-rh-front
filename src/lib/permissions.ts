@@ -1,10 +1,5 @@
 export type AppRole =
-  | "owner"
-  | "hr_admin"
-  | "manager"
-  | "employee"
-  | "recruiter"
-  | "security_agent";
+  "owner" | "hr_admin" | "manager" | "employee" | "recruiter" | "security_agent";
 
 export const ALL_ROLES: AppRole[] = [
   "owner",
@@ -47,6 +42,8 @@ const RULES: Rule[] = [
   // Un employé accède à la page contrats : elle est filtrée sur son propre contrat.
   { path: "/app/contracts", roles: ALL_ROLES },
 
+  // Scoring webhook (secret, outbound URLs): owner and hr_admin only.
+  { path: "/app/recruitment/scoring", roles: ADMINS },
   { path: "/app/recruitment", roles: [...ADMINS, "recruiter"] },
 
   { path: "/app/performance", roles: ALL_ROLES },
@@ -62,7 +59,6 @@ const RULES: Rule[] = [
 
   { path: "/app/talents", roles: ADMINS },
 
-  { path: "/app/settings/platform", roles: ["owner"] },
   { path: "/app/settings", roles: ADMINS },
   { path: "/app/billing", roles: ["owner"] },
 ];

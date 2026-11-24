@@ -347,3 +347,50 @@ export function addCandidateNote(id: string, body: string) {
 export function deleteCandidateNote(id: string, noteId: string) {
   return api.delete(`${candidatePath(id)}/notes/${encodeURIComponent(noteId)}`);
 }
+
+// n8n scoring webhook — 06-api-reference §8 "Webhook n8n et scoring" (owner, hr_admin).
+
+export type WebhookEnv = "off" | "test" | "prod";
+
+export interface WebhookConfig {
+  testWebhookUrl: string | null;
+  prodWebhookUrl: string | null;
+  activeEnv: WebhookEnv;
+  /** The secret itself is never read back. */
+  hasSecret: boolean;
+  updatedAt: string | null;
+}
+
+export interface WebhookConfigInput {
+  testWebhookUrl?: string | null;
+  prodWebhookUrl?: string | null;
+  activeEnv?: WebhookEnv;
+  rotateSecret?: boolean;
+}
+
+export interface WebhookPing {
+  env: Exclude<WebhookEnv, "off">;
+  ok: boolean;
+  status: number | null;
+  latencyMs: number | null;
+  error: string | null;
+}
+
+export const webhookConfigQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...recruitmentKey(organizationId), "webhooks"],
+    queryFn: () => api.get<WebhookConfig>("/org/recruitment/webhooks"),
+  });
+
+/**
+ * URLs checked by the API (422). The HMAC secret comes back, once, in the
+ * response that creates or rotates it.
+ */
+export function updateWebhookConfig(input: WebhookConfigInput) {
+  return api.put<WebhookConfig & { secret?: string }>("/org/recruitment/webhooks", input);
+}
+
+/** Signed `webhook.ping` to the saved URL of `env` (default: the active one); 422 when not configured. */
+export function pingWebhook(env?: Exclude<WebhookEnv, "off">) {
+  return api.post<WebhookPing>("/org/recruitment/webhooks/ping", env ? { env } : {});
+}

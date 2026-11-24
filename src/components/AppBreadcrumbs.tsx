@@ -35,7 +35,7 @@ const SEG_TO_KEY: Record<string, string> = {
   succession: "succession",
   settings: "settings",
   integrations: "integrations",
-  platform: "platform",
+  scoring: "scoring",
   members: "members",
   account: "account",
   new: "new",
