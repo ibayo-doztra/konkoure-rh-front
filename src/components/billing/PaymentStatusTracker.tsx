@@ -4,23 +4,12 @@ import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Check,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Loader2,
-  RefreshCw,
-  XCircle,
-} from "lucide-react";
+import { Check, CheckCircle2, Clock, Copy, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { gnf, type PlanCode } from "@/components/billing/checkout-shared";
-import {
-  usePaymentClaimStatus,
-  type ClaimSummary,
-} from "@/hooks/usePaymentClaimStatus";
+import { usePaymentClaimStatus, type ClaimSummary } from "@/hooks/usePaymentClaimStatus";
 
 type Tone = "pending" | "success" | "error";
 
@@ -172,7 +161,6 @@ export function PaymentStatusTracker({
     onStatus?.(summary);
   }, [summary, onStatus]);
 
-
   if (!summary) {
     return (
       <Card>
@@ -217,9 +205,7 @@ export function PaymentStatusTracker({
         {!compact && <Steps status={summary.status} claimed={summary.claimed} />}
 
         <p className="text-sm text-muted-foreground">
-          {summary.claimed
-            ? t("paymentTracker.helpClaimed")
-            : meta.help}
+          {summary.claimed ? t("paymentTracker.helpClaimed") : meta.help}
         </p>
 
         <dl className="grid gap-2 text-xs sm:grid-cols-2">
@@ -258,7 +244,12 @@ export function PaymentStatusTracker({
         {!hideActions && (
           <div className="flex flex-wrap gap-2">
             {!summary.claimed && !paid && (
-              <Button variant="outline" size="sm" onClick={() => void refreshNow()} disabled={loading}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refreshNow()}
+                disabled={loading}
+              >
                 {loading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

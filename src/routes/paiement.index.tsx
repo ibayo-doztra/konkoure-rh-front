@@ -2,7 +2,11 @@ import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/lib/i18n";
-import { listPublicPlans, requestPrepaidEmailCode, startPrepaidPayment } from "@/lib/api/legacy-functions";
+import {
+  listPublicPlans,
+  requestPrepaidEmailCode,
+  startPrepaidPayment,
+} from "@/lib/api/legacy-functions";
 import { savePendingClaim } from "@/lib/pending-claim";
 import { PaymentStatusTracker } from "@/components/billing/PaymentStatusTracker";
 import { Logo } from "@/components/brand/Logo";
@@ -22,11 +26,14 @@ import {
   digits,
   gnf,
   isValidGnPhone,
+  cycleFromSearch,
   type Cycle,
   type Method,
   type PlanCode,
   type PlanRow,
+  type SearchCycle,
 } from "@/components/billing/checkout-shared";
+import { planPrice } from "@/lib/api/billing";
 
 export const Route = createFileRoute("/paiement/")({
   head: () => ({
@@ -41,7 +48,7 @@ export const Route = createFileRoute("/paiement/")({
   }),
   validateSearch: (search: Record<string, unknown>) => ({
     plan: PLAN_CODES.includes(search.plan as PlanCode) ? (search.plan as PlanCode) : "starter",
-    cycle: search.cycle === "annuel" ? ("annuel" as Cycle) : ("mensuel" as Cycle),
+    cycle: (search.cycle === "annuel" ? "annuel" : "mensuel") as SearchCycle,
   }),
   component: PublicCheckoutPage,
 });
@@ -58,7 +65,7 @@ function PublicCheckoutPage() {
   const [sendingCode, setSendingCode] = useState(false);
 
   const [plans, setPlans] = useState<PlanRow[]>([]);
-  const [cycle, setCycle] = useState<Cycle>(search.cycle);
+  const [cycle, setCycle] = useState<Cycle>(cycleFromSearch(search.cycle));
   const [planCode, setPlanCode] = useState<PlanCode>(search.plan);
   const [method, setMethod] = useState<Method | null>(null);
   const [email, setEmail] = useState("");
@@ -71,7 +78,7 @@ function PublicCheckoutPage() {
   }, [loadPlans]);
 
   const plan = plans.find((p) => p.code === planCode) ?? null;
-  const amount = plan ? (cycle === "annuel" ? plan.prix_gnf * 10 : plan.prix_gnf) : 0;
+  const amount = plan ? planPrice(plan, cycle) : 0;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const codeOk = /^\d{6}$/.test(emailCode.trim()) && codeSentTo === email.trim().toLowerCase();
@@ -125,7 +132,10 @@ function PublicCheckoutPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-black">{t("paiement.validateOnPhone")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("paiement.requestSentTo", { amount: gnf(amount), phone: digits(payerNumber).slice(-9) })}{" "}
+            {t("paiement.requestSentTo", {
+              amount: gnf(amount),
+              phone: digits(payerNumber).slice(-9),
+            })}{" "}
             {t("paiement.dialConfirmation")}
           </p>
         </div>
@@ -148,22 +158,19 @@ function PublicCheckoutPage() {
     );
   }
 
-
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
       <Logo />
       <div className="space-y-1">
         <h1 className="text-2xl font-black">{t("paiement.payTitle")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("paiement.paySubtitle")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("paiement.paySubtitle")}</p>
       </div>
 
       <Card>
         <CardContent className="space-y-6 p-6">
           <PlanPicker plans={plans} planCode={planCode} onSelect={setPlanCode} />
           <CyclePicker cycle={cycle} onSelect={setCycle} />
-          <AmountSummary amount={amount} planName={plan?.nom ?? null} cycle={cycle} />
+          <AmountSummary amount={amount} planName={plan?.name ?? null} cycle={cycle} />
 
           <div className="space-y-2">
             <Label htmlFor="email">{t("paiement.emailLabel")}</Label>
@@ -228,9 +235,7 @@ function PublicCheckoutPage() {
                   />
                 </div>
                 {payerNumber && !isValidGnPhone(payerNumber) && (
-                  <p className="text-xs text-destructive">
-                    {t("paiement.phoneInvalid")}
-                  </p>
+                  <p className="text-xs text-destructive">{t("paiement.phoneInvalid")}</p>
                 )}
               </div>
 
@@ -240,7 +245,9 @@ function PublicCheckoutPage() {
 
               <Button
                 className="w-full"
-                disabled={submitting || !plan || !emailOk || !codeOk || !isValidGnPhone(payerNumber)}
+                disabled={
+                  submitting || !plan || !emailOk || !codeOk || !isValidGnPhone(payerNumber)
+                }
                 onClick={() => void onPay()}
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -253,7 +260,10 @@ function PublicCheckoutPage() {
 
           <p className="text-center text-xs text-muted-foreground">
             {t("paiement.alreadyAccount")}{" "}
-            <Link to="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+            <Link
+              to="/login"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
               {t("paiement.signIn")}
             </Link>
           </p>
