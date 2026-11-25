@@ -1,12 +1,16 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import i18n from "@/lib/i18n";
+import { ApiError, apiErrorMessage, newIdempotencyKey } from "@/lib/api/client";
+import { planPrice, toApiPhone } from "@/lib/api/billing";
 import {
-  listPublicPlans,
-  requestPrepaidEmailCode,
-  startPrepaidPayment,
-} from "@/lib/api/legacy-functions";
+  publicPlansQuery,
+  startPresignupCheckout,
+  type PendingClaim,
+} from "@/lib/api/billing-public";
 import { savePendingClaim } from "@/lib/pending-claim";
 import { PaymentStatusTracker } from "@/components/billing/PaymentStatusTracker";
 import { Logo } from "@/components/brand/Logo";
@@ -14,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,17 +28,15 @@ import {
   PLAN_CODES,
   PlanPicker,
   SelectedMethodBar,
+  cycleFromSearch,
   digits,
   gnf,
   isValidGnPhone,
-  cycleFromSearch,
   type Cycle,
   type Method,
   type PlanCode,
-  type PlanRow,
   type SearchCycle,
 } from "@/components/billing/checkout-shared";
-import { planPrice } from "@/lib/api/billing";
 
 export const Route = createFileRoute("/paiement/")({
   head: () => ({
@@ -53,79 +56,61 @@ export const Route = createFileRoute("/paiement/")({
   component: PublicCheckoutPage,
 });
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function checkoutError(error: unknown, t: TFunction) {
+  if (error instanceof ApiError && error.status === 503) return t("paiement.providerUnavailable");
+  return apiErrorMessage(error);
+}
+
 function PublicCheckoutPage() {
   const { t } = useTranslation();
   const search = useSearch({ from: "/paiement/" });
+  const plans = useQuery(publicPlansQuery());
 
-  const loadPlans = listPublicPlans;
-  const startPayment = startPrepaidPayment;
-  const requestCode = requestPrepaidEmailCode;
-  const [emailCode, setEmailCode] = useState("");
-  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
-  const [sendingCode, setSendingCode] = useState(false);
-
-  const [plans, setPlans] = useState<PlanRow[]>([]);
   const [cycle, setCycle] = useState<Cycle>(cycleFromSearch(search.cycle));
   const [planCode, setPlanCode] = useState<PlanCode>(search.plan);
   const [method, setMethod] = useState<Method | null>(null);
   const [email, setEmail] = useState("");
   const [payerNumber, setPayerNumber] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [claimToken, setClaimToken] = useState<string | null>(null);
+  const [started, setStarted] = useState<{ claim: PendingClaim; instructions: string | null }>();
+  // One key per attempt: a double click replays the same checkout.
+  const [attemptKey, setAttemptKey] = useState(newIdempotencyKey);
 
-  useEffect(() => {
-    void loadPlans({}).then((rows: any) => setPlans((rows ?? []) as PlanRow[]));
-  }, [loadPlans]);
-
-  const plan = plans.find((p) => p.code === planCode) ?? null;
+  const plan = plans.data?.find((p) => p.code === planCode) ?? null;
   const amount = plan ? planPrice(plan, cycle) : 0;
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailOk = EMAIL.test(email.trim());
+  const isMobile = method === "orange_money" || method === "mtn_momo";
 
-  const codeOk = /^\d{6}$/.test(emailCode.trim()) && codeSentTo === email.trim().toLowerCase();
-
-  const onSendCode = async () => {
-    if (!emailOk) return;
-    setSendingCode(true);
-    try {
-      await requestCode({ data: { email: email.trim() } });
-      setCodeSentTo(email.trim().toLowerCase());
-      setEmailCode("");
-      toast.success(t("paiement.codeSent"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("paiement.codeSendError"));
-    } finally {
-      setSendingCode(false);
-    }
-  };
-
-  const onPay = async () => {
-    if (!plan || !method || !emailOk || !codeOk || !isValidGnPhone(payerNumber)) return;
-    setSubmitting(true);
-    try {
-      const res: any = await startPayment({
-        data: {
-          planCode,
+  const checkout = useMutation({
+    mutationFn: () =>
+      startPresignupCheckout(
+        {
+          planId: plan!.id,
           cycle,
-          paymentMethod: method,
-          payerNumber: digits(payerNumber).replace(/^224/, ""),
+          method: method!,
           email: email.trim(),
-          emailCode: emailCode.trim(),
+          ...(isMobile ? { payerPhone: toApiPhone(payerNumber) } : {}),
         },
-      });
-      savePendingClaim(res.claimToken);
-      if (method === "card" && res.redirectUrl) {
-        window.location.href = res.redirectUrl;
+        attemptKey,
+      ),
+    onSuccess: (result) => {
+      // The claim code is returned only once: keep it before leaving the page.
+      const claim = { ref: result.merchantReference, token: result.claimToken };
+      savePendingClaim(claim);
+      if (result.redirectUrl) {
+        window.location.href = result.redirectUrl;
         return;
       }
-      setClaimToken(res.claimToken);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("paiement.startingPaymentError"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+      setStarted({ claim, instructions: result.instructions });
+    },
+    onError: (e) => {
+      setAttemptKey(newIdempotencyKey());
+      toast.error(checkoutError(e, t));
+    },
+  });
 
-  if (claimToken) {
+  if (started) {
     return (
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
         <Logo />
@@ -136,15 +121,18 @@ function PublicCheckoutPage() {
               amount: gnf(amount),
               phone: digits(payerNumber).slice(-9),
             })}{" "}
-            {t("paiement.dialConfirmation")}
+            {started.instructions ?? t("paiement.dialConfirmation")}
           </p>
         </div>
 
         <PaymentStatusTracker
-          claimToken={claimToken}
+          claim={started.claim}
           extraActions={
             <Button asChild variant="ghost" size="sm">
-              <Link to="/paiement/suivi" search={{ claim: claimToken }}>
+              <Link
+                to="/paiement/suivi"
+                search={{ ref: started.claim.ref, claim: started.claim.token }}
+              >
                 {t("paiement.trackThisPayment")}
               </Link>
             </Button>
@@ -158,6 +146,13 @@ function PublicCheckoutPage() {
     );
   }
 
+  const canPay =
+    !!plan &&
+    !!method &&
+    emailOk &&
+    (!isMobile || isValidGnPhone(payerNumber)) &&
+    !checkout.isPending;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
       <Logo />
@@ -168,7 +163,13 @@ function PublicCheckoutPage() {
 
       <Card>
         <CardContent className="space-y-6 p-6">
-          <PlanPicker plans={plans} planCode={planCode} onSelect={setPlanCode} />
+          {plans.isPending ? (
+            <Skeleton className="h-24 w-full" />
+          ) : plans.isError ? (
+            <p className="text-sm text-destructive">{apiErrorMessage(plans.error)}</p>
+          ) : (
+            <PlanPicker plans={plans.data} planCode={planCode} onSelect={setPlanCode} />
+          )}
           <CyclePicker cycle={cycle} onSelect={setCycle} />
           <AmountSummary amount={amount} planName={plan?.name ?? null} cycle={cycle} />
 
@@ -177,36 +178,17 @@ function PublicCheckoutPage() {
             <Input
               id="email"
               type="email"
-              maxLength={255}
+              maxLength={254}
+              autoComplete="email"
               placeholder={t("paiement.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {email && !emailOk && (
+            {email && !emailOk ? (
               <p className="text-xs text-destructive">{t("paiement.emailInvalid")}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("paiement.emailHint")}</p>
             )}
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="email-code"
-                inputMode="numeric"
-                maxLength={6}
-                aria-label={t("paiement.codeLabel")}
-                placeholder={t("paiement.codePlaceholder")}
-                value={emailCode}
-                onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                disabled={!codeSentTo}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!emailOk || sendingCode}
-                onClick={() => void onSendCode()}
-              >
-                {sendingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {codeSentTo ? t("paiement.resendCode") : t("paiement.sendCode")}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("paiement.codeHint")}</p>
           </div>
 
           {!method ? (
@@ -215,42 +197,34 @@ function PublicCheckoutPage() {
             <div className="space-y-4">
               <SelectedMethodBar method={method} onChange={() => setMethod(null)} />
 
-              <div className="space-y-2">
-                <Label htmlFor="payer">
-                  {method === "card"
-                    ? t("paiement.payerPhoneCardLabel")
-                    : t("paiement.payerPhoneMomoLabel")}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    +224
-                  </span>
-                  <Input
-                    id="payer"
-                    inputMode="tel"
-                    maxLength={14}
-                    placeholder={t("paiement.phonePlaceholder")}
-                    value={payerNumber}
-                    onChange={(e) => setPayerNumber(e.target.value)}
-                  />
+              {isMobile && (
+                <div className="space-y-2">
+                  <Label htmlFor="payer">{t("paiement.payerPhoneMomoLabel")}</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                      +224
+                    </span>
+                    <Input
+                      id="payer"
+                      inputMode="tel"
+                      maxLength={14}
+                      placeholder={t("paiement.phonePlaceholder")}
+                      value={payerNumber}
+                      onChange={(e) => setPayerNumber(e.target.value)}
+                    />
+                  </div>
+                  {payerNumber && !isValidGnPhone(payerNumber) && (
+                    <p className="text-xs text-destructive">{t("paiement.phoneInvalid")}</p>
+                  )}
                 </div>
-                {payerNumber && !isValidGnPhone(payerNumber) && (
-                  <p className="text-xs text-destructive">{t("paiement.phoneInvalid")}</p>
-                )}
-              </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 {method === "card" ? t("paiement.cardHint") : t("paiement.momoHint")}
               </p>
 
-              <Button
-                className="w-full"
-                disabled={
-                  submitting || !plan || !emailOk || !codeOk || !isValidGnPhone(payerNumber)
-                }
-                onClick={() => void onPay()}
-              >
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button className="w-full" disabled={!canPay} onClick={() => checkout.mutate()}>
+                {checkout.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {method === "card"
                   ? t("paiement.continueToCard")
                   : t("paiement.payAmount", { amount: gnf(amount) })}
@@ -262,6 +236,7 @@ function PublicCheckoutPage() {
             {t("paiement.alreadyAccount")}{" "}
             <Link
               to="/login"
+              search={{}}
               className="font-semibold text-primary underline-offset-4 hover:underline"
             >
               {t("paiement.signIn")}

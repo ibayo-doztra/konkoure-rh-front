@@ -1,16 +1,21 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/lib/i18n";
+import type { PendingClaim } from "@/lib/api/billing-public";
 import { PaymentStatusTracker } from "@/components/billing/PaymentStatusTracker";
 import { Logo } from "@/components/brand/Logo";
-import { peekPendingClaim, savePendingClaim } from "@/lib/pending-claim";
+import {
+  CLAIM_TOKEN,
+  PAYMENT_REF,
+  claimFromSearch,
+  peekPendingClaim,
+  savePendingClaim,
+} from "@/lib/pending-claim";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const Route = createFileRoute("/paiement/suivi")({
   head: () => ({
@@ -25,6 +30,7 @@ export const Route = createFileRoute("/paiement/suivi")({
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
+    ref: typeof search.ref === "string" ? search.ref : "",
     claim: typeof search.claim === "string" ? search.claim : "",
   }),
   component: PaymentTrackingPage,
@@ -32,56 +38,86 @@ export const Route = createFileRoute("/paiement/suivi")({
 
 function PaymentTrackingPage() {
   const { t } = useTranslation();
-  const { claim } = useSearch({ from: "/paiement/suivi" });
-  const [token, setToken] = useState(claim);
-  const [input, setInput] = useState("");
+  const search = useSearch({ from: "/paiement/suivi" });
+  const [claim, setClaim] = useState<PendingClaim | null>(null);
+  const [ref, setRef] = useState(search.ref);
+  const [token, setToken] = useState("");
 
   useEffect(() => {
-    if (claim && UUID.test(claim)) {
-      savePendingClaim(claim);
-      setToken(claim);
+    const fromLink = claimFromSearch(search);
+    if (fromLink) {
+      savePendingClaim(fromLink);
+      setClaim(fromLink);
       return;
     }
     const stored = peekPendingClaim();
-    if (stored) setInput(stored);
-  }, [claim]);
+    if (stored && (!search.ref || stored.ref === search.ref)) {
+      setRef(stored.ref);
+      setToken(stored.token);
+    }
+  }, [search]);
+
+  const refOk = PAYMENT_REF.test(ref.trim());
+  const tokenOk = CLAIM_TOKEN.test(token.trim());
+
+  const show = (e: FormEvent) => {
+    e.preventDefault();
+    if (!refOk || !tokenOk) return;
+    const next = { ref: ref.trim(), token: token.trim() };
+    savePendingClaim(next);
+    setClaim(next);
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
       <Logo />
       <div className="space-y-1">
         <h1 className="text-2xl font-black">{t("paiement.suiviTitle")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("paiement.suiviSubtitle")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("paiement.suiviSubtitle")}</p>
       </div>
 
-      {UUID.test(token) ? (
-        <PaymentStatusTracker claimToken={token} />
+      {claim ? (
+        <PaymentStatusTracker
+          claim={claim}
+          extraActions={
+            <Button variant="ghost" size="sm" onClick={() => setClaim(null)}>
+              {t("paiement.trackAnother")}
+            </Button>
+          }
+        />
       ) : (
         <Card>
-          <CardContent className="space-y-4 p-6">
-            <div className="space-y-2">
-              <Label htmlFor="claim">{t("paiement.claimLabel")}</Label>
-              <Input
-                id="claim"
-                placeholder="00000000-0000-0000-0000-000000000000"
-                value={input}
-                onChange={(e) => setInput(e.target.value.trim())}
-              />
-              {input && !UUID.test(input) && (
-                <p className="text-xs text-destructive">
-                  {t("paiement.claimInvalid")}
-                </p>
-              )}
-            </div>
-            <Button
-              className="w-full"
-              disabled={!UUID.test(input)}
-              onClick={() => setToken(input)}
-            >
-              {t("paiement.showStatus")}
-            </Button>
+          <CardContent className="p-6">
+            <form className="space-y-4" onSubmit={show}>
+              <div className="space-y-2">
+                <Label htmlFor="payment-ref">{t("paiement.refLabel")}</Label>
+                <Input
+                  id="payment-ref"
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  value={ref}
+                  onChange={(e) => setRef(e.target.value)}
+                />
+                {ref && !refOk && (
+                  <p className="text-xs text-destructive">{t("paiement.refInvalid")}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="claim">{t("paiement.claimLabel")}</Label>
+                <Input
+                  id="claim"
+                  placeholder="clm_…"
+                  autoComplete="off"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                />
+                {token && !tokenOk && (
+                  <p className="text-xs text-destructive">{t("paiement.claimInvalid")}</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={!refOk || !tokenOk}>
+                {t("paiement.showStatus")}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       )}

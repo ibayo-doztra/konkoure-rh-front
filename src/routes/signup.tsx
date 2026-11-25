@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { savePendingClaim } from "@/lib/pending-claim";
+import { claimFromSearch, peekPendingClaim, savePendingClaim } from "@/lib/pending-claim";
+import type { PendingClaim } from "@/lib/api/billing-public";
 import { PaymentStatusTracker } from "@/components/billing/PaymentStatusTracker";
 import { useTranslation } from "react-i18next";
 import { register } from "@/lib/api/auth";
@@ -31,7 +32,10 @@ export const Route = createFileRoute("/signup")({
     ],
     links: [{ rel: "canonical", href: "https://konkoure.doztra.cloud/signup" }],
   }),
-  validateSearch: (search: Record<string, unknown>): { claim?: string; email?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { ref?: string; claim?: string; email?: string } => ({
+    ...(typeof search.ref === "string" ? { ref: search.ref } : {}),
     ...(typeof search.claim === "string" ? { claim: search.claim } : {}),
     ...(typeof search.email === "string" ? { email: search.email } : {}),
   }),
@@ -41,7 +45,8 @@ export const Route = createFileRoute("/signup")({
 function SignupPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
-  const { claim, email: prefilledEmail } = useSearch({ from: "/signup" });
+  const search = useSearch({ from: "/signup" });
+  const prefilledEmail = search.email;
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [password, setPassword] = useState("");
@@ -50,11 +55,14 @@ function SignupPage() {
   const { reload } = useAuth();
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  // Paiement effectué avant la création du compte : on mémorise le code de
-  // rattachement pour activer l'abonnement dès que l'organisation existe.
+  // Payment made before the account: keep its code to create the organization
+  // of the subscription once the e-mail is verified.
+  const [claim, setClaim] = useState<PendingClaim | null>(null);
   useEffect(() => {
-    if (claim) savePendingClaim(claim);
-  }, [claim]);
+    const fromLink = claimFromSearch(search);
+    if (fromLink) savePendingClaim(fromLink);
+    setClaim(fromLink ?? peekPendingClaim());
+  }, [search]);
 
   const validPassword = meetsPasswordPolicy(password);
   const mismatch = confirm.length > 0 && confirm !== password;
@@ -106,7 +114,7 @@ function SignupPage() {
               <p className="rounded-md border border-primary/40 bg-accent/40 px-3 py-2 text-xs text-muted-foreground">
                 {t("auth.claimHint")}
               </p>
-              <PaymentStatusTracker claimToken={claim} compact hideActions />
+              <PaymentStatusTracker claim={claim} compact hideActions />
             </div>
           )}
         </CardHeader>

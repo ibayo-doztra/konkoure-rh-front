@@ -213,6 +213,8 @@ export interface RequestOptions {
   idempotencyKey?: string;
   /** Send `X-Organization-Id` (default: true for `/org/*` paths). */
   withOrganization?: boolean;
+  /** Extra headers, e.g. `X-Claim-Token` on `/public/payments/:ref`. */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
 }
 
@@ -254,6 +256,7 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Accept-Language": (i18n.resolvedLanguage || i18n.language || "fr").slice(0, 2),
+    ...opts.headers,
   };
   if (opts.body !== undefined && !(opts.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
