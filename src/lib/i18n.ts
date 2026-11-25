@@ -33,7 +33,7 @@ const fr = {
     loading: "Chargement…",
     welcome: "Bonjour",
     language: "Langue",
-    
+
     theme: "Thème",
     settings: "Paramètres",
     none: "Aucun",
@@ -53,6 +53,7 @@ const fr = {
     recruitment: "Recrutement",
     jobs: "Offres",
     candidates: "Candidats",
+    scoring: "Scoring IA",
     performance: "Performance",
     okrs: "Objectifs",
     feedback: "Feedback",
@@ -73,22 +74,19 @@ const fr = {
   },
   settings: {
     performanceModel: "Modèle de performance",
-    performanceModelDesc: "Choisissez le cadre que votre organisation utilise pour piloter la performance.",
+    performanceModelDesc:
+      "Choisissez le cadre que votre organisation utilise pour piloter la performance.",
     modelClassic: "Classique (OKR)",
-    modelClassicDesc: "Objectifs trimestriels, résultats clés cochables, feedback continu et revues.",
+    modelClassicDesc:
+      "Objectifs trimestriels, résultats clés cochables, feedback continu et revues.",
     modelSap: "SAP (CPM)",
-    modelSapDesc: "Goals en cascade, activités opérationnelles et réalisations — inspiré de SAP SuccessFactors.",
+    modelSapDesc:
+      "Goals en cascade, activités opérationnelles et réalisations — inspiré de SAP SuccessFactors.",
   },
   dashboard: {
     totalEmployees: "Employés",
     onLeave: "En congé",
     openJobs: "Offres ouvertes",
-    candidates: "Candidatures",
-    revenue: "Masse salariale",
-    todayLogs: "Pointages du jour",
-    upcomingReviews: "Revues à venir",
-    skillsTracked: "Compétences suivies",
-    vsLastMonth: "vs mois dernier",
   },
   landing: {
     metaTitle: "Konkouré — SIRH pensé pour l'Afrique",
@@ -111,7 +109,8 @@ const fr = {
     statCompaniesLabel: "Organisations qui nous font confiance",
     introEyebrow: "Konkouré, en bref",
     introTitle: "Une plateforme RH complète qui vous fait gagner du temps.",
-    introDesc: "Konkouré fluidifie votre quotidien en réunissant RH, recrutement, paie et planification dans une seule interface.",
+    introDesc:
+      "Konkouré fluidifie votre quotidien en réunissant RH, recrutement, paie et planification dans une seule interface.",
     introCta: "Essayer gratuitement",
     candidateNew: "Nouveaux",
     candidateActive: "Actifs",
@@ -127,7 +126,8 @@ const fr = {
     toolsTitle: "Construit avec les outils que vous aimez",
     toolsDesc: "Tous vos outils favoris s'intègrent à Konkouré pour un quotidien sans friction.",
     ctaFinalLargeTitle: "Rejoignez les équipes qui font confiance à Konkouré",
-    ctaFinalLargeSub: "Des outils RH qui simplifient la gestion de vos collaborateurs, de l'onboarding aux revues de performance.",
+    ctaFinalLargeSub:
+      "Des outils RH qui simplifient la gestion de vos collaborateurs, de l'onboarding aux revues de performance.",
     footerSolution: "Solution",
     footerResource: "Ressources",
     footerTools: "Outils",
@@ -160,7 +160,7 @@ const fr = {
     heroCta: "Démarrer gratuitement",
     heroSecondary: "Voir les fonctionnalités",
     badgeData: "Données isolées",
-    
+
     badgeOffline: "Mode offline",
     statEmployees: "Employés",
     statOnLeave: "En congé",
@@ -169,7 +169,8 @@ const fr = {
     modulesEyebrow: "Modules",
     modulesTitle: "Une suite RH complète, propulsée par l'IA",
     moduleRecruitTitle: "Recrutement intelligent",
-    moduleRecruitDesc: "Génération d'offres assistée par IA, tri sémantique des CV, scoring transparent (XAI).",
+    moduleRecruitDesc:
+      "Génération d'offres assistée par IA, tri sémantique des CV, scoring transparent (XAI).",
     modulePerfTitle: "Performance & OKR",
     modulePerfDesc: "Objectifs SMART suggérés, feedback continu, synthèse de revue automatisée.",
     moduleClockTitle: "Pointage géolocalisé",
@@ -211,11 +212,14 @@ const fr = {
     benefitsTitle: "Pilotez vos équipes en toute simplicité.",
     benefitsSub: "La gestion RH est complexe. Konkouré vous accompagne là où ça compte vraiment.",
     benefitRecruitTitle: "Recruter mieux",
-    benefitRecruitDesc: "L'IA score chaque CV en transparence pour vous aider à décider plus vite, sans biais.",
+    benefitRecruitDesc:
+      "L'IA score chaque CV en transparence pour vous aider à décider plus vite, sans biais.",
     benefitComplianceTitle: "Rester conforme",
-    benefitComplianceDesc: "Contrats, congés, pointages : tout est tracé et exportable pour l'administration locale.",
+    benefitComplianceDesc:
+      "Contrats, congés, pointages : tout est tracé et exportable pour l'administration locale.",
     benefitProductivityTitle: "Booster la productivité",
-    benefitProductivityDesc: "OKR, feedback continu et revues automatisées libèrent vos managers du paperasse.",
+    benefitProductivityDesc:
+      "OKR, feedback continu et revues automatisées libèrent vos managers du paperasse.",
     benefitEngageTitle: "Engager les équipes",
     benefitEngageDesc: "Espace collaborateur, parcours de carrière et reconnaissance au quotidien.",
     breakdownEyebrow: "Fonctionnalités clés",
@@ -224,11 +228,14 @@ const fr = {
     breakdownLearn: "Découvrir les modules",
     breakdownLearnAria: "Découvrir tous les modules de la plateforme",
     breakdownClockTitle: "Pointage simple, géolocalisé",
-    breakdownClockDesc: "Définissez vos zones de travail, suivez les pointages en temps réel, même hors-ligne.",
+    breakdownClockDesc:
+      "Définissez vos zones de travail, suivez les pointages en temps réel, même hors-ligne.",
     breakdownMultiTitle: "Connectez vos sites",
-    breakdownMultiDesc: "Multi-sites, multi-pays, multi-équipes — un seul tableau de bord centralisé.",
+    breakdownMultiDesc:
+      "Multi-sites, multi-pays, multi-équipes — un seul tableau de bord centralisé.",
     integrationsTitle: "Connectez vos outils favoris",
-    integrationsSub: "Konkouré s'intègre avec votre stack existant pour fluidifier vos opérations RH.",
+    integrationsSub:
+      "Konkouré s'intègre avec votre stack existant pour fluidifier vos opérations RH.",
     ctaFinalTitle: "Rejoignez les équipes RH qui avancent plus vite.",
     ctaFinalSub: "Démarrez en quelques minutes — sans carte bancaire, sans engagement.",
     ctaFinalBtn: "Démarrer maintenant",
@@ -238,11 +245,15 @@ const fr = {
     loginMetaTitle: "Connexion — Konkouré",
     signupMetaTitle: "Inscription — Konkouré",
     resetMetaTitle: "Réinitialiser — Konkouré",
-    loginMetaDescription: "Connectez-vous à votre espace Konkouré pour gérer recrutement, performance et pointage de vos équipes.",
-    signupMetaDescription: "Créez votre compte Konkouré et démarrez en quelques minutes votre gestion RH moderne, pensée pour l'Afrique.",
-    resetMetaDescription: "Réinitialisez votre mot de passe Konkouré et reprenez la main sur votre espace RH.",
+    loginMetaDescription:
+      "Connectez-vous à votre espace Konkouré pour gérer recrutement, performance et pointage de vos équipes.",
+    signupMetaDescription:
+      "Créez votre compte Konkouré et démarrez en quelques minutes votre gestion RH moderne, pensée pour l'Afrique.",
+    resetMetaDescription:
+      "Réinitialisez votre mot de passe Konkouré et reprenez la main sur votre espace RH.",
     verifyEmailMetaTitle: "Vérification de l'e-mail — Konkouré",
-    verifyEmailMetaDescription: "Confirmez votre adresse e-mail pour activer votre compte Konkouré.",
+    verifyEmailMetaDescription:
+      "Confirmez votre adresse e-mail pour activer votre compte Konkouré.",
     verifyEmailTitle: "Vérification de votre e-mail",
     verifyEmailChecking: "Vérification du lien…",
     verifyEmailSuccess: "Votre adresse e-mail est confirmée.",
@@ -251,7 +262,8 @@ const fr = {
     verificationSent: "E-mail de vérification envoyé. Consultez votre boîte de réception.",
     continue: "Continuer",
     passwordPolicy: "Au moins 10 caractères, avec une minuscule, une majuscule et un chiffre.",
-    claimHint: "Créez votre compte avec l'adresse e-mail utilisée pour le paiement : votre abonnement sera activé automatiquement.",
+    claimHint:
+      "Créez votre compte avec l'adresse e-mail utilisée pour le paiement : votre abonnement sera activé automatiquement.",
     loginTitle: "Bon retour parmi nous",
     loginSubtitle: "Connectez-vous à votre espace Konkouré",
     signupTitle: "Créer votre espace",
@@ -272,7 +284,8 @@ const fr = {
     resetEmailSent: "E-mail envoyé. Vérifiez votre boîte.",
     passwordUpdated: "Mot de passe mis à jour",
     confirmEmail: "Vérifiez votre e-mail pour confirmer votre compte.",
-    acceptTerms: "J'accepte les conditions d'utilisation et la politique de confidentialité de Konkouré.",
+    acceptTerms:
+      "J'accepte les conditions d'utilisation et la politique de confidentialité de Konkouré.",
     confirmPassword: "Confirmer le mot de passe",
     passwordMismatch: "Les mots de passe ne correspondent pas.",
     passwordTooWeak: "Mot de passe trop faible.",
@@ -289,14 +302,16 @@ const fr = {
       invalidCredentials: "Identifiants invalides.",
       alreadyRegistered: "Cette adresse e-mail est déjà enregistrée.",
       emailNotConfirmed: "E-mail non confirmé. Vérifiez votre boîte.",
-      accountLocked: "Compte temporairement verrouillé après plusieurs échecs. Réessayez dans 15 minutes.",
+      accountLocked:
+        "Compte temporairement verrouillé après plusieurs échecs. Réessayez dans 15 minutes.",
       passwordResetRequired: "Vous devez réinitialiser votre mot de passe avant de vous connecter.",
       rateLimited: "Trop de tentatives. Patientez avant de réessayer.",
       invalidData: "Certaines informations sont invalides.",
       network: "Serveur injoignable. Vérifiez votre connexion.",
       notMigrated: "Cette fonctionnalité est en cours de migration vers la nouvelle API.",
       invalidLink: "Lien invalide ou expiré.",
-      passwordComposition: "Le mot de passe doit contenir une minuscule, une majuscule et un chiffre.",
+      passwordComposition:
+        "Le mot de passe doit contenir une minuscule, une majuscule et un chiffre.",
       passwordCommon: "Ce mot de passe est trop courant. Choisissez-en un autre.",
       passwordPersonal: "Le mot de passe ne doit contenir ni votre nom ni votre adresse e-mail.",
       generic: "Une erreur est survenue. Réessayez.",
@@ -304,7 +319,8 @@ const fr = {
   },
   onboarding: {
     metaTitle: "Créer votre organisation — Konkouré",
-    metaDescription: "Configurez votre organisation Konkouré pour démarrer votre espace RH en quelques minutes.",
+    metaDescription:
+      "Configurez votre organisation Konkouré pour démarrer votre espace RH en quelques minutes.",
     title: "Créez votre organisation",
     subtitle: "Quelques infos pour commencer.",
     verifyTitle: "Confirmez votre adresse e-mail",
@@ -314,7 +330,7 @@ const fr = {
     useAnotherAccount: "Utiliser un autre compte",
     companyName: "Nom de l'entreprise",
     defaultLanguage: "Langue par défaut",
-    
+
     perfModelLabel: "Modèle de gestion de la performance",
     classicLabel: "Classique (OKR)",
     classicDesc: "Objectifs trimestriels, résultats clés cochables, feedback et revues.",
@@ -360,6 +376,7 @@ const fr = {
     emailReq: "Email *",
     phoneReq: "Téléphone *",
     docsTitle: "Documents demandés",
+    cvLabel: "CV",
     noDocs: "Aucun document supplémentaire requis.",
     docsHint: "PDF, DOC, DOCX, JPG ou PNG — 2 Mo max par fichier.",
     sendApp: "Envoyer ma candidature",
@@ -378,15 +395,22 @@ const fr = {
       docTooLarge: "{{label}} : fichier trop volumineux (2 Mo maximum)",
       docInvalidType: "{{label}} : type de fichier non autorisé (PDF, DOC, DOCX, JPG, PNG)",
       unavailable: "Les candidatures sont temporairement indisponibles. Réessayez plus tard.",
-      unreachable: "Le service d'évaluation est injoignable. Merci de réessayer dans quelques instants.",
-      alreadyApplied: "Vous avez déjà postulé à cette offre. Votre candidature est en cours d'examen.",
+      unreachable:
+        "Le service d'évaluation est injoignable. Merci de réessayer dans quelques instants.",
+      alreadyApplied:
+        "Vous avez déjà postulé à cette offre. Votre candidature est en cours d'examen.",
       timeout: "L'analyse de votre CV prend plus de temps que prévu. Merci de réessayer plus tard.",
-      uploadFailed: "Le document n'a pas pu être transféré. Vérifiez votre connexion puis réessayez.",
+      uploadFailed:
+        "Le document n'a pas pu être transféré. Vérifiez votre connexion puis réessayez.",
       jobUnavailable: "Cette offre n'accepte plus de candidatures.",
-      documentRejected: "Le document n'a pas pu être accepté. Sélectionnez-le à nouveau puis réessayez.",
-      saveFailed: "Vos documents ont été reçus, mais la candidature n'a pas pu être enregistrée. Réessayez dans quelques instants.",
+      documentRejected:
+        "Le document n'a pas pu être accepté. Sélectionnez-le à nouveau puis réessayez.",
+      saveFailed:
+        "Vos documents ont été reçus, mais la candidature n'a pas pu être enregistrée. Réessayez dans quelques instants.",
       network: "La connexion a été interrompue. Vérifiez votre accès Internet puis réessayez.",
       sendFailed: "Votre candidature n'a pas pu être envoyée.",
+      tooLarge: "Vos fichiers sont trop volumineux (2 Mo maximum chacun).",
+      rateLimited: "Trop de candidatures envoyées. Réessayez dans une heure.",
       generic: "Erreur lors de l'envoi",
     },
     strengthsLabel: "Points forts",
@@ -406,7 +430,7 @@ const fr = {
     emergency: "Contact d'urgence",
     education: "Formation",
     experience: "Expérience professionnelle",
-    
+
     passport: "Informations passeport",
     social: "Profils sociaux",
     primaryContact: "Contact principal",
@@ -497,7 +521,6 @@ const fr = {
     switchOrganization: "Changer d'organisation",
     generalSettings: "Paramètres généraux",
     socialNetworks: "Réseaux sociaux",
-    platform: "Plateforme",
   },
   breadcrumbs: {
     app: "Accueil",
@@ -507,6 +530,7 @@ const fr = {
     recruitment: "Recrutement",
     jobs: "Offres",
     candidates: "Candidats",
+    scoring: "Scoring IA",
     performance: "Performance",
     okrs: "Objectifs",
     feedback: "Feedback",
@@ -523,13 +547,11 @@ const fr = {
     succession: "Succession",
     settings: "Paramètres",
     integrations: "Intégrations",
-    platform: "Plateforme",
     new: "Nouveau",
     edit: "Modifier",
     profile: "Profil",
     details: "Détails",
   },
-
 };
 
 const en: typeof fr = {
@@ -551,7 +573,7 @@ const en: typeof fr = {
     loading: "Loading…",
     welcome: "Hello",
     language: "Language",
-    
+
     theme: "Theme",
     settings: "Settings",
     none: "None",
@@ -571,6 +593,7 @@ const en: typeof fr = {
     recruitment: "Recruitment",
     jobs: "Jobs",
     candidates: "Candidates",
+    scoring: "AI scoring",
     performance: "Performance",
     okrs: "Objectives",
     feedback: "Feedback",
@@ -593,20 +616,16 @@ const en: typeof fr = {
     performanceModel: "Performance model",
     performanceModelDesc: "Pick the framework your organization uses to drive performance.",
     modelClassic: "Classic (OKR)",
-    modelClassicDesc: "Quarterly objectives, checkable key results, continuous feedback and reviews.",
+    modelClassicDesc:
+      "Quarterly objectives, checkable key results, continuous feedback and reviews.",
     modelSap: "SAP (CPM)",
-    modelSapDesc: "Cascading goals, operational activities and achievements — inspired by SAP SuccessFactors.",
+    modelSapDesc:
+      "Cascading goals, operational activities and achievements — inspired by SAP SuccessFactors.",
   },
   dashboard: {
     totalEmployees: "Total employees",
     onLeave: "On leave",
     openJobs: "Open jobs",
-    candidates: "Candidates",
-    revenue: "Payroll",
-    todayLogs: "Today's clock-ins",
-    upcomingReviews: "Upcoming reviews",
-    skillsTracked: "Skills tracked",
-    vsLastMonth: "vs last month",
   },
   landing: {
     metaTitle: "Konkouré — HRIS built for Africa",
@@ -629,7 +648,8 @@ const en: typeof fr = {
     statCompaniesLabel: "Organizations trust us",
     introEyebrow: "Introducing Konkouré",
     introTitle: "A complete HR platform that saves you time.",
-    introDesc: "Konkouré streamlines your workflow by bringing HR, recruiting, payroll and scheduling into one place.",
+    introDesc:
+      "Konkouré streamlines your workflow by bringing HR, recruiting, payroll and scheduling into one place.",
     introCta: "Start trial",
     candidateNew: "New",
     candidateActive: "Active",
@@ -645,7 +665,8 @@ const en: typeof fr = {
     toolsTitle: "Build with the tools you love",
     toolsDesc: "All your favorite tools plug into Konkouré for a frictionless day.",
     ctaFinalLargeTitle: "Join the teams who trust Konkouré",
-    ctaFinalLargeSub: "HR tools that make managing your people easy, from streamlined onboarding to performance reviews.",
+    ctaFinalLargeSub:
+      "HR tools that make managing your people easy, from streamlined onboarding to performance reviews.",
     footerSolution: "Solution",
     footerResource: "Resource",
     footerTools: "Tools",
@@ -678,7 +699,7 @@ const en: typeof fr = {
     heroCta: "Start free",
     heroSecondary: "Browse features",
     badgeData: "Isolated data",
-    
+
     badgeOffline: "Offline mode",
     statEmployees: "Employees",
     statOnLeave: "On leave",
@@ -733,12 +754,14 @@ const en: typeof fr = {
     benefitComplianceTitle: "Stay compliant",
     benefitComplianceDesc: "Contracts, leaves, clock-ins — everything is traceable and exportable.",
     benefitProductivityTitle: "Boost productivity",
-    benefitProductivityDesc: "OKRs, continuous feedback and automated reviews free your managers from paperwork.",
+    benefitProductivityDesc:
+      "OKRs, continuous feedback and automated reviews free your managers from paperwork.",
     benefitEngageTitle: "Engage your teams",
     benefitEngageDesc: "Employee portal, career paths and everyday recognition.",
     breakdownEyebrow: "Feature breakdown",
     breakdownTitle: "One efficient system for all your people",
-    breakdownSub: "Simplifies the process of curating your talents and brings clarity at every step.",
+    breakdownSub:
+      "Simplifies the process of curating your talents and brings clarity at every step.",
     breakdownLearn: "Explore modules",
     breakdownLearnAria: "Explore all platform modules",
     breakdownClockTitle: "Simple geo-aware clock-in",
@@ -756,8 +779,10 @@ const en: typeof fr = {
     loginMetaTitle: "Sign in — Konkouré",
     signupMetaTitle: "Sign up — Konkouré",
     resetMetaTitle: "Reset password — Konkouré",
-    loginMetaDescription: "Sign in to your Konkouré workspace to manage your teams' recruitment, performance and time tracking.",
-    signupMetaDescription: "Create your Konkouré account and start your modern HR management, built for Africa, in minutes.",
+    loginMetaDescription:
+      "Sign in to your Konkouré workspace to manage your teams' recruitment, performance and time tracking.",
+    signupMetaDescription:
+      "Create your Konkouré account and start your modern HR management, built for Africa, in minutes.",
     resetMetaDescription: "Reset your Konkouré password and get back to your HR workspace.",
     verifyEmailMetaTitle: "Email verification — Konkouré",
     verifyEmailMetaDescription: "Confirm your email address to activate your Konkouré account.",
@@ -768,8 +793,10 @@ const en: typeof fr = {
     resendVerification: "Resend verification email",
     verificationSent: "Verification email sent. Check your inbox.",
     continue: "Continue",
-    passwordPolicy: "At least 10 characters, with a lowercase letter, an uppercase letter and a digit.",
-    claimHint: "Create your account with the email address used for the payment: your subscription will be activated automatically.",
+    passwordPolicy:
+      "At least 10 characters, with a lowercase letter, an uppercase letter and a digit.",
+    claimHint:
+      "Create your account with the email address used for the payment: your subscription will be activated automatically.",
     loginTitle: "Welcome back",
     loginSubtitle: "Sign in to your Konkouré workspace",
     signupTitle: "Create your workspace",
@@ -807,14 +834,16 @@ const en: typeof fr = {
       invalidCredentials: "Invalid credentials.",
       alreadyRegistered: "This email is already registered.",
       emailNotConfirmed: "Email not confirmed. Check your inbox.",
-      accountLocked: "Account temporarily locked after several failed attempts. Retry in 15 minutes.",
+      accountLocked:
+        "Account temporarily locked after several failed attempts. Retry in 15 minutes.",
       passwordResetRequired: "You must reset your password before signing in.",
       rateLimited: "Too many attempts. Please wait before retrying.",
       invalidData: "Some information is invalid.",
       network: "Server unreachable. Check your connection.",
       notMigrated: "This feature is being migrated to the new API.",
       invalidLink: "Invalid or expired link.",
-      passwordComposition: "The password must contain a lowercase letter, an uppercase letter and a digit.",
+      passwordComposition:
+        "The password must contain a lowercase letter, an uppercase letter and a digit.",
       passwordCommon: "This password is too common. Choose another one.",
       passwordPersonal: "The password must not contain your name or email address.",
       generic: "Something went wrong. Please retry.",
@@ -832,7 +861,7 @@ const en: typeof fr = {
     useAnotherAccount: "Use another account",
     companyName: "Company name",
     defaultLanguage: "Default language",
-    
+
     perfModelLabel: "Performance management model",
     classicLabel: "Classic (OKR)",
     classicDesc: "Quarterly objectives, checkable key results, feedback and reviews.",
@@ -878,6 +907,7 @@ const en: typeof fr = {
     emailReq: "Email *",
     phoneReq: "Phone *",
     docsTitle: "Required documents",
+    cvLabel: "CV",
     noDocs: "No additional document required.",
     docsHint: "PDF, DOC, DOCX, JPG or PNG — 2 MB max per file.",
     sendApp: "Send my application",
@@ -902,9 +932,12 @@ const en: typeof fr = {
       uploadFailed: "The document could not be uploaded. Check your connection and try again.",
       jobUnavailable: "This job is no longer accepting applications.",
       documentRejected: "The document could not be accepted. Select it again and retry.",
-      saveFailed: "Your documents were received, but the application could not be saved. Please retry shortly.",
+      saveFailed:
+        "Your documents were received, but the application could not be saved. Please retry shortly.",
       network: "The connection was interrupted. Check your internet access and try again.",
       sendFailed: "Your application could not be sent.",
+      tooLarge: "Your files are too large (2 MB at most each).",
+      rateLimited: "Too many applications sent. Try again in an hour.",
       generic: "Failed to send",
     },
     strengthsLabel: "Strengths",
@@ -924,7 +957,7 @@ const en: typeof fr = {
     emergency: "Emergency Contact",
     education: "Education Qualification",
     experience: "Experience Details",
-    
+
     passport: "Passport Information",
     social: "Social Profile",
     primaryContact: "Primary Contact",
@@ -1015,7 +1048,6 @@ const en: typeof fr = {
     switchOrganization: "Switch organization",
     generalSettings: "General settings",
     socialNetworks: "Social networks",
-    platform: "Platform",
   },
   breadcrumbs: {
     app: "Home",
@@ -1025,6 +1057,7 @@ const en: typeof fr = {
     recruitment: "Recruitment",
     jobs: "Jobs",
     candidates: "Candidates",
+    scoring: "AI scoring",
     performance: "Performance",
     okrs: "Objectives",
     feedback: "Feedback",
@@ -1041,7 +1074,6 @@ const en: typeof fr = {
     succession: "Succession",
     settings: "Settings",
     integrations: "Integrations",
-    platform: "Platform",
     new: "New",
     edit: "Edit",
     profile: "Profile",
@@ -1136,7 +1168,6 @@ export function activeLocale(): string {
   const lng = (i18n.resolvedLanguage || i18n.language || "fr").slice(0, 2);
   return lng === "en" ? "en-GB" : "fr-FR";
 }
-
 
 /** Map an API error (06-api-reference error codes) to a translation key. */
 export function authErrorKey(error: unknown): string {

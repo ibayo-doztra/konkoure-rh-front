@@ -156,3 +156,180 @@ export function deleteDepartment(id: string, reassignTo?: string) {
     query: { reassignTo },
   });
 }
+
+// ---------------------------------------------------------------- Contracts (06 §5)
+
+export type ContractType = "cdi" | "cdd" | "stage" | "freelance" | "apprenticeship" | "daily";
+export type ContractStatus = "draft" | "active" | "suspended" | "terminated";
+
+/** `salary`, `currency` and `notes` are only sent to owner, hr_admin and the employee. */
+export interface Contract {
+  id: string;
+  employeeId: string;
+  type: ContractType;
+  status: ContractStatus;
+  startDate: string;
+  endDate: string | null;
+  trialPeriodEnd: string | null;
+  weeklyHours: number | null;
+  hasDocument: boolean;
+  salary?: number | null;
+  currency?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContractInput {
+  employeeId?: string;
+  type: ContractType;
+  status: Exclude<ContractStatus, "terminated">;
+  startDate: string;
+  endDate: string | null;
+  trialPeriodEnd: string | null;
+  salary: number | null;
+  weeklyHours: number | null;
+  notes: string | null;
+}
+
+export interface SignedUrl {
+  url: string;
+  expiresIn: number;
+}
+
+export const contractsQuery = (organizationId: string, employeeId?: string) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "contracts", employeeId ?? "all"],
+    queryFn: () => api.all<Contract>("/org/contracts", { "filter[employeeId]": employeeId }),
+  });
+
+const contractPath = (id: string) => `/org/contracts/${encodeURIComponent(id)}`;
+
+export function createContract(input: ContractInput) {
+  return api.post<Contract>("/org/contracts", input);
+}
+
+/** The employee of a contract never changes. */
+export function updateContract(id: string, { employeeId: _employeeId, ...input }: ContractInput) {
+  return api.patch<Contract>(contractPath(id), input);
+}
+
+export function deleteContract(id: string) {
+  return api.delete(contractPath(id));
+}
+
+export function terminateContract(id: string, endDate: string) {
+  return api.post<Contract>(`${contractPath(id)}/terminate`, { endDate });
+}
+
+export function contractDocumentUrl(id: string) {
+  return api.get<SignedUrl>(`${contractPath(id)}/document`);
+}
+
+export function uploadContractDocument(id: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<Contract>(`${contractPath(id)}/document`, form);
+}
+
+// ---------------------------------------------------- Employee import and export (06 §4)
+
+export type ImportAction = "create" | "update" | "skip" | "error";
+
+export interface ImportPreview {
+  importToken: string;
+  expiresIn: number;
+  summary: Record<ImportAction | "total", number>;
+  rows: { line: number; action: ImportAction; name: string; employeeId: string | null }[];
+  errors: { line: number; field: string; rule: string; message: string }[];
+}
+
+export interface ImportReport {
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+export function previewEmployeeImport(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<ImportPreview>("/org/employees/import/preview", form);
+}
+
+export function commitEmployeeImport(importToken: string, idempotencyKey: string) {
+  return api.post<ImportReport>(
+    "/org/employees/import/commit",
+    { importToken },
+    { idempotencyKey },
+  );
+}
+
+/** Asynchronous: the file link is sent by e-mail (202). */
+export function exportEmployees(format: "csv" | "xlsx") {
+  return api.post<{ jobId: string }>("/org/employees/export", { format });
+}
+
+// ------------------------------------------------------- NFC badges (06 §6, timeclock module)
+
+/** `uid` is masked by the API (`••••6B3E`). */
+export interface NfcBadge {
+  id: string;
+  employeeId: string;
+  uid: string;
+  isActive: boolean;
+  assignedAt: string;
+  revokedAt: string | null;
+}
+
+export interface NfcBadgeEvent {
+  id: string;
+  employeeId: string;
+  badgeId: string;
+  uid: string;
+  event: string;
+  reason: string | null;
+  actorUserId: string | null;
+  createdAt: string;
+}
+
+const badgePath = (employeeId: string) => `/org/employees/${encodeURIComponent(employeeId)}/badge`;
+
+export const employeeBadgeQuery = (organizationId: string, employeeId: string) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "badge", employeeId],
+    queryFn: () => api.get<NfcBadge | null>(badgePath(employeeId)),
+  });
+
+export const badgeEventsQuery = (organizationId: string, employeeId: string) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "badge", employeeId, "events"],
+    queryFn: () => api.all<NfcBadgeEvent>("/org/timeclock/badge-events", { employeeId }),
+  });
+
+/** Replaces the employee's current badge, if any. */
+export function assignBadge(employeeId: string, badgeUid: string, idempotencyKey: string) {
+  return api.post<NfcBadge>(badgePath(employeeId), { badgeUid }, { idempotencyKey });
+}
+
+export function revokeBadge(employeeId: string) {
+  return api.delete(badgePath(employeeId));
+}
+
+// ------------------------------------------------- Directory (06 §4, added 2026-11-23)
+
+/** A colleague as every member may see them: active and on leave only. */
+export interface DirectoryEntry {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+  departmentId: string | null;
+  photoUrl: string | null;
+}
+
+/** Every colleague, sorted by last then first name, for selectors and names. */
+export const directoryQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "directory"],
+    queryFn: () => api.all<DirectoryEntry>("/org/employees/directory"),
+  });

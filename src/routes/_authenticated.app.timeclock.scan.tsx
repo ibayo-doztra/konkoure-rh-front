@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useOrg } from "@/hooks/useOrg";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Radio, LogIn, LogOut, AlertTriangle, CheckCircle2, Loader2, Nfc } from "lucide-react";
-import { scanNfcBadge, type ScanNfcBadgeResult } from "@/lib/api/legacy-functions";
+import { apiErrorMessage, newIdempotencyKey } from "@/lib/api/client";
+import { scanBadge, type Punch } from "@/lib/api/timeclock";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -22,14 +22,14 @@ type WebNfcReader = {
   addEventListener: (evt: string, cb: (e: { serialNumber?: string }) => void) => void;
 };
 
+type ScanResult = { ok: true; punch: Punch } | { ok: false; message: string };
+
 function ScanPage() {
   const { t } = useTranslation();
-  const { org } = useOrg();
-  const scan = scanNfcBadge;
   const [manualUid, setManualUid] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<ScanNfcBadgeResult | null>(null);
+  const [result, setResult] = useState<ScanResult | null>(null);
   const [nfcActive, setNfcActive] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const nfcSupported = typeof window !== "undefined" && "NDEFReader" in window;
@@ -37,15 +37,19 @@ function ScanPage() {
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
-      (p) => setCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      (p) =>
+        setCoords({
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          accuracy: p.coords.accuracy,
+        }),
       () => {},
       { enableHighAccuracy: true, maximumAge: 60_000, timeout: 8000 },
     );
   }, []);
 
-  const submit = async (badge_uid: string) => {
-    if (!org) return;
-    const uid = badge_uid.trim();
+  const submit = async (rawUid: string) => {
+    const uid = rawUid.trim();
     if (!uid) {
       toast.error(t("timeclock.scan.badgeUidMissing"));
       return;
@@ -53,29 +57,23 @@ function ScanPage() {
     setBusy(true);
     setResult(null);
     try {
-      const res = await scan({
-        data: {
-          organization_id: org.id,
-          badge_uid: uid,
-          latitude: coords?.lat ?? null,
-          longitude: coords?.lng ?? null,
-        },
+      // The type (in or out) is deduced by the API from the last punch.
+      const punch = await scanBadge({
+        badgeUid: uid,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
+        accuracyMeters: coords ? Math.min(Math.round(coords.accuracy), 10_000) : undefined,
+        clientPunchId: newIdempotencyKey(),
       });
-      setResult(res);
-      if (res.ok) {
-        if (res.deduped) {
-          toast.message(t("timeclock.scan.dedupedToast"));
-        } else {
-          toast.success(
-            res.type === "ARRIVEE" ? t("timeclock.scan.arriveeToast") : t("timeclock.scan.departToast"),
-          );
-        }
-        setManualUid("");
-      } else {
-        toast.error(res.message);
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("timeclock.scan.unexpectedError"));
+      setResult({ ok: true, punch });
+      toast.success(
+        punch.type === "in" ? t("timeclock.scan.arriveeToast") : t("timeclock.scan.departToast"),
+      );
+      setManualUid("");
+    } catch (error) {
+      const message = apiErrorMessage(error) || t("timeclock.scan.unexpectedError");
+      setResult({ ok: false, message });
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -112,10 +110,7 @@ function ScanPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader
-        title={t("timeclock.scan.title")}
-        description={t("timeclock.scan.description")}
-      />
+      <PageHeader title={t("timeclock.scan.title")} description={t("timeclock.scan.description")} />
 
       <Card>
         <CardContent className="space-y-5 p-6">
@@ -131,23 +126,25 @@ function ScanPage() {
                 <Nfc className="h-4 w-4" /> {t("timeclock.scan.nfcReader")}
               </div>
               {nfcActive ? (
-                <Badge variant="default" className="gap-1"><Radio className="h-3 w-3 animate-pulse" /> {t("timeclock.scan.nfcActive")}</Badge>
+                <Badge variant="default" className="gap-1">
+                  <Radio className="h-3 w-3 animate-pulse" /> {t("timeclock.scan.nfcActive")}
+                </Badge>
               ) : (
                 <Badge variant="outline">{t("timeclock.scan.nfcInactive")}</Badge>
               )}
             </div>
             {nfcSupported ? (
               nfcActive ? (
-                <Button variant="outline" className="w-full" onClick={stopNfc}>{t("timeclock.scan.stop")}</Button>
+                <Button variant="outline" className="w-full" onClick={stopNfc}>
+                  {t("timeclock.scan.stop")}
+                </Button>
               ) : (
                 <Button className="w-full" onClick={startNfc} disabled={busy}>
                   <Nfc className="mr-2 h-4 w-4" /> {t("timeclock.scan.enableNfc")}
                 </Button>
               )
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("timeclock.scan.nfcNotSupported")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("timeclock.scan.nfcNotSupported")}</p>
             )}
           </div>
 
@@ -166,7 +163,11 @@ function ScanPage() {
                 autoComplete="off"
               />
               <Button onClick={() => void submit(manualUid)} disabled={busy || !manualUid.trim()}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("timeclock.scan.scanButton")}
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("timeclock.scan.scanButton")
+                )}
               </Button>
             </div>
           </div>
@@ -178,29 +179,44 @@ function ScanPage() {
   );
 }
 
-function ResultCard({ result }: { result: ScanNfcBadgeResult }) {
-  const { t } = useTranslation();
+function ResultCard({ result }: { result: ScanResult }) {
+  const { t, i18n } = useTranslation();
   if (result.ok) {
-    const isIn = result.type === "ARRIVEE";
-    const time = new Date(result.timestamp).toLocaleTimeString("fr-FR");
+    const { punch } = result;
+    const isIn = punch.type === "in";
+    const time = new Date(punch.punchedAt).toLocaleTimeString(
+      i18n.language?.startsWith("en") ? "en-US" : "fr-FR",
+    );
+    const [first = "", last = ""] = punch.employee.fullName.split(" ");
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-100">
+      <div className="rounded-lg border border-success/40 bg-success/10 p-4 text-foreground">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={result.employee.photo_url ?? undefined} />
-            <AvatarFallback>{result.employee.first_name[0]}{result.employee.last_name[0]}</AvatarFallback>
+            <AvatarImage src={punch.employee.photoUrl ?? undefined} />
+            <AvatarFallback>
+              {first[0]}
+              {last[0]}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <div className="font-semibold">{result.employee.first_name} {result.employee.last_name}</div>
-            <div className="mt-1 flex items-center gap-2 text-sm">
+            <div className="font-semibold">{punch.employee.fullName}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
               {isIn ? <LogIn className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
-              {isIn ? t("timeclock.scan.arriveeLabel") : t("timeclock.scan.departLabel")} {t("timeclock.scan.recordedAt")} {time}
-              {result.deduped && (
-                <Badge variant="outline" className="ml-1">{t("timeclock.scan.dedupedBadge")}</Badge>
+              {isIn ? t("timeclock.scan.arriveeLabel") : t("timeclock.scan.departLabel")}{" "}
+              {t("timeclock.scan.recordedAt")} {time}
+              {punch.workZone && (
+                <Badge variant="outline" className="ml-1">
+                  {punch.workZone.name}
+                </Badge>
+              )}
+              {punch.anomaly && (
+                <Badge variant="destructive" className="ml-1">
+                  {t(`timeclock.anomaly.${punch.anomaly}`, { defaultValue: punch.anomaly })}
+                </Badge>
               )}
             </div>
           </div>
-          <CheckCircle2 className="h-6 w-6 text-green-600" />
+          <CheckCircle2 className="h-6 w-6 text-success" />
         </div>
       </div>
     );

@@ -1,116 +1,216 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Sparkles, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import { formatDate } from "@/lib/format";
-import { pendingQuery } from "@/lib/api/pending";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  achievementsQuery,
+  createAchievement,
+  deleteAchievement,
+  goalsQuery,
+  performanceKey,
+  type Achievement,
+} from "@/lib/api/performance";
+import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
-import { useMyEmployee } from "@/hooks/useMyEmployee";
+import { useConfirm } from "@/hooks/useConfirm";
+import { usePerformanceAccess } from "@/hooks/usePerformanceAccess";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Sparkles, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { z } from "zod";
-import { PageHeader } from "@/components/PageHeader";
-import { useTranslation } from "react-i18next";
-import { useConfirm } from "@/hooks/useConfirm";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/app/performance/achievements")({
   component: AchievementsPage,
 });
 
-function useAchievementSchema(t: (k: string) => string) {
-  return z.object({
-    title: z.string().trim().min(3, t("achievements.errors.titleMin")).max(200, t("achievements.errors.titleMax")),
-    impact: z.string().trim().max(500).optional(),
-    goal_id: z.string().uuid().nullable().optional(),
-  });
-}
+const NO_GOAL = "none";
+const today = () => new Date().toISOString().slice(0, 10);
+const emptyForm = () => ({ title: "", impact: "", goalId: NO_GOAL, achievedAt: today() });
 
 function AchievementsPage() {
   const { t } = useTranslation();
   const { confirm, confirmDialog } = useConfirm();
-  const schema = useAchievementSchema(t);
   const { org } = useOrg();
-  const { requireEmployee } = useMyEmployee();
-  const [goals, setGoals] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const { user } = useAuth();
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const access = usePerformanceAccess();
+  const goals = useQuery({ ...goalsQuery(organizationId), enabled: !!org });
+  const achievements = useQuery({ ...achievementsQuery(organizationId), enabled: !!org });
   const [open, setOpen] = useState(false);
-  const empty = { title: "", impact: "", goal_id: "" };
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useState(emptyForm);
 
-  const load = async () => {
-    if (!org) return;
-    const [{ data: gs }, { data: ach }] = await Promise.all([
-      pendingQuery("GET /org/performance/goals"),
-      pendingQuery("GET /org/performance/achievements"),
-    ]);
-    setGoals(gs ?? []);
-    setItems(ach ?? []);
-  };
-  useEffect(() => { void load(); }, [org]);
+  const schema = useMemo(
+    () =>
+      z.object({
+        title: z
+          .string()
+          .trim()
+          .min(3, t("achievements.errors.titleMin"))
+          .max(200, t("achievements.errors.titleMax")),
+        impact: z.string().trim().max(500).optional(),
+        achievedAt: z.string().min(1, t("achievements.errors.dateRequired")),
+      }),
+    [t],
+  );
 
-  const save = async () => {
-    if (!org) return;
+  const goalList = goals.data ?? [];
+  // An achievement is the reader's own: only his goals can be linked (06 §9).
+  const myGoals = goalList.filter((g) => g.employeeId === access.myEmployeeId);
+  const items = [...(achievements.data ?? [])].sort((a, b) =>
+    b.achievedAt.localeCompare(a.achievedAt),
+  );
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) });
+  const create = useMutation({
+    mutationFn: createAchievement,
+    onSuccess: () => {
+      toast.success(t("achievements.savedSuccess"));
+      setOpen(false);
+      setForm(emptyForm());
+      return refresh();
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+  const remove = useMutation({
+    mutationFn: (a: Achievement) => deleteAchievement(a.id),
+    onSuccess: refresh,
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  const save = () => {
     const parsed = schema.safeParse({
       title: form.title,
       impact: form.impact || undefined,
-      goal_id: form.goal_id || null,
+      achievedAt: form.achievedAt,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    const empId = await requireEmployee();
-    if (empId === false) return;
-    const { error } = await pendingQuery("POST /org/performance/achievements");
-    if (error) return toast.error(error.message);
-    toast.success(t("achievements.savedSuccess"));
-    setOpen(false);
-    setForm(empty);
-    void load();
+    if (!access.myEmployeeId) return toast.error(t("achievements.errors.noEmployeeRecord"));
+    create.mutate({
+      title: parsed.data.title,
+      impact: parsed.data.impact,
+      achievedAt: new Date(`${parsed.data.achievedAt}T12:00:00`).toISOString(),
+      goalId: form.goalId === NO_GOAL ? undefined : form.goalId,
+    });
   };
 
-  const remove = async (id: string) => {
-    if (!(await confirm({ title: t("achievements.deleteConfirm"), description: t("achievements.deleteConfirmDesc"), actionLabel: t("common.delete"), actionVariant: "destructive" }))) return;
-    const { error } = await pendingQuery("DELETE /org/performance/achievements");
-    if (error) return toast.error(error.message);
-    void load();
+  const askRemove = async (a: Achievement) => {
+    const ok = await confirm({
+      title: t("achievements.deleteConfirm"),
+      description: t("achievements.deleteConfirmDesc"),
+      actionLabel: t("common.delete"),
+      actionVariant: "destructive",
+    });
+    if (ok) remove.mutate(a);
   };
 
-  const canSubmit = form.title.trim().length >= 3;
+  const canSubmit = form.title.trim().length >= 3 && !create.isPending;
 
   return (
     <div>
       {confirmDialog}
-      <PageHeader title={t("achievements.title")} description={t("achievements.description")}
+      <PageHeader
+        title={t("achievements.title")}
+        description={t("achievements.description")}
         actions={
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setForm(empty); }}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4"/>{t("achievements.newAchievement")}</Button></DialogTrigger>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) setForm(emptyForm());
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("achievements.newAchievement")}
+              </Button>
+            </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{t("achievements.newAchievement")}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{t("achievements.newAchievement")}</DialogTitle>
+              </DialogHeader>
               <DialogBody>
                 <div className="space-y-4">
                   <div>
-                    <Label>{t("achievements.achievementTitle")} <span className="text-destructive">*</span></Label>
-                    <Input value={form.title} maxLength={200} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                    <Label htmlFor="achievement-title">
+                      {t("achievements.achievementTitle")}{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="achievement-title"
+                      value={form.title}
+                      maxLength={200}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    />
                   </div>
                   <div>
-                    <Label>{t("achievements.impact")}</Label>
-                    <Textarea rows={3} maxLength={500} value={form.impact} onChange={(e) => setForm({ ...form, impact: e.target.value })} />
+                    <Label htmlFor="achievement-date">
+                      {t("achievements.achievedAt")} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="achievement-date"
+                      type="date"
+                      value={form.achievedAt}
+                      max={today()}
+                      onChange={(e) => setForm({ ...form, achievedAt: e.target.value })}
+                    />
                   </div>
                   <div>
-                    <Label>{t("achievements.linkedGoal")}</Label>
-                    <Select value={form.goal_id || "none"} onValueChange={(v) => setForm({ ...form, goal_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder={t("achievements.none")} /></SelectTrigger>
+                    <Label htmlFor="achievement-impact">{t("achievements.impact")}</Label>
+                    <Textarea
+                      id="achievement-impact"
+                      rows={3}
+                      maxLength={500}
+                      value={form.impact}
+                      onChange={(e) => setForm({ ...form, impact: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="achievement-goal">{t("achievements.linkedGoal")}</Label>
+                    <Select
+                      value={form.goalId}
+                      onValueChange={(v) => setForm({ ...form, goalId: v })}
+                    >
+                      <SelectTrigger id="achievement-goal">
+                        <SelectValue placeholder={t("achievements.none")} />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">{t("achievements.none")}</SelectItem>
-                        {goals.map((g) => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
+                        <SelectItem value={NO_GOAL}>{t("achievements.none")}</SelectItem>
+                        {myGoals.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.title}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full" onClick={save} disabled={!canSubmit}>{t("achievements.save")}</Button>
+                  <Button className="w-full" onClick={save} disabled={!canSubmit}>
+                    {t("achievements.save")}
+                  </Button>
                 </div>
               </DialogBody>
             </DialogContent>
@@ -119,25 +219,45 @@ function AchievementsPage() {
       />
       <div className="grid gap-3">
         {items.map((a) => {
-          const goal = goals.find((g) => g.id === a.goal_id);
+          const goal = a.goalId ? goalList.find((g) => g.id === a.goalId) : undefined;
+          const canDelete = access.isAdmin || (!!user && a.createdBy === user.id);
+          const isMine = access.isSelf(a.employeeId);
           return (
-            <Card key={a.id}><CardContent className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <p className="font-semibold">{a.title}</p>
-                    {goal && <Badge variant="outline">{goal.title}</Badge>}
+            <Card key={a.id} data-testid="achievement-card">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <p className="break-words font-semibold">{a.title}</p>
+                      {goal && <Badge variant="outline">{goal.title}</Badge>}
+                    </div>
+                    {a.impact && <p className="mt-1 text-sm text-muted-foreground">{a.impact}</p>}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDate(a.achievedAt)}
+                      {!isMine && ` · ${access.nameOf(a.employeeId) ?? "—"}`}
+                    </p>
                   </div>
-                  {a.impact && <p className="mt-1 text-sm text-muted-foreground">{a.impact}</p>}
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(a.achieved_at)}</p>
+                  {canDelete && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("achievements.deleteAria", { title: a.title })}
+                      onClick={() => void askRemove(a)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </CardContent></Card>
+              </CardContent>
+            </Card>
           );
         })}
-        {items.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t("achievements.empty")}</p>}
+        {!achievements.isPending && items.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {achievements.isError ? apiErrorMessage(achievements.error) : t("achievements.empty")}
+          </p>
+        )}
       </div>
     </div>
   );

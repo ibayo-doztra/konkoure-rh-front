@@ -1,5 +1,8 @@
 const STORAGE_KEY = "konkoure:applied-jobs";
 
+/** Public offers have no id: an application is remembered by its organization and job slugs. */
+export const appliedKey = (orgSlug: string, jobSlug: string) => `${orgSlug}/${jobSlug}`;
+
 type Entry = { appliedAt: string; deadline: string | null };
 type Store = Record<string, Entry>;
 

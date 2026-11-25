@@ -1,7 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Facebook, Linkedin, Youtube, Globe, Send } from "lucide-react";
+import {
+  Download,
+  Facebook,
+  FileSpreadsheet,
+  Globe,
+  Linkedin,
+  Send,
+  Upload,
+  Youtube,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -12,6 +21,7 @@ import {
   eligibleManagersQuery,
   employeeHeadcountQuery,
   employeesQuery,
+  exportEmployees,
   hrKey,
   type Employee,
   type EmployeeStatus,
@@ -20,6 +30,9 @@ import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
 import { useEmployeeInvitation } from "@/hooks/useEmployeeInvitation";
 import { useSubscription } from "@/hooks/useSubscription";
+import { ActionMenu } from "@/components/ActionMenu";
+import { EmployeeImportDialog } from "@/components/employees/EmployeeImportDialog";
+import { downloadTemplate } from "@/lib/employee-import";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -154,6 +167,7 @@ function EmployeesPage() {
   const organizationId = org?.id ?? "";
 
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [search, setSearch] = useState("");
@@ -209,6 +223,14 @@ function EmployeesPage() {
     },
     onError: (error) => toast.error(apiErrorMessage(error)),
   });
+
+  const runExport = useMutation({
+    mutationFn: exportEmployees,
+    onSuccess: () => toast.success(t("employees.exportQueued")),
+    onError: (error) =>
+      toast.error(t("employees.exportError"), { description: apiErrorMessage(error) }),
+  });
+  const departmentOptions = (departments.data ?? []).map((d) => ({ id: d.id, name: d.name }));
 
   const save = () => {
     const parsed = employeeSchema.safeParse(form);
@@ -308,7 +330,7 @@ function EmployeesPage() {
         </Card>
         {isAdmin && (
           <Card className="bg-card">
-            <CardContent className="flex h-full items-start p-6">
+            <CardContent className="flex h-full items-start gap-2 p-6">
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
@@ -461,6 +483,40 @@ function EmployeesPage() {
                   </DialogBody>
                 </DialogContent>
               </Dialog>
+              <ActionMenu
+                label={t("employees.actionsLabel")}
+                triggerClassName="h-10 w-10 shrink-0"
+                items={[
+                  {
+                    label: t("employees.exportCsv"),
+                    icon: <Download className="h-4 w-4" />,
+                    onSelect: () => runExport.mutate("csv"),
+                  },
+                  {
+                    label: t("employees.exportXlsx"),
+                    icon: <Download className="h-4 w-4" />,
+                    onSelect: () => runExport.mutate("xlsx"),
+                  },
+                  { type: "separator" },
+                  {
+                    label: t("employees.downloadTemplate"),
+                    icon: <FileSpreadsheet className="h-4 w-4" />,
+                    onSelect: () => void downloadTemplate(departmentOptions, org?.name),
+                  },
+                  {
+                    label: t("employees.importEmployees"),
+                    icon: <Upload className="h-4 w-4" />,
+                    onSelect: () => setImportOpen(true),
+                  },
+                ]}
+              />
+              <EmployeeImportDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                organizationId={organizationId}
+                orgName={org?.name}
+                departments={departmentOptions}
+              />
             </CardContent>
           </Card>
         )}

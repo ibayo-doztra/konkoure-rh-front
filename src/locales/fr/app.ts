@@ -132,6 +132,7 @@ export default {
     title: "Notifications",
     empty: "Aucune notification",
     markAllRead: "Tout marquer comme lu",
+    loadMore: "Voir plus",
     markRead: "Marquer comme lu",
     unread: "non lue",
     unread_other: "non lues",
@@ -158,9 +159,15 @@ export default {
       "Vous n'avez pas les droits nécessaires pour cette action. Contactez un administrateur de votre entreprise.",
     moduleNotIncluded: "Ce module n'est pas inclus dans votre offre.",
     duplicate: "Cette valeur existe déjà. Modifiez-la puis réessayez.",
-    linkedRecord: "Cet élément est lié à d'autres données : retirez d'abord les liens puis réessayez.",
+    linkedRecord:
+      "Cet élément est lié à d'autres données : retirez d'abord les liens puis réessayez.",
     missingField: "Un champ obligatoire est manquant.",
     sessionExpired: "Votre session a expiré. Reconnectez-vous puis réessayez.",
     generic: "Une erreur est survenue. Réessayez dans un instant.",
+  },
+  ai: {
+    quotaExceeded:
+      "Les crédits IA du mois sont épuisés. Le propriétaire peut changer d'offre depuis la page Abonnement.",
+    unavailable: "L'assistant IA est momentanément indisponible. Réessayez plus tard.",
   },
 } as const;

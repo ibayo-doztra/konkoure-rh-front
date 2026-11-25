@@ -59,10 +59,10 @@ import { Route as AuthenticatedAppPerformanceFeedbackRouteImport } from './route
 import { Route as AuthenticatedAppPerformanceGoalsRouteImport } from './routes/_authenticated.app.performance.goals'
 import { Route as AuthenticatedAppPerformanceOkrsRouteImport } from './routes/_authenticated.app.performance.okrs'
 import { Route as AuthenticatedAppRecruitmentCandidatesRouteImport } from './routes/_authenticated.app.recruitment.candidates'
+import { Route as AuthenticatedAppRecruitmentScoringRouteImport } from './routes/_authenticated.app.recruitment.scoring'
 import { Route as AuthenticatedAppSettingsIndexRouteImport } from './routes/_authenticated.app.settings.index'
 import { Route as AuthenticatedAppSettingsIntegrationsRouteImport } from './routes/_authenticated.app.settings.integrations'
 import { Route as AuthenticatedAppSettingsMembersRouteImport } from './routes/_authenticated.app.settings.members'
-import { Route as AuthenticatedAppSettingsPlatformRouteImport } from './routes/_authenticated.app.settings.platform'
 import { Route as AuthenticatedAppTalents9boxRouteImport } from './routes/_authenticated.app.talents.9box'
 import { Route as AuthenticatedAppTalentsSkillsRouteImport } from './routes/_authenticated.app.talents.skills'
 import { Route as AuthenticatedAppTalentsSuccessionRouteImport } from './routes/_authenticated.app.talents.succession'
@@ -347,6 +347,12 @@ const AuthenticatedAppRecruitmentCandidatesRoute =
     path: '/recruitment/candidates',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppRecruitmentScoringRoute =
+  AuthenticatedAppRecruitmentScoringRouteImport.update({
+    id: '/recruitment/scoring',
+    path: '/recruitment/scoring',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppSettingsIndexRoute =
   AuthenticatedAppSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -363,12 +369,6 @@ const AuthenticatedAppSettingsMembersRoute =
   AuthenticatedAppSettingsMembersRouteImport.update({
     id: '/settings/members',
     path: '/settings/members',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppSettingsPlatformRoute =
-  AuthenticatedAppSettingsPlatformRouteImport.update({
-    id: '/settings/platform',
-    path: '/settings/platform',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppTalents9boxRoute =
@@ -491,9 +491,9 @@ export interface FileRoutesByFullPath {
   '/app/performance/goals': typeof AuthenticatedAppPerformanceGoalsRoute
   '/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
+  '/app/recruitment/scoring': typeof AuthenticatedAppRecruitmentScoringRoute
   '/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
   '/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
-  '/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
@@ -555,9 +555,9 @@ export interface FileRoutesByTo {
   '/app/performance/goals': typeof AuthenticatedAppPerformanceGoalsRoute
   '/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
+  '/app/recruitment/scoring': typeof AuthenticatedAppRecruitmentScoringRoute
   '/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
   '/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
-  '/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
@@ -624,9 +624,9 @@ export interface FileRoutesById {
   '/_authenticated/app/performance/goals': typeof AuthenticatedAppPerformanceGoalsRoute
   '/_authenticated/app/performance/okrs': typeof AuthenticatedAppPerformanceOkrsRoute
   '/_authenticated/app/recruitment/candidates': typeof AuthenticatedAppRecruitmentCandidatesRoute
+  '/_authenticated/app/recruitment/scoring': typeof AuthenticatedAppRecruitmentScoringRoute
   '/_authenticated/app/settings/integrations': typeof AuthenticatedAppSettingsIntegrationsRoute
   '/_authenticated/app/settings/members': typeof AuthenticatedAppSettingsMembersRoute
-  '/_authenticated/app/settings/platform': typeof AuthenticatedAppSettingsPlatformRoute
   '/_authenticated/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/_authenticated/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/_authenticated/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
@@ -693,9 +693,9 @@ export interface FileRouteTypes {
     | '/app/performance/goals'
     | '/app/performance/okrs'
     | '/app/recruitment/candidates'
+    | '/app/recruitment/scoring'
     | '/app/settings/integrations'
     | '/app/settings/members'
-    | '/app/settings/platform'
     | '/app/talents/9box'
     | '/app/talents/skills'
     | '/app/talents/succession'
@@ -757,9 +757,9 @@ export interface FileRouteTypes {
     | '/app/performance/goals'
     | '/app/performance/okrs'
     | '/app/recruitment/candidates'
+    | '/app/recruitment/scoring'
     | '/app/settings/integrations'
     | '/app/settings/members'
-    | '/app/settings/platform'
     | '/app/talents/9box'
     | '/app/talents/skills'
     | '/app/talents/succession'
@@ -825,9 +825,9 @@ export interface FileRouteTypes {
     | '/_authenticated/app/performance/goals'
     | '/_authenticated/app/performance/okrs'
     | '/_authenticated/app/recruitment/candidates'
+    | '/_authenticated/app/recruitment/scoring'
     | '/_authenticated/app/settings/integrations'
     | '/_authenticated/app/settings/members'
-    | '/_authenticated/app/settings/platform'
     | '/_authenticated/app/talents/9box'
     | '/_authenticated/app/talents/skills'
     | '/_authenticated/app/talents/succession'
@@ -1223,6 +1223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRecruitmentCandidatesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/recruitment/scoring': {
+      id: '/_authenticated/app/recruitment/scoring'
+      path: '/recruitment/scoring'
+      fullPath: '/app/recruitment/scoring'
+      preLoaderRoute: typeof AuthenticatedAppRecruitmentScoringRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/settings/': {
       id: '/_authenticated/app/settings/'
       path: '/settings'
@@ -1242,13 +1249,6 @@ declare module '@tanstack/react-router' {
       path: '/settings/members'
       fullPath: '/app/settings/members'
       preLoaderRoute: typeof AuthenticatedAppSettingsMembersRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/settings/platform': {
-      id: '/_authenticated/app/settings/platform'
-      path: '/settings/platform'
-      fullPath: '/app/settings/platform'
-      preLoaderRoute: typeof AuthenticatedAppSettingsPlatformRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/talents/9box': {
@@ -1370,9 +1370,9 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppPerformanceGoalsRoute: typeof AuthenticatedAppPerformanceGoalsRoute
   AuthenticatedAppPerformanceOkrsRoute: typeof AuthenticatedAppPerformanceOkrsRoute
   AuthenticatedAppRecruitmentCandidatesRoute: typeof AuthenticatedAppRecruitmentCandidatesRoute
+  AuthenticatedAppRecruitmentScoringRoute: typeof AuthenticatedAppRecruitmentScoringRoute
   AuthenticatedAppSettingsIntegrationsRoute: typeof AuthenticatedAppSettingsIntegrationsRoute
   AuthenticatedAppSettingsMembersRoute: typeof AuthenticatedAppSettingsMembersRoute
-  AuthenticatedAppSettingsPlatformRoute: typeof AuthenticatedAppSettingsPlatformRoute
   AuthenticatedAppTalents9boxRoute: typeof AuthenticatedAppTalents9boxRoute
   AuthenticatedAppTalentsSkillsRoute: typeof AuthenticatedAppTalentsSkillsRoute
   AuthenticatedAppTalentsSuccessionRoute: typeof AuthenticatedAppTalentsSuccessionRoute
@@ -1411,10 +1411,11 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppPerformanceOkrsRoute: AuthenticatedAppPerformanceOkrsRoute,
   AuthenticatedAppRecruitmentCandidatesRoute:
     AuthenticatedAppRecruitmentCandidatesRoute,
+  AuthenticatedAppRecruitmentScoringRoute:
+    AuthenticatedAppRecruitmentScoringRoute,
   AuthenticatedAppSettingsIntegrationsRoute:
     AuthenticatedAppSettingsIntegrationsRoute,
   AuthenticatedAppSettingsMembersRoute: AuthenticatedAppSettingsMembersRoute,
-  AuthenticatedAppSettingsPlatformRoute: AuthenticatedAppSettingsPlatformRoute,
   AuthenticatedAppTalents9boxRoute: AuthenticatedAppTalents9boxRoute,
   AuthenticatedAppTalentsSkillsRoute: AuthenticatedAppTalentsSkillsRoute,
   AuthenticatedAppTalentsSuccessionRoute:

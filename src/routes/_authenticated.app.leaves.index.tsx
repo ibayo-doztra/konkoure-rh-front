@@ -1,140 +1,161 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Check, X, Trash2, Eye } from "lucide-react";
+import { Check, Eye, Plus, Trash2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { apiErrorMessage, newIdempotencyKey } from "@/lib/api/client";
+import { allEmployeesQuery, hrKey } from "@/lib/api/hr";
+import {
+  approveLeave,
+  BALANCE_TYPES,
+  cancelLeave,
+  createLeave,
+  estimateLeaveDays,
+  holidaysQuery,
+  LEAVE_TYPES,
+  leaveBalancesQuery,
+  leaveQuery,
+  leavesKey,
+  leavesQuery,
+  rejectLeave,
+  LEAVE_STATUS_VARIANT,
+  type LeaveRow,
+  type LeaveStatus,
+  type LeaveType,
+} from "@/lib/api/leaves";
 import { LeaveDetailSheet } from "@/components/leaves/LeaveDetailSheet";
+import { ListPager, useClampedPage } from "@/components/ListPager";
 import { PageHeader } from "@/components/PageHeader";
+import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogActions, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrg } from "@/hooks/useOrg";
+import { useRole } from "@/hooks/useRole";
 import { useMyEmployee } from "@/hooks/useMyEmployee";
 import { useCountUp, formatDayCount } from "@/hooks/useCountUp";
-import {
-  listLeaveRequests, createLeaveRequest, decideLeaveRequest,
-  cancelLeaveRequest, computeWorkingDays, listHolidays, getEmployeeLeaveBalance,
-} from "@/lib/api/legacy-functions";
-import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/_authenticated/app/leaves/")({
   component: LeavesPage,
 });
 
-function useTypeLabel(t: (k: string) => string): Record<string, string> {
-  return {
-    annuel: t("leaves.typeAnnuel"),
-    maladie: t("leaves.typeMaladie"),
-    maternite: t("leaves.typeMaternite"),
-    sans_solde: t("leaves.typeSansSolde"),
-  };
+type Filter = "all" | "mine" | "pending";
+
+const fmt = (date: string) => format(new Date(date), "dd/MM/yyyy");
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const statusKey = (s: LeaveStatus) => `leaves.status${s[0].toUpperCase()}${s.slice(1)}`;
+
+/** Refreshes the leave screens and the employee records (their balance). */
+function useRefresh(organizationId: string) {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: leavesKey(organizationId) }),
+      queryClient.invalidateQueries({ queryKey: hrKey(organizationId) }),
+    ]);
 }
-function useStatusLabel(t: (k: string) => string): Record<string, string> {
-  return {
-    pending: t("leaves.statusPending"),
-    approved: t("leaves.statusApproved"),
-    rejected: t("leaves.statusRejected"),
-    cancelled: t("leaves.statusCancelled"),
-  };
-}
-const STATUS_VARIANT: Record<
-  string,
-  "default" | "secondary" | "outline" | "destructive" | "success"
-> = {
-  pending: "secondary",
-  approved: "success",
-  rejected: "destructive",
-  cancelled: "outline",
-};
 
 function LeavesPage() {
   const { t, i18n } = useTranslation();
-  const TYPE_LABEL = useTypeLabel(t);
-  const STATUS_LABEL = useStatusLabel(t);
   const { org } = useOrg();
-  const { myEmployee, isSuperAdmin } = useMyEmployee();
-  const qc = useQueryClient();
-  const [filter, setFilter] = useState<"all" | "mine" | "pending">("all");
+  const { roles, isAdmin } = useRole();
+  const { myEmployee } = useMyEmployee();
+  const organizationId = org?.id ?? "";
+  const refresh = useRefresh(organizationId);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
+  const [toApprove, setToApprove] = useState<LeaveRow | null>(null);
+  const [toReject, setToReject] = useState<LeaveRow | null>(null);
+  const [toCancel, setToCancel] = useState<LeaveRow | null>(null);
+  const [detail, setDetail] = useState<LeaveRow | null>(null);
 
-  const listFn = listLeaveRequests;
-  const decideFn = decideLeaveRequest;
-  const cancelFn = cancelLeaveRequest;
-  const balanceFn = getEmployeeLeaveBalance;
+  // Owner, hr_admin and managers decide; the API limits managers to their team.
+  const decider = isAdmin || roles.includes("manager");
+  const myId = myEmployee?.id;
 
-  const { data: rows = [] } = useQuery({
-    queryKey: ["leave-requests", org?.id, filter, myEmployee?.id],
-    queryFn: () => listFn({
-      data: {
-        organizationId: org!.id,
-        ...(filter === "pending" ? { status: "pending" as const } : {}),
-        ...(filter === "mine" && myEmployee?.id ? { employeeId: myEmployee.id } : {}),
-      },
+  const leaves = useQuery({
+    ...leavesQuery(organizationId, {
+      page,
+      status: filter === "pending" ? "pending" : undefined,
+      employeeId: filter === "mine" ? myId : undefined,
     }),
-    enabled: !!org,
+    enabled: !!org && (filter !== "mine" || !!myId),
   });
+  const lastPage = leaves.data?.meta.lastPage ?? 1;
+  useClampedPage(lastPage, page, setPage);
 
-  const { data: myBalanceData } = useQuery({
-    queryKey: ["leave-balance", myEmployee?.id],
-    queryFn: () => balanceFn({ data: { employeeId: myEmployee!.id } }),
-    enabled: !!myEmployee?.id,
+  // Names come from the employees the reader may see (team for a manager, self otherwise).
+  const employees = useQuery({ ...allEmployeesQuery(organizationId), enabled: !!org });
+  const rows = useMemo<LeaveRow[]>(() => {
+    const byId = new Map((employees.data ?? []).map((e) => [e.id, e]));
+    return (leaves.data?.data ?? []).map((leave) => {
+      const employee = byId.get(leave.employeeId);
+      return {
+        ...leave,
+        employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "",
+        jobTitle: employee?.jobTitle ?? null,
+      };
+    });
+  }, [leaves.data, employees.data]);
+
+  const balances = useQuery({
+    ...leaveBalancesQuery(organizationId, myId ?? ""),
+    enabled: !!org && !!myId,
   });
-  const myBalance = myBalanceData?.balance ?? null;
-  const pendingDays = useMemo(
-    () =>
-      (rows as any[])
-        .filter((r) => r.status === "pending" && r.employee_id === myEmployee?.id && r.type === "annuel")
-        .reduce((sum, r) => sum + Number(r.requested_days ?? 0), 0),
-    [rows, myEmployee?.id],
-  );
-  const animatedBalance = useCountUp(myBalance);
-  const animatedPending = useCountUp(pendingDays);
+  const annual = balances.data?.find((b) => b.leaveType === "annual");
+  const animatedBalance = useCountUp(annual?.balance ?? null);
+  const animatedPending = useCountUp(annual?.pendingDays ?? 0);
 
-  const canManage = isSuperAdmin;
+  const canDecide = (r: LeaveRow) => decider && r.status === "pending" && r.employeeId !== myId;
+  const canCancel = (r: LeaveRow) =>
+    (r.status === "pending" && (r.employeeId === myId || decider)) ||
+    (r.status === "approved" && isAdmin && r.startDate > todayIso());
+  const canAttach = (r: LeaveRow) => isAdmin || (r.employeeId === myId && r.status === "pending");
 
-  const [toApprove, setToApprove] = useState<any | null>(null);
-  const [toReject, setToReject] = useState<any | null>(null);
-  const [toCancel, setToCancel] = useState<any | null>(null);
-  const [detail, setDetail] = useState<any | null>(null);
-
-  const decide = async (id: string, decision: "approved" | "rejected", comment?: string) => {
-    try {
-      await decideFn({ data: { id, decision, comment: comment?.trim() || null } });
-      toast.success(decision === "approved" ? t("leaves.approved") : t("leaves.rejected"));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["leave-requests"] }),
-        qc.invalidateQueries({ queryKey: ["leave-balance"] }),
-      ]);
-    } catch (e: any) {
-      toast.error(e?.message ?? t("leaves.genericError"));
-    }
-  };
-
-
-  const cancel = async (id: string) => {
-    try {
-      await cancelFn({ data: { id } });
-      toast.success(t("leaves.cancelled"));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["leave-requests"] }),
-        qc.invalidateQueries({ queryKey: ["leave-balance"] }),
-      ]);
-    } catch (e: any) {
-      toast.error(e?.message ?? t("leaves.genericError"));
-    }
-  };
+  const decision = (success: string) => ({
+    onSuccess: () => {
+      toast.success(success);
+      void refresh();
+    },
+    onError: (error: unknown) =>
+      toast.error(t("leaves.genericError"), { description: apiErrorMessage(error) }),
+  });
+  const approve = useMutation({
+    mutationFn: (id: string) => approveLeave(id),
+    ...decision(t("leaves.approved")),
+  });
+  const reject = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => rejectLeave(id, comment),
+    ...decision(t("leaves.rejected")),
+  });
+  const cancel = useMutation({
+    mutationFn: (id: string) => cancelLeave(id),
+    ...decision(t("leaves.cancelled")),
+  });
 
   return (
     <div className="space-y-4">
@@ -144,29 +165,34 @@ function LeavesPage() {
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm"><Plus className="mr-1 h-4 w-4" /> {t("leaves.newRequest")}</Button>
+              <Button size="sm">
+                <Plus className="mr-1 h-4 w-4" /> {t("leaves.newRequest")}
+              </Button>
             </DialogTrigger>
-            <NewLeaveDialog onClose={() => setOpen(false)} />
+            {open && <NewLeaveDialog onClose={() => setOpen(false)} />}
           </Dialog>
         }
       />
 
-      {myEmployee?.id && (
+      {myId && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-x-10 gap-y-3 py-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t("leaves.myBalance")}
               </p>
-              <p className="mt-0.5 text-2xl font-semibold tabular-nums">
-                {myBalance === null ? (
-                  "…"
-                ) : (
-                  <span>{t("leaves.daysUnit", { count: formatDayCount(animatedBalance, i18n.language) })}</span>
-                )}
+              <p className="mt-0.5 text-2xl font-semibold tabular-nums" data-testid="my-balance">
+                {/* A balance is opened by the API on the first request of the year. */}
+                {balances.isPending
+                  ? "…"
+                  : annual === undefined
+                    ? "—"
+                    : t("leaves.daysUnit", {
+                        count: formatDayCount(animatedBalance, i18n.language),
+                      })}
               </p>
             </div>
-            {pendingDays > 0 && (
+            {(annual?.pendingDays ?? 0) > 0 && (
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t("leaves.pendingDays")}
@@ -185,45 +211,52 @@ function LeavesPage() {
           <CardTitle className="text-base font-medium">{t("leaves.requestsTitle")}</CardTitle>
           <Tabs
             value={filter}
-            onValueChange={(v) => setFilter(v as any)}
+            onValueChange={(v) => {
+              setFilter(v as Filter);
+              setPage(1);
+            }}
             className="w-full min-w-0 sm:w-auto"
           >
             <TabsList className="w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
-              <TabsTrigger value="all" className="shrink-0">{t("leaves.tabAll")}</TabsTrigger>
-              <TabsTrigger value="pending" className="shrink-0">{t("leaves.tabPending")}</TabsTrigger>
-              <TabsTrigger value="mine" className="shrink-0">{t("leaves.tabMine")}</TabsTrigger>
+              <TabsTrigger value="all" className="shrink-0">
+                {t("leaves.tabAll")}
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="shrink-0">
+                {t("leaves.tabPending")}
+              </TabsTrigger>
+              {myId && (
+                <TabsTrigger value="mine" className="shrink-0">
+                  {t("leaves.tabMine")}
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent className="px-0 sm:px-6">
           <ResponsiveTable
-            data={rows as any[]}
-            getRowKey={(r: any) => r.id}
-            onRowClick={(r: any) => setDetail(r)}
+            data={rows}
+            getRowKey={(r) => r.id}
+            onRowClick={(r) => setDetail(r)}
             empty={t("leaves.empty")}
             columns={[
               {
                 key: "employee",
                 header: t("leaves.colEmployee"),
                 priority: "primary",
-                cell: (r: any) => {
-                  const emp = r.employees;
-                  return emp ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() : "—";
-                },
+                cell: (r) => r.employeeName || "—",
               },
               {
                 key: "type",
                 header: t("leaves.colType"),
-                cell: (r: any) => TYPE_LABEL[r.type] ?? r.type,
+                cell: (r) => t(`leaves.types.${r.type}`),
               },
               {
                 key: "period",
                 header: t("leaves.colPeriod"),
                 className: "whitespace-nowrap",
-                cell: (r: any) => (
+                cell: (r) => (
                   <span className="whitespace-nowrap">
-                    {format(new Date(r.start_date), "dd/MM/yyyy")} →{" "}
-                    {format(new Date(r.end_date), "dd/MM/yyyy")}
+                    {fmt(r.startDate)} → {fmt(r.endDate)}
                   </span>
                 ),
               },
@@ -232,13 +265,13 @@ function LeavesPage() {
                 header: t("leaves.colDays"),
                 align: "right",
                 className: "text-right tabular-nums",
-                cell: (r: any) => r.requested_days,
+                cell: (r) => formatDayCount(r.requestedDays, i18n.language),
               },
               {
                 key: "status",
                 header: t("leaves.colStatus"),
-                cell: (r: any) => (
-                  <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                cell: (r) => (
+                  <Badge variant={LEAVE_STATUS_VARIANT[r.status]}>{t(statusKey(r.status))}</Badge>
                 ),
               },
               {
@@ -246,29 +279,52 @@ function LeavesPage() {
                 header: "",
                 priority: "actions",
                 align: "right",
-                cell: (r: any) => {
-                  const isMine = r.employee_id === myEmployee?.id;
+                cell: (r) => {
                   const stop = (fn: () => void) => (e: React.MouseEvent) => {
                     e.stopPropagation();
                     fn();
                   };
                   return (
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={stop(() => setDetail(r))} title={t("leaves.details")}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={stop(() => setDetail(r))}
+                        title={t("leaves.details")}
+                        aria-label={t("leaves.details")}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canManage && r.status === "pending" && (
+                      {canDecide(r) && (
                         <>
-                          <Button size="icon" variant="ghost" onClick={stop(() => setToApprove(r))} title={t("leaves.approve")}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={stop(() => setToApprove(r))}
+                            title={t("leaves.approve")}
+                            aria-label={t("leaves.approve")}
+                          >
                             <Check className="h-4 w-4 text-primary" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={stop(() => setToReject(r))} title={t("leaves.reject")}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={stop(() => setToReject(r))}
+                            title={t("leaves.reject")}
+                            aria-label={t("leaves.reject")}
+                          >
                             <X className="h-4 w-4 text-destructive" />
                           </Button>
                         </>
                       )}
-                      {isMine && r.status === "pending" && (
-                        <Button size="icon" variant="ghost" onClick={stop(() => setToCancel(r))} title={t("leaves.cancel")}>
+                      {canCancel(r) && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={stop(() => setToCancel(r))}
+                          title={t("leaves.cancel")}
+                          aria-label={t("leaves.cancel")}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
@@ -278,13 +334,16 @@ function LeavesPage() {
               },
             ]}
           />
+          <ListPager page={page} lastPage={lastPage} onChange={setPage} />
         </CardContent>
       </Card>
 
       <LeaveDetailSheet
+        organizationId={organizationId}
         request={detail}
-        canManage={canManage}
-        isMine={detail?.employee_id === myEmployee?.id}
+        canDecide={!!detail && canDecide(detail)}
+        canCancel={!!detail && canCancel(detail)}
+        canAttach={!!detail && canAttach(detail)}
         onClose={() => setDetail(null)}
         onApprove={(r) => {
           setDetail(null);
@@ -300,14 +359,13 @@ function LeavesPage() {
         }}
       />
 
-
       <ApproveLeaveDialog
+        organizationId={organizationId}
         request={toApprove}
         onClose={() => setToApprove(null)}
         onConfirm={async () => {
-          const id = toApprove?.id;
+          if (toApprove) await approve.mutateAsync(toApprove.id).catch(() => undefined);
           setToApprove(null);
-          if (id) await decide(id, "approved");
         }}
       />
 
@@ -315,9 +373,10 @@ function LeavesPage() {
         request={toReject}
         onClose={() => setToReject(null)}
         onConfirm={async (comment) => {
-          const id = toReject?.id;
+          if (toReject) {
+            await reject.mutateAsync({ id: toReject.id, comment }).catch(() => undefined);
+          }
           setToReject(null);
-          if (id) await decide(id, "rejected", comment);
         }}
       />
 
@@ -325,12 +384,63 @@ function LeavesPage() {
         request={toCancel}
         onClose={() => setToCancel(null)}
         onConfirm={async () => {
-          const id = toCancel?.id;
+          if (toCancel) await cancel.mutateAsync(toCancel.id).catch(() => undefined);
           setToCancel(null);
-          if (id) await cancel(id);
         }}
       />
     </div>
+  );
+}
+
+function RequestSummary({ request }: { request: LeaveRow }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1 text-sm">
+        <p className="font-medium">{request.employeeName || t("leaves.employeeFallback")}</p>
+        <p className="text-muted-foreground">
+          {t(`leaves.types.${request.type}`)} — {fmt(request.startDate)} → {fmt(request.endDate)}
+        </p>
+      </div>
+      <div className="divide-y divide-border rounded-lg border border-border">
+        <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+          <span className="text-muted-foreground">{t("leaves.requestedDays")}</span>
+          <span className="font-medium tabular-nums">
+            {t("leaves.daysUnit", { count: request.requestedDays })}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmButton({
+  onConfirm,
+  disabled,
+  variant,
+  children,
+}: {
+  onConfirm: () => Promise<void>;
+  disabled?: boolean;
+  variant?: "default" | "destructive";
+  children: React.ReactNode;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  return (
+    <Button
+      variant={variant}
+      disabled={submitting || disabled}
+      onClick={async () => {
+        setSubmitting(true);
+        try {
+          await onConfirm();
+        } finally {
+          setSubmitting(false);
+        }
+      }}
+    >
+      {children}
+    </Button>
   );
 }
 
@@ -339,18 +449,11 @@ function CancelLeaveDialog({
   onClose,
   onConfirm,
 }: {
-  request: any | null;
+  request: LeaveRow | null;
   onClose: () => void;
-  onConfirm: () => void | Promise<void>;
+  onConfirm: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const TYPE_LABEL = useTypeLabel(t);
-  const [submitting, setSubmitting] = useState(false);
-  const emp = request?.employees;
-  const empName = emp
-    ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || t("leaves.employeeFallback")
-    : t("leaves.employeeFallback");
-
   return (
     <Dialog open={!!request} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
@@ -360,47 +463,19 @@ function CancelLeaveDialog({
         <DialogBody>
           {request && (
             <div className="space-y-4">
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">{empName}</p>
-                <p className="text-muted-foreground">
-                  {TYPE_LABEL[request.type] ?? request.type} —{" "}
-                  {format(new Date(request.start_date), "dd/MM/yyyy")} →{" "}
-                  {format(new Date(request.end_date), "dd/MM/yyyy")}
-                </p>
-              </div>
-
-              <div className="divide-y divide-border rounded-lg border border-border">
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.requestedDays")}</span>
-                  <span className="font-medium tabular-nums">
-                    {t("leaves.daysUnit", { count: Number(request.requested_days ?? 0) })}
-                  </span>
-                </div>
-              </div>
-
+              <RequestSummary request={request} />
               <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {t("leaves.cancelWarning")}
               </p>
             </div>
           )}
           <DialogActions>
-            <Button variant="outline" onClick={onClose} disabled={submitting}>
+            <Button variant="outline" onClick={onClose}>
               {t("leaves.back")}
             </Button>
-            <Button
-              variant="destructive"
-              disabled={submitting}
-              onClick={async () => {
-                setSubmitting(true);
-                try {
-                  await onConfirm();
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-            >
+            <ConfirmButton variant="destructive" onConfirm={onConfirm}>
               {t("leaves.confirmCancel")}
-            </Button>
+            </ConfirmButton>
           </DialogActions>
         </DialogBody>
       </DialogContent>
@@ -413,19 +488,18 @@ function RejectLeaveDialog({
   onClose,
   onConfirm,
 }: {
-  request: any | null;
+  request: LeaveRow | null;
   onClose: () => void;
-  onConfirm: (comment: string) => void | Promise<void>;
+  onConfirm: (comment: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const TYPE_LABEL = useTypeLabel(t);
-  const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState("");
-  const emp = request?.employees;
 
   useEffect(() => {
     if (request) setComment("");
   }, [request]);
+
+  const valid = comment.trim().length >= 5;
 
   return (
     <Dialog open={!!request} onOpenChange={(o) => !o && onClose()}>
@@ -436,63 +510,39 @@ function RejectLeaveDialog({
         <DialogBody>
           {request && (
             <div className="space-y-4">
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">
-                  {emp ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() : t("leaves.employeeFallback")}
-                </p>
-                <p className="text-muted-foreground">
-                  {TYPE_LABEL[request.type] ?? request.type} —{" "}
-                  {format(new Date(request.start_date), "dd/MM/yyyy")} →{" "}
-                  {format(new Date(request.end_date), "dd/MM/yyyy")}
-                </p>
-              </div>
-
-              <div className="divide-y divide-border rounded-lg border border-border">
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.requestedDays")}</span>
-                  <span className="font-medium tabular-nums">
-                    {t("leaves.daysUnit", { count: Number(request.requested_days ?? 0) })}
-                  </span>
-                </div>
-              </div>
-
+              <RequestSummary request={request} />
               <div className="space-y-2">
                 <Label htmlFor="reject-comment">{t("leaves.rejectReasonLabel")}</Label>
                 <Textarea
                   id="reject-comment"
                   rows={3}
-                  maxLength={500}
+                  maxLength={1000}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={t("leaves.rejectReasonPlaceholder")}
                 />
+                {comment.length > 0 && !valid && (
+                  <p className="text-xs text-destructive">{t("leaves.rejectReasonMin")}</p>
+                )}
               </div>
-
               <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {t("leaves.rejectWarning", { name: emp
-                  ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || t("leaves.theEmployee")
-                  : t("leaves.theEmployee") })}
+                {t("leaves.rejectWarning", {
+                  name: request.employeeName || t("leaves.theEmployee"),
+                })}
               </p>
             </div>
           )}
           <DialogActions>
-            <Button variant="outline" onClick={onClose} disabled={submitting}>
+            <Button variant="outline" onClick={onClose}>
               {t("leaves.cancel")}
             </Button>
-            <Button
+            <ConfirmButton
               variant="destructive"
-              disabled={submitting}
-              onClick={async () => {
-                setSubmitting(true);
-                try {
-                  await onConfirm(comment);
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
+              disabled={!valid}
+              onConfirm={() => onConfirm(comment.trim())}
             >
               {t("leaves.confirmReject")}
-            </Button>
+            </ConfirmButton>
           </DialogActions>
         </DialogBody>
       </DialogContent>
@@ -500,33 +550,25 @@ function RejectLeaveDialog({
   );
 }
 
-
 function ApproveLeaveDialog({
+  organizationId,
   request,
   onClose,
   onConfirm,
 }: {
-  request: any | null;
+  organizationId: string;
+  request: LeaveRow | null;
   onClose: () => void;
-  onConfirm: () => void | Promise<void>;
+  onConfirm: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const TYPE_LABEL = useTypeLabel(t);
-  const balanceFn = getEmployeeLeaveBalance;
-  const [submitting, setSubmitting] = useState(false);
-
-  const { data: balanceData, isLoading } = useQuery({
-    queryKey: ["leave-balance", request?.employee_id],
-    queryFn: () => balanceFn({ data: { employeeId: request!.employee_id } }),
-    enabled: !!request?.employee_id,
+  const detail = useQuery({
+    ...leaveQuery(organizationId, request?.id ?? ""),
+    enabled: !!request,
   });
-
-  const balance = balanceData?.balance ?? null;
-  const days = Number(request?.requested_days ?? 0);
-  const isAnnual = request?.type === "annuel";
-  const remaining = balance === null ? null : isAnnual ? balance - days : balance;
-  const negative = remaining !== null && remaining < 0;
-  const emp = request?.employees;
+  const withBalance = !!request && BALANCE_TYPES.includes(request.type);
+  const after = detail.data?.balanceAfter ?? null;
+  const days = request?.requestedDays ?? 0;
 
   return (
     <Dialog open={!!request} onOpenChange={(o) => !o && onClose()}>
@@ -537,68 +579,34 @@ function ApproveLeaveDialog({
         <DialogBody>
           {request && (
             <div className="space-y-4">
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">
-                  {emp ? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() : t("leaves.employeeFallback")}
-                </p>
-                <p className="text-muted-foreground">
-                  {TYPE_LABEL[request.type] ?? request.type} —{" "}
-                  {format(new Date(request.start_date), "dd/MM/yyyy")} →{" "}
-                  {format(new Date(request.end_date), "dd/MM/yyyy")}
-                </p>
-              </div>
-
-              <div className="divide-y divide-border rounded-lg border border-border">
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.acquiredBalance")}</span>
-                  <span className="font-medium tabular-nums">
-                    {isLoading || balance === null ? "…" : `${balance} j`}
-                  </span>
+              <RequestSummary request={request} />
+              {withBalance ? (
+                <div className="divide-y divide-border rounded-lg border border-border">
+                  <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <span className="text-muted-foreground">{t("leaves.balanceBefore")}</span>
+                    <span className="font-medium tabular-nums">
+                      {after === null ? "…" : t("leaves.daysUnit", { count: after + days })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <span className="text-muted-foreground">{t("leaves.remainingBalance")}</span>
+                    <span
+                      className={`font-semibold tabular-nums ${after !== null && after < 0 ? "text-destructive" : "text-foreground"}`}
+                    >
+                      {after === null ? "…" : t("leaves.daysUnit", { count: after })}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.requestedDays")}</span>
-                  <span className="font-medium tabular-nums">{days} j</span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.remainingBalance")}</span>
-                  <span
-                    className={`font-semibold tabular-nums ${negative ? "text-destructive" : "text-foreground"}`}
-                  >
-                    {isLoading || remaining === null ? "…" : `${remaining} j`}
-                  </span>
-                </div>
-              </div>
-
-              {!isAnnual && (
-                <p className="text-xs text-muted-foreground">
-                  Ce type de congé ne débite pas le solde annuel.
-                </p>
-              )}
-              {negative && (
-                <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  Le solde deviendra négatif. Le déficit sera récupéré au fur et à mesure sur les
-                  acquisitions mensuelles à venir.
-                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t("leaves.nonAnnualHint")}</p>
               )}
             </div>
           )}
           <DialogActions>
-            <Button variant="outline" onClick={onClose} disabled={submitting}>
-              Annuler
+            <Button variant="outline" onClick={onClose}>
+              {t("common.cancel")}
             </Button>
-            <Button
-              disabled={submitting}
-              onClick={async () => {
-                setSubmitting(true);
-                try {
-                  await onConfirm();
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-            >
-              {t("leaves.confirmApprove")}
-            </Button>
+            <ConfirmButton onConfirm={onConfirm}>{t("leaves.confirmApprove")}</ConfirmButton>
           </DialogActions>
         </DialogBody>
       </DialogContent>
@@ -606,102 +614,93 @@ function ApproveLeaveDialog({
   );
 }
 
-
 function NewLeaveDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
-  const TYPE_LABEL = useTypeLabel(t);
+  const { t, i18n } = useTranslation();
   const { org } = useOrg();
-  const { myEmployee, ensureMyEmployee } = useMyEmployee();
-  const qc = useQueryClient();
-  const createFn = createLeaveRequest;
-  const computeFn = computeWorkingDays;
-  const holidaysFn = listHolidays;
-  const balanceFn = getEmployeeLeaveBalance;
+  const { isAdmin } = useRole();
+  const { myEmployee } = useMyEmployee();
+  const organizationId = org?.id ?? "";
+  const refresh = useRefresh(organizationId);
+  const idempotencyKey = useRef(newIdempotencyKey());
 
-  const [type, setType] = useState<"annuel" | "maladie" | "maternite" | "sans_solde">("annuel");
+  const [employeeId, setEmployeeId] = useState(myEmployee?.id ?? "");
+  const [type, setType] = useState<LeaveType>("annual");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [halfDayStart, setHalfDayStart] = useState(false);
+  const [halfDayEnd, setHalfDayEnd] = useState(false);
   const [reason, setReason] = useState("");
-  const [days, setDays] = useState<number | null>(null);
-  const [computing, setComputing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  const canCompute = useMemo(() => !!(org && start && end && end >= start), [org, start, end]);
+  const validRange = !!start && !!end && end >= start;
+  const year = Number((start || todayIso()).slice(0, 4));
 
-  const { data: holidays = [] } = useQuery({
-    queryKey: ["holidays", org?.id],
-    queryFn: () => holidaysFn({ data: { organizationId: org!.id } }),
-    enabled: !!org,
+  // Owner and hr_admin may file a request for any employee.
+  const employees = useQuery({ ...allEmployeesQuery(organizationId), enabled: !!org && isAdmin });
+  const holidays = useQuery({ ...holidaysQuery(organizationId, year), enabled: !!org });
+  const balances = useQuery({
+    ...leaveBalancesQuery(organizationId, employeeId),
+    enabled: !!org && !!employeeId,
   });
 
-  const { data: balanceData } = useQuery({
-    queryKey: ["leave-balance", myEmployee?.id],
-    queryFn: () => balanceFn({ data: { employeeId: myEmployee!.id } }),
-    enabled: !!myEmployee?.id,
-  });
-  const balance = balanceData?.balance ?? null;
+  const holidayDates = useMemo(
+    () => new Set((holidays.data ?? []).map((h) => h.date)),
+    [holidays.data],
+  );
+  const includedHolidays = useMemo(
+    () =>
+      validRange
+        ? (holidays.data ?? [])
+            .filter((h) => h.date >= start && h.date <= end)
+            .sort((a, b) => a.date.localeCompare(b.date))
+        : [],
+    [holidays.data, start, end, validRange],
+  );
+  const estimate = validRange
+    ? estimateLeaveDays(start, end, holidayDates, halfDayStart, halfDayEnd)
+    : null;
+  const withBalance = BALANCE_TYPES.includes(type);
+  const balance = balances.data?.find((b) => b.leaveType === type)?.balance ?? null;
 
-  const includedHolidays = useMemo(() => {
-    if (!start || !end) return [];
-    return (holidays as any[])
-      .filter((h) => h.date >= start && h.date <= end)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [holidays, start, end]);
-
-  useEffect(() => {
-    if (!canCompute || !org) {
-      setDays(null);
-      return;
-    }
-    let cancelled = false;
-    setComputing(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await computeFn({
-          data: { organizationId: org.id, startDate: start, endDate: end },
-        });
-        if (!cancelled) setDays(res.days);
-      } catch {
-        if (!cancelled) setDays(null);
-      } finally {
-        if (!cancelled) setComputing(false);
+  const returnDate = useMemo(() => {
+    if (!validRange) return null;
+    const next = new Date(`${end}T00:00:00Z`);
+    for (let i = 0; i < 30; i++) {
+      next.setUTCDate(next.getUTCDate() + 1);
+      const dow = next.getUTCDay();
+      if (dow !== 0 && dow !== 6 && !holidayDates.has(next.toISOString().slice(0, 10))) {
+        return next.toISOString().slice(0, 10);
       }
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      setComputing(false);
-    };
-  }, [canCompute, org, start, end, computeFn]);
+    }
+    return null;
+  }, [end, validRange, holidayDates]);
 
-  const submit = async () => {
-    if (!org) return;
-    setSubmitting(true);
-    try {
-      const employeeId = myEmployee?.id ?? (await ensureMyEmployee());
-      if (!employeeId) return;
-      await createFn({
-        data: {
-          organizationId: org.id,
-          employeeId,
+  const create = useMutation({
+    mutationFn: () =>
+      createLeave(
+        {
+          employeeId: isAdmin && employeeId !== myEmployee?.id ? employeeId : undefined,
           type,
           startDate: start,
           endDate: end,
-          reason: reason || null,
+          halfDayStart,
+          halfDayEnd,
+          reason: reason.trim() || undefined,
         },
-      });
+        idempotencyKey.current,
+      ),
+    onSuccess: () => {
       toast.success(t("leaves.requestSent"));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["leave-requests"] }),
-        qc.invalidateQueries({ queryKey: ["leave-balance"] }),
-      ]);
+      void refresh();
       onClose();
-    } catch (e: any) {
-      toast.error(e?.message ?? t("leaves.genericError"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+    onError: (error) => {
+      // A refused request may be corrected and sent again: it needs a new key.
+      idempotencyKey.current = newIdempotencyKey();
+      toast.error(t("leaves.genericError"), { description: apiErrorMessage(error) });
+    },
+  });
+
+  const days = (n: number) => t("leaves.daysUnit", { count: formatDayCount(n, i18n.language) });
 
   return (
     <DialogContent className="sm:max-w-lg">
@@ -709,135 +708,168 @@ function NewLeaveDialog({ onClose }: { onClose: () => void }) {
         <DialogTitle>{t("leaves.newLeaveTitle")}</DialogTitle>
       </DialogHeader>
       <DialogBody>
-      <div className="grid gap-4">
-        <div className="grid gap-1.5">
-          <Label>{t("leaves.type")}</Label>
-          <Select value={type} onValueChange={(v) => setType(v as any)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(TYPE_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
+          {isAdmin && (
+            <div className="grid gap-1.5">
+              <Label>{t("leaves.forEmployee")}</Label>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger className="w-full" aria-label={t("leaves.forEmployee")}>
+                  <SelectValue placeholder={t("leaves.chooseEmployee")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(employees.data ?? [])
+                    .filter((e) => e.status !== "terminated")
+                    .map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.firstName} {e.lastName}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {!myEmployee && (
+                <p className="text-xs text-muted-foreground">{t("leaves.noEmployeeRecord")}</p>
+              )}
+            </div>
+          )}
           <div className="grid gap-1.5">
-            <Label>{t("leaves.startDate")}</Label>
-            <Input type="date" className="w-full" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Label>{t("leaves.type")}</Label>
+            <Select value={type} onValueChange={(v) => setType(v as LeaveType)}>
+              <SelectTrigger className="w-full" aria-label={t("leaves.type")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAVE_TYPES.map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {t(`leaves.types.${k}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid gap-1.5">
-            <Label>{t("leaves.endDate")}</Label>
-            <Input type="date" className="w-full" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="leave-start">{t("leaves.startDate")}</Label>
+              <Input
+                id="leave-start"
+                type="date"
+                className="w-full"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={halfDayStart}
+                  onCheckedChange={(v) => setHalfDayStart(v === true)}
+                />
+                {t("leaves.halfDayStart")}
+              </label>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="leave-end">{t("leaves.endDate")}</Label>
+              <Input
+                id="leave-end"
+                type="date"
+                className="w-full"
+                value={end}
+                min={start || undefined}
+                onChange={(e) => setEnd(e.target.value)}
+              />
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox checked={halfDayEnd} onCheckedChange={(v) => setHalfDayEnd(v === true)} />
+                {t("leaves.halfDayEnd")}
+              </label>
+            </div>
           </div>
-        </div>
-        {(() => {
-          const parse = (s: string) => {
-            const [y, m, d] = s.split("-").map(Number);
-            return new Date(y, (m ?? 1) - 1, d ?? 1);
-          };
-          const holidaySet = new Set((holidays as any[]).map((h) => h.date as string));
-          const toIso = (d: Date) =>
-            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          let weekdays = 0;
-          if (canCompute) {
-            const s = parse(start);
-            const e = parse(end);
-            for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-              const dow = d.getDay();
-              if (dow !== 0 && dow !== 6) weekdays += 1;
-            }
-          }
-          const holidaysCount = includedHolidays.length;
-          let returnDate: Date | null = null;
-          if (canCompute) {
-            const next = parse(end);
-            next.setDate(next.getDate() + 1);
-            for (let i = 0; i < 30; i++) {
-              const dow = next.getDay();
-              if (dow !== 0 && dow !== 6 && !holidaySet.has(toIso(next))) {
-                returnDate = new Date(next);
-                break;
-              }
-              next.setDate(next.getDate() + 1);
-            }
-          }
-          return (
-            <>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t("leaves.workingDaysLabel")}</span>
-                  <span className="font-medium tabular-nums">
-                    {!canCompute ? "—" : computing ? t("leaves.computing") : (days ?? "—")}
+
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">{t("leaves.workingDaysLabel")}</span>
+              <span className="font-medium tabular-nums">
+                {estimate === null ? "—" : days(estimate)}
+              </span>
+            </div>
+            {estimate !== null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("leaves.estimatedDays", { count: estimate })}
+              </p>
+            )}
+          </div>
+
+          {withBalance && employeeId && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t("leaves.leaveBalance")}</span>
+                <span className="font-medium tabular-nums">
+                  {balance === null ? "—" : days(balance)}
+                </span>
+              </div>
+              {estimate !== null && balance !== null && (
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{t("leaves.remainingAfterRequest")}</span>
+                  <span
+                    className={`font-medium tabular-nums ${balance - estimate < 0 ? "text-destructive" : ""}`}
+                  >
+                    {balance - estimate < 0
+                      ? t("leaves.overBalance", {
+                          count: formatDayCount(estimate - balance, i18n.language),
+                        })
+                      : days(balance - estimate)}
                   </span>
                 </div>
-                {canCompute && days !== null && !computing && (
-                  <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                    {weekdays} jour{weekdays > 1 ? "s" : ""} ouvré{weekdays > 1 ? "s" : ""}
-                    {holidaysCount > 0 ? ` − ${holidaysCount} férié${holidaysCount > 1 ? "s" : ""}` : ""}
-                    {" = "}{days} jour{days > 1 ? "s" : ""}
+              )}
+            </div>
+          )}
+
+          {validRange && (
+            <>
+              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <span className="text-muted-foreground">{t("leaves.effectiveReturn")}</span>
+                <span className="font-medium tabular-nums">
+                  {returnDate ? fmt(returnDate) : "—"}
+                </span>
+              </div>
+              <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                <div className="mb-1 text-muted-foreground">{t("leaves.holidays")}</div>
+                {includedHolidays.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    {t("leaves.noHolidaysInPeriod")}
                   </div>
+                ) : (
+                  <ul className="space-y-1">
+                    {includedHolidays.map((h) => (
+                      <li key={h.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium tabular-nums">{fmt(h.date)}</span>
+                        <span className="truncate text-muted-foreground">{h.name}</span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t("leaves.leaveBalance")}</span>
-                  <span className="font-medium tabular-nums">
-                    {balance === null ? "—" : `${balance} jour${balance > 1 ? "s" : ""}`}
-                  </span>
-                </div>
-                {type === "annuel" && canCompute && days !== null && !computing && balance !== null && (() => {
-                  const remaining = balance - days;
-                  const over = remaining < 0;
-                  return (
-                    <div className="mt-1 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{t("leaves.remainingAfterRequest")}</span>
-                      <span className={`font-medium tabular-nums ${over ? "text-destructive" : ""}`}>
-                        {over
-                          ? `Dépassement de ${Math.abs(remaining)} jour${Math.abs(remaining) > 1 ? "s" : ""}`
-                          : `${remaining} jour${remaining > 1 ? "s" : ""}`}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-              {canCompute && (
-                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">{t("leaves.effectiveReturn")}</span>
-                  <span className="font-medium tabular-nums">
-                    {returnDate ? format(returnDate, "dd/MM/yyyy") : "—"}
-                  </span>
-                </div>
-              )}
-              {canCompute && (
-                <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
-                  <div className="mb-1 text-muted-foreground">{t("leaves.holidays")}</div>
-                  {includedHolidays.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">{t("leaves.noHolidaysInPeriod")}</div>
-                  ) : (
-                    <ul className="space-y-1">
-                      {includedHolidays.map((h) => (
-                        <li key={h.id} className="flex items-center justify-between gap-2 text-xs">
-                          <span className="font-medium tabular-nums">{format(new Date(h.date), "dd/MM/yyyy")}</span>
-                          <span className="text-muted-foreground truncate">{h.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
             </>
-          );
-        })()}
-        <div className="grid gap-1.5">
-          <Label>{t("leaves.reason")}</Label>
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
+          )}
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="leave-reason">{t("leaves.reason")}</Label>
+            <Textarea
+              id="leave-reason"
+              value={reason}
+              maxLength={1000}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+            />
+          </div>
         </div>
-      </div>
-      <DialogActions>
-        <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button onClick={submit} disabled={!canCompute || computing || submitting}>{t("leaves.send")}</Button>
-      </DialogActions>
+        <DialogActions>
+          <Button variant="outline" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            onClick={() => create.mutate()}
+            disabled={!validRange || !employeeId || create.isPending}
+          >
+            {t("leaves.send")}
+          </Button>
+        </DialogActions>
       </DialogBody>
     </DialogContent>
   );

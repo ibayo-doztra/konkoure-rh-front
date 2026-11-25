@@ -1,15 +1,30 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/lib/format";
-import { apiErrorMessage } from "@/lib/api/client";
+import { apiErrorMessage, newIdempotencyKey } from "@/lib/api/client";
 import {
   deleteOrganization,
   updateOrganization,
   uploadOrganizationLogo,
 } from "@/lib/api/organization";
-import { pendingQuery } from "@/lib/api/pending";
+import {
+  closeCycle,
+  createCycle,
+  createPlan,
+  cyclesQuery,
+  deletePlan,
+  openCycle,
+  openReviews,
+  performanceKey,
+  plansQuery,
+  updatePlan,
+  type CycleFrequency,
+  type PerformanceCycle,
+  type PerformancePlan,
+  type PlanStatus,
+} from "@/lib/api/performance";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
@@ -17,12 +32,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { Loader2, Upload, Trash2, Target, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Dialog, DialogActions, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useConfirm } from "@/hooks/useConfirm";
 
 export const Route = createFileRoute("/_authenticated/app/settings/")({
@@ -44,7 +73,7 @@ function SettingsPage() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
-  
+
   const [language, setLanguage] = useState("fr");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [perfModel, setPerfModel] = useState<"classic" | "sap">("classic");
@@ -55,7 +84,7 @@ function SettingsPage() {
   useEffect(() => {
     if (!org) return;
     setName(org.name ?? "");
-    
+
     setLanguage(org.default_language ?? "fr");
     setLogoUrl((org as any).logo_url ?? null);
     setPerfModel(((org as any).performance_model as "classic" | "sap") ?? "classic");
@@ -100,8 +129,14 @@ function SettingsPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !org) return;
-    if (!LOGO_TYPES.includes(file.type)) { toast.error(t("settings.selectImage")); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error(t("settings.imageTooLarge")); return; }
+    if (!LOGO_TYPES.includes(file.type)) {
+      toast.error(t("settings.selectImage"));
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error(t("settings.imageTooLarge"));
+      return;
+    }
     setUploading(true);
     try {
       const updated = await uploadOrganizationLogo(file);
@@ -127,15 +162,31 @@ function SettingsPage() {
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border bg-muted">
                 {logoUrl ? (
-                  <img src={logoUrl} alt={t("settings.logoAlt")} className="h-full w-full object-cover" />
+                  <img
+                    src={logoUrl}
+                    alt={t("settings.logoAlt")}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <span className="text-2xl font-semibold text-muted-foreground">{(name || "?")[0]?.toUpperCase()}</span>
+                  <span className="text-2xl font-semibold text-muted-foreground">
+                    {(name || "?")[0]?.toUpperCase()}
+                  </span>
                 )}
               </div>
               <div className="flex flex-col gap-2">
-                <input ref={fileInput} type="file" accept={LOGO_TYPES.join(",")} onChange={onUpload} className="hidden" />
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept={LOGO_TYPES.join(",")}
+                  onChange={onUpload}
+                  className="hidden"
+                />
                 <Button variant="outline" size="sm" onClick={onPickFile} disabled={uploading}>
-                  {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {uploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
                   {logoUrl ? t("settings.replaceLogo") : t("settings.uploadLogo")}
                 </Button>
               </div>
@@ -154,9 +205,15 @@ function SettingsPage() {
               <div className="space-y-2">
                 <Label>{t("settings.defaultLanguage")}</Label>
                 <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {LANGUAGES.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l.value} value={l.value}>
+                        {l.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -179,9 +236,7 @@ function SettingsPage() {
           <CardContent className="space-y-4 p-6">
             <div>
               <h3 className="font-semibold">{t("settings.performanceModelTitle")}</h3>
-              <p className="text-sm text-muted-foreground">
-                {t("settings.performanceModelDesc")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("settings.performanceModelDesc")}</p>
             </div>
             <RadioGroup
               value={perfModel}
@@ -191,7 +246,9 @@ function SettingsPage() {
               <label
                 htmlFor="set-pm-classic"
                 className={`flex cursor-pointer flex-col gap-2 rounded-lg border p-4 transition ${
-                  perfModel === "classic" ? "border-primary bg-primary/5" : "hover:border-primary/40"
+                  perfModel === "classic"
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-primary/40"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -224,10 +281,7 @@ function SettingsPage() {
 
         <PerformancePlansCard />
 
-        {/* Cycles d'évaluation : déprécié — les évaluations sont rattachées aux plans de performance. */}
-
-
-
+        <PerformanceCyclesCard />
 
         <Card className="md:col-span-2">
           <CardContent className="space-y-2 p-6">
@@ -284,10 +338,14 @@ function DeleteOrganizationCard({ name }: { name: string }) {
       </CardContent>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t("settings.deleteOrg")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{t("settings.deleteOrg")}</DialogTitle>
+          </DialogHeader>
           <DialogBody>
             <div className="space-y-2">
-              <Label htmlFor="delete-org-name">{t("settings.deleteOrgConfirmLabel", { name })}</Label>
+              <Label htmlFor="delete-org-name">
+                {t("settings.deleteOrgConfirmLabel", { name })}
+              </Label>
               <Input
                 id="delete-org-name"
                 autoComplete="off"
@@ -296,8 +354,14 @@ function DeleteOrganizationCard({ name }: { name: string }) {
               />
             </div>
             <DialogActions>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
-              <Button variant="destructive" disabled={confirmName !== name || deleting} onClick={() => void onDelete()}>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={confirmName !== name || deleting}
+                onClick={() => void onDelete()}
+              >
                 {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("settings.deleteOrgConfirm")}
               </Button>
@@ -309,131 +373,300 @@ function DeleteOrganizationCard({ name }: { name: string }) {
   );
 }
 
+const FREQUENCY_KEY: Record<CycleFrequency, string> = {
+  annual: "settings.freqAnnual",
+  semestrial: "settings.freqSemestrial",
+  quarterly: "settings.freqQuarterly",
+  custom: "settings.freqCustom",
+};
+
+const PLAN_STATUS_KEY: Record<PlanStatus, string> = {
+  draft: "settings.statusDraft",
+  active: "settings.statusActive",
+  closed: "settings.statusClosed",
+};
+
+const NO_PLAN = "__none__";
+
+/** `datetime-local` value → ISO 8601, as the API expects. */
+const toIso = (value: string) => (value ? new Date(value).toISOString() : null);
+
 function PerformanceCyclesCard() {
   const { t } = useTranslation();
   const { confirm, confirmDialog } = useConfirm();
   const { org } = useOrg();
-  const [cycles, setCycles] = useState<any[]>([]);
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const cycles = useQuery({ ...cyclesQuery(organizationId), enabled: !!org });
+  const plans = useQuery({ ...plansQuery(organizationId), enabled: !!org });
+  const activePlans = (plans.data ?? []).filter((p) => p.status === "active");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [freq, setFreq] = useState<"annual" | "semestrial" | "quarterly" | "custom">("annual");
+  const [freq, setFreq] = useState<CycleFrequency>("annual");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
   const [opensAt, setOpensAt] = useState("");
   const [closesAt, setClosesAt] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [launching, setLaunching] = useState<PerformanceCycle | null>(null);
+  const [planId, setPlanId] = useState(NO_PLAN);
 
-  const load = async () => {
-    if (!org) return;
-    const { data } = await pendingQuery("GET /org/performance/cycles");
-    setCycles(data ?? []);
-  };
-  useEffect(() => { void load(); }, [org?.id]);
-
-  const create = async () => {
-    if (!org || !name.trim() || !periodStart || !periodEnd) return toast.error(t("settings.planNameRequired"));
-    setBusy(true);
-    const { error } = await pendingQuery("POST /org/performance/cycles");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success(t("settings.cycleCreated"));
-    setOpen(false);
-    setName(""); setPeriodStart(""); setPeriodEnd(""); setOpensAt(""); setClosesAt("");
-    void load();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) });
+  const onError = (e: unknown) => {
+    toast.error(apiErrorMessage(e));
+    return refresh();
   };
 
-  const openCycle = async (c: any) => {
-    if (!org) return;
-    if (!(await confirm({ title: t("settings.openCycleConfirm"), subtitle: c.name, description: t("settings.openCycleConfirmDesc"), actionLabel: t("common.confirm") }))) return;
-    setBusy(true);
-    const { data: emps } = await pendingQuery("GET /org/employees");
-    if (!emps?.length) { setBusy(false); return toast.error(t("settings.noActiveEmployee")); }
-    const reviewsToInsert = emps.map((e: any) => ({
-      organization_id: org.id, cycle_id: c.id, employee_id: e.id, manager_id: e.manager_id,
-    }));
-    const { data: inserted, error } = await pendingQuery("PUT /org/performance/reviews");
-    if (error) { setBusy(false); return toast.error(error.message); }
-    const notifs = (inserted ?? []).map((r: any) => {
-      const emp = emps.find((e: any) => e.id === r.employee_id);
-      return emp?.user_id ? {
-        organization_id: org.id,
-        user_id: emp.user_id,
-        type: "review_opened",
-        title: t("settings.reviewOpenedTitle", { name: c.name }),
-        body: c.self_eval_closes_at
-          ? t("settings.reviewOpenedBodyWithDeadline", { date: formatDate(c.self_eval_closes_at) })
-          : t("settings.reviewOpenedBody"),
-        link: `/app/performance/reviews/${r.id}`,
-      } : null;
-    }).filter(Boolean);
-    if (notifs.length) await pendingQuery("POST /me/notifications");
-    await pendingQuery("PATCH /org/performance/cycles");
-    setBusy(false);
-    toast.success(t("settings.cycleOpened", { count: inserted?.length ?? 0 }));
-    void load();
+  const create = useMutation({
+    mutationFn: createCycle,
+    onSuccess: () => {
+      toast.success(t("settings.cycleCreated"));
+      setOpen(false);
+      setName("");
+      setPeriodStart("");
+      setPeriodEnd("");
+      setOpensAt("");
+      setClosesAt("");
+      return refresh();
+    },
+    onError,
+  });
+
+  // Opens the cycle, then one evaluation per present employee (06 §9). On an
+  // already open cycle, only the missing evaluations are created.
+  const launch = useMutation({
+    mutationFn: async ({ cycle, plan }: { cycle: PerformanceCycle; plan?: string }) => {
+      if (cycle.status === "draft") await openCycle(cycle.id);
+      return openReviews({ cycleId: cycle.id, planId: plan }, newIdempotencyKey());
+    },
+    onSuccess: (result) => {
+      toast.success(t("settings.cycleOpened", { count: result.created.length }));
+      setLaunching(null);
+      return refresh();
+    },
+    onError,
+  });
+
+  const close = useMutation({
+    mutationFn: (cycle: PerformanceCycle) => closeCycle(cycle.id),
+    onSuccess: refresh,
+    onError,
+  });
+
+  const save = () => {
+    if (!name.trim() || !periodStart || !periodEnd) {
+      return toast.error(t("settings.planNameRequired"));
+    }
+    create.mutate({
+      name: name.trim(),
+      frequency: freq,
+      periodStart,
+      periodEnd,
+      selfEvalOpensAt: toIso(opensAt),
+      selfEvalClosesAt: toIso(closesAt),
+    });
   };
 
-  const closeCycle = async (c: any) => {
-    if (!(await confirm({ title: t("settings.closeCycleConfirm"), subtitle: c.name, description: t("settings.closeCycleConfirmDesc"), actionLabel: t("common.confirm") }))) return;
-    await pendingQuery("PATCH /org/performance/cycles");
-    void load();
+  const startLaunch = (cycle: PerformanceCycle) => {
+    setPlanId(activePlans[0]?.id ?? NO_PLAN);
+    setLaunching(cycle);
   };
+
+  const askClose = async (cycle: PerformanceCycle) => {
+    const ok = await confirm({
+      title: t("settings.closeCycleConfirm"),
+      subtitle: cycle.name,
+      description: t("settings.closeCycleConfirmDesc"),
+      actionLabel: t("common.confirm"),
+    });
+    if (ok) close.mutate(cycle);
+  };
+
+  const list = cycles.data ?? [];
 
   return (
     <Card className="md:col-span-2">
       {confirmDialog}
       <CardContent className="space-y-4 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">{t("settings.cyclesTitle")}</h3>
             <p className="text-sm text-muted-foreground">{t("settings.cyclesDesc")}</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm">{t("settings.newCycle")}</Button></DialogTrigger>
+            <DialogTrigger asChild>
+              <Button size="sm">{t("settings.newCycle")}</Button>
+            </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{t("settings.newCycleTitle")}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{t("settings.newCycleTitle")}</DialogTitle>
+              </DialogHeader>
               <DialogBody>
                 <div className="space-y-3">
-                  <div><Label>{t("settings.cycleName")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.cycleNamePlaceholder")} /></div>
-                  <div><Label>{t("settings.cycleFrequency")}</Label>
-                    <Select value={freq} onValueChange={(v: any) => setFreq(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                  <div>
+                    <Label htmlFor="cycle-name">{t("settings.cycleName")}</Label>
+                    <Input
+                      id="cycle-name"
+                      value={name}
+                      maxLength={200}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t("settings.cycleNamePlaceholder")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cycle-frequency">{t("settings.cycleFrequency")}</Label>
+                    <Select value={freq} onValueChange={(v) => setFreq(v as CycleFrequency)}>
+                      <SelectTrigger id="cycle-frequency">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="annual">{t("settings.freqAnnual")}</SelectItem>
-                        <SelectItem value="semestrial">{t("settings.freqSemestrial")}</SelectItem>
-                        <SelectItem value="quarterly">{t("settings.freqQuarterly")}</SelectItem>
-                        <SelectItem value="custom">{t("settings.freqCustom")}</SelectItem>
+                        {(Object.keys(FREQUENCY_KEY) as CycleFrequency[]).map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {t(FREQUENCY_KEY[f])}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>{t("settings.periodStartLong")}</Label><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></div>
-                    <div><Label>{t("settings.periodEndLong")}</Label><Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} /></div>
+                    <div>
+                      <Label htmlFor="cycle-start">{t("settings.periodStartLong")}</Label>
+                      <Input
+                        id="cycle-start"
+                        type="date"
+                        value={periodStart}
+                        onChange={(e) => setPeriodStart(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cycle-end">{t("settings.periodEndLong")}</Label>
+                      <Input
+                        id="cycle-end"
+                        type="date"
+                        value={periodEnd}
+                        min={periodStart || undefined}
+                        onChange={(e) => setPeriodEnd(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>{t("settings.selfEvalOpen")}</Label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} /></div>
-                    <div><Label>{t("settings.selfEvalClose")}</Label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} /></div>
+                    <div>
+                      <Label htmlFor="cycle-opens">{t("settings.selfEvalOpen")}</Label>
+                      <Input
+                        id="cycle-opens"
+                        type="datetime-local"
+                        value={opensAt}
+                        onChange={(e) => setOpensAt(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cycle-closes">{t("settings.selfEvalClose")}</Label>
+                      <Input
+                        id="cycle-closes"
+                        type="datetime-local"
+                        value={closesAt}
+                        onChange={(e) => setClosesAt(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <Button className="w-full" onClick={create} disabled={busy}>{t("settings.createBtn")}</Button>
+                  <Button className="w-full" onClick={save} disabled={create.isPending}>
+                    {t("settings.createBtn")}
+                  </Button>
                 </div>
               </DialogBody>
             </DialogContent>
           </Dialog>
         </div>
 
-        {cycles.length === 0 ? (
+        <Dialog
+          open={!!launching}
+          onOpenChange={(v) => {
+            if (!v) setLaunching(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {launching?.status === "open"
+                  ? t("settings.generateReviewsTitle")
+                  : t("settings.openCycleConfirm")}
+              </DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <p className="text-sm font-medium">{launching?.name}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("settings.openCycleConfirmDesc")}
+              </p>
+              <div className="mt-4">
+                <Label htmlFor="cycle-plan">{t("settings.reviewPlan")}</Label>
+                <Select value={planId} onValueChange={setPlanId}>
+                  <SelectTrigger id="cycle-plan">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_PLAN}>{t("settings.reviewNoPlan")}</SelectItem>
+                    {activePlans.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{t("settings.reviewPlanHint")}</p>
+              </div>
+              <DialogActions>
+                <Button variant="outline" onClick={() => setLaunching(null)}>
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  disabled={launch.isPending}
+                  onClick={() =>
+                    launching &&
+                    launch.mutate({
+                      cycle: launching,
+                      plan: planId === NO_PLAN ? undefined : planId,
+                    })
+                  }
+                >
+                  {launch.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("common.confirm")}
+                </Button>
+              </DialogActions>
+            </DialogBody>
+          </DialogContent>
+        </Dialog>
+
+        {list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">{t("settings.noCycle")}</p>
         ) : (
           <div className="space-y-2">
-            {cycles.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
+            {list.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+              >
+                <div className="min-w-0">
                   <p className="font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.frequency} · {c.period_start} → {c.period_end} · {c.status}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(FREQUENCY_KEY[c.frequency])} · {formatDate(c.periodStart)} →{" "}
+                    {formatDate(c.periodEnd)} · {t(`settings.cycleStatuses.${c.status}`)}
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  {c.status === "draft" && <Button size="sm" onClick={() => openCycle(c)} disabled={busy}>{t("settings.openCycle")}</Button>}
-                  {c.status === "open" && <Button size="sm" variant="outline" onClick={() => closeCycle(c)}>{t("settings.finalize")}</Button>}
+                <div className="flex flex-wrap gap-2">
+                  {c.status === "draft" && (
+                    <Button size="sm" onClick={() => startLaunch(c)}>
+                      {t("settings.openCycle")}
+                    </Button>
+                  )}
+                  {c.status === "open" && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => startLaunch(c)}>
+                        {t("settings.generateReviews")}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => void askClose(c)}>
+                        {t("settings.finalize")}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -448,86 +681,155 @@ function PerformancePlansCard() {
   const { t } = useTranslation();
   const { confirm, confirmDialog } = useConfirm();
   const { org } = useOrg();
-  const [plans, setPlans] = useState<any[]>([]);
+  const organizationId = org?.id ?? "";
+  const queryClient = useQueryClient();
+  const plans = useQuery({ ...plansQuery(organizationId), enabled: !!org });
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
-  const [status, setStatus] = useState<"draft" | "active" | "closed">("active");
-  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<PlanStatus>("active");
 
-  const load = async () => {
-    if (!org) return;
-    const { data } = await pendingQuery("GET /org/performance/plans");
-    setPlans((data as any[]) ?? []);
+  const reset = () => {
+    setName("");
+    setPeriodStart("");
+    setPeriodEnd("");
+    setStatus("active");
   };
-  useEffect(() => { void load(); }, [org?.id]);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: performanceKey(organizationId) });
+  const onError = (e: unknown) => toast.error(apiErrorMessage(e));
 
-  const reset = () => { setName(""); setPeriodStart(""); setPeriodEnd(""); setStatus("active"); };
+  const create = useMutation({
+    mutationFn: createPlan,
+    onSuccess: () => {
+      toast.success(t("settings.planCreated"));
+      setOpen(false);
+      reset();
+      return refresh();
+    },
+    onError,
+  });
+  const setPlanStatus = useMutation({
+    mutationFn: ({ plan, next }: { plan: PerformancePlan; next: PlanStatus }) =>
+      updatePlan(plan.id, { status: next }),
+    onSuccess: refresh,
+    onError,
+  });
+  const remove = useMutation({
+    mutationFn: (plan: PerformancePlan) => deletePlan(plan.id),
+    onSuccess: refresh,
+    onError,
+  });
 
-  const create = async () => {
-    if (!org || !name.trim() || !periodStart || !periodEnd) return toast.error(t("settings.planNameRequired"));
-    setBusy(true);
-    const { error } = await pendingQuery("POST /org/performance/plans");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success(t("settings.planCreated"));
-    setOpen(false);
-    reset();
-    void load();
+  const save = () => {
+    if (!name.trim() || !periodStart || !periodEnd) {
+      return toast.error(t("settings.planNameRequired"));
+    }
+    create.mutate({ name: name.trim(), periodStart, periodEnd, status });
   };
 
-  const setPlanStatus = async (p: any, next: "draft" | "active" | "closed") => {
-    const { error } = await pendingQuery("PATCH /org/performance/plans/:id (absent de 06)");
-    if (error) return toast.error(error.message);
-    void load();
+  const askRemove = async (plan: PerformancePlan) => {
+    const ok = await confirm({
+      title: t("settings.deletePlanConfirm"),
+      subtitle: plan.name,
+      description: t("settings.deletePlanConfirmDesc"),
+      actionLabel: t("common.delete"),
+      actionVariant: "destructive",
+    });
+    if (ok) remove.mutate(plan);
   };
 
-  const remove = async (p: any) => {
-    if (!(await confirm({ title: t("settings.deletePlanConfirm"), subtitle: p.name, description: t("settings.deletePlanConfirmDesc"), actionLabel: t("common.delete"), actionVariant: "destructive" }))) return;
-    const { error } = await pendingQuery("DELETE /org/performance/plans/:id (absent de 06)");
-    if (error) return toast.error(error.message);
-    void load();
-  };
+  const list = plans.data ?? [];
 
   return (
     <Card className="md:col-span-2">
       {confirmDialog}
       <CardContent className="space-y-4 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">{t("settings.performancePlansTitle")}</h3>
             <p className="text-sm text-muted-foreground">{t("settings.performancePlansDesc")}</p>
           </div>
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-            <DialogTrigger asChild><Button size="sm">{t("settings.newPlan")}</Button></DialogTrigger>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) reset();
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button size="sm">{t("settings.newPlan")}</Button>
+            </DialogTrigger>
             <DialogContent
               onPointerDownOutside={(e) => e.preventDefault()}
               onEscapeKeyDown={(e) => e.preventDefault()}
             >
-              <DialogHeader><DialogTitle>{t("settings.newPlan")}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{t("settings.newPlan")}</DialogTitle>
+              </DialogHeader>
               <DialogBody>
                 <div className="space-y-3">
-                  <div><Label>{t("settings.planName")} <span className="text-destructive">*</span></Label>
-                    <Input value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder={t("settings.planNamePlaceholder")} />
+                  <div>
+                    <Label htmlFor="plan-name">
+                      {t("settings.planName")} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="plan-name"
+                      value={name}
+                      maxLength={120}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t("settings.planNamePlaceholder")}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>{t("settings.periodStart")}</Label><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></div>
-                    <div><Label>{t("settings.periodEnd")}</Label><Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} /></div>
+                    <div>
+                      <Label htmlFor="plan-start">{t("settings.periodStart")}</Label>
+                      <Input
+                        id="plan-start"
+                        type="date"
+                        value={periodStart}
+                        onChange={(e) => setPeriodStart(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="plan-end">{t("settings.periodEnd")}</Label>
+                      <Input
+                        id="plan-end"
+                        type="date"
+                        value={periodEnd}
+                        min={periodStart || undefined}
+                        onChange={(e) => setPeriodEnd(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div><Label>{t("settings.status")}</Label>
-                    <Select value={status} onValueChange={(v: any) => setStatus(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                  <div>
+                    <Label htmlFor="plan-status">{t("settings.status")}</Label>
+                    <Select value={status} onValueChange={(v) => setStatus(v as PlanStatus)}>
+                      <SelectTrigger id="plan-status">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="draft">{t("settings.statusDraft")}</SelectItem>
-                        <SelectItem value="active">{t("settings.statusActive")}</SelectItem>
-                        <SelectItem value="closed">{t("settings.statusClosed")}</SelectItem>
+                        {(Object.keys(PLAN_STATUS_KEY) as PlanStatus[]).map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {t(PLAN_STATUS_KEY[st])}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => { setOpen(false); reset(); }}>{t("settings.closeBtn")}</Button>
-                    <Button onClick={create} disabled={busy}>{t("settings.createBtn")}</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setOpen(false);
+                        reset();
+                      }}
+                    >
+                      {t("settings.closeBtn")}
+                    </Button>
+                    <Button onClick={save} disabled={create.isPending}>
+                      {t("settings.createBtn")}
+                    </Button>
                   </div>
                 </div>
               </DialogBody>
@@ -535,20 +837,49 @@ function PerformancePlansCard() {
           </Dialog>
         </div>
 
-        {plans.length === 0 ? (
+        {list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">{t("settings.noPlan")}</p>
         ) : (
           <div className="space-y-2">
-            {plans.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
+            {list.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+              >
+                <div className="min-w-0">
                   <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.period_start} → {p.period_end} · {p.status}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(p.periodStart)} → {formatDate(p.periodEnd)} ·{" "}
+                    {t(PLAN_STATUS_KEY[p.status])}
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  {p.status !== "active" && <Button size="sm" variant="outline" onClick={() => setPlanStatus(p, "active")}>{t("settings.activate")}</Button>}
-                  {p.status !== "closed" && <Button size="sm" variant="outline" onClick={() => setPlanStatus(p, "closed")}>{t("settings.finalize")}</Button>}
-                  <Button size="icon" variant="ghost" onClick={() => remove(p)}><Trash2 className="h-4 w-4" /></Button>
+                  {p.status !== "active" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPlanStatus.mutate({ plan: p, next: "active" })}
+                    >
+                      {t("settings.activate")}
+                    </Button>
+                  )}
+                  {p.status !== "closed" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPlanStatus.mutate({ plan: p, next: "closed" })}
+                    >
+                      {t("settings.finalize")}
+                    </Button>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={t("settings.deletePlanAria", { name: p.name })}
+                    onClick={() => void askRemove(p)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -558,5 +889,3 @@ function PerformancePlansCard() {
     </Card>
   );
 }
-
-

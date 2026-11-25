@@ -26,6 +26,20 @@ export interface OrganizationChanges {
   performanceModel?: "classic" | "sap";
 }
 
+export const organizationQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["org", organizationId, "detail"],
+    queryFn: () => api.get<OrganizationDetail>("/org"),
+  });
+
+/**
+ * `PUT /org/settings` replaces the whole block (absent keys take their
+ * default): callers merge their change into the settings read from `GET /org`.
+ */
+export function updateOrganizationSettings(settings: Record<string, unknown>) {
+  return api.put<OrganizationDetail>("/org/settings", settings);
+}
+
 export function updateOrganization(changes: OrganizationChanges) {
   return api.patch<OrganizationDetail>("/org", changes);
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { peekPendingClaim } from "@/lib/pending-claim";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,6 +65,11 @@ function LoginPage() {
     const target = safeNext(next);
     if (target) {
       window.location.href = target;
+      return;
+    }
+    // A subscription paid before signing in: create (or attach) its organization first.
+    if (peekPendingClaim()) {
+      nav({ to: "/onboarding/organization" });
       return;
     }
     nav({ to: "/app" });

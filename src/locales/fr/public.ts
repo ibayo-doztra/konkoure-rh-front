@@ -24,42 +24,44 @@ export default {
 
     payTitle: "Payer votre abonnement",
     paySubtitle:
-      "Réglez d'abord votre offre en Orange Money, MTN MoMo ou carte bancaire (GNF). Vous créerez votre compte juste après : l'abonnement sera rattaché automatiquement.",
-    emailLabel: "Adresse e-mail (celle de votre futur compte)",
+      "Réglez d'abord votre offre en Orange Money, MTN MoMo ou carte bancaire (GNF). Créez ensuite votre compte avec la même adresse e-mail pour ouvrir l'organisation de votre abonnement.",
+    emailLabel: "Adresse e-mail de votre futur compte",
     emailPlaceholder: "vous@entreprise.com",
     emailInvalid: "Adresse e-mail invalide.",
-    codeLabel: "Code de vérification",
-    codePlaceholder: "Code à 6 chiffres",
-    sendCode: "Recevoir un code",
-    resendCode: "Renvoyer le code",
-    codeSent: "Code envoyé. Consultez votre boîte e-mail.",
-    codeSendError: "Envoi du code impossible. Réessayez.",
-    codeHint: "Un code est envoyé à cette adresse pour confirmer que c'est bien vous avant le paiement.",
-    payerPhoneCardLabel: "Numéro de téléphone (requis par l'opérateur de paiement)",
     payerPhoneMomoLabel: "Numéro Mobile Money",
     phonePlaceholder: "624 00 00 00",
     phoneInvalid: "Numéro invalide : 9 chiffres commençant par 6 (ex. 624 00 00 00).",
     cardHint:
       "La carte bancaire exige une validation 3-D Secure : vous serez redirigé vers la page sécurisée de notre prestataire.",
-    momoHint: "Vous recevrez une demande de confirmation sur votre téléphone. Restez sur cette page jusqu'à la validation.",
+    momoHint:
+      "Vous recevrez une demande de confirmation sur votre téléphone. Restez sur cette page jusqu'à la validation.",
     continueToCard: "Continuer vers le paiement sécurisé",
     payAmount: "Payer {{amount}} GNF",
     alreadyAccount: "Vous avez déjà un compte ?",
     signIn: "Se connecter",
-    startingPaymentError: "Impossible de démarrer le paiement",
 
     retourTitle: "Confirmation de votre paiement",
-    retourSubtitle: "Cet écran se met à jour automatiquement dès que votre opérateur confirme le paiement.",
-    missingClaim: "Code de suivi manquant. Saisissez-le sur la page de suivi pour retrouver votre paiement.",
+    retourSubtitle:
+      "Cet écran se met à jour automatiquement dès que votre opérateur confirme le paiement.",
+    missingClaim:
+      "Ce paiement n'a pas été lancé depuis ce navigateur. Ouvrez votre lien de suivi, ou saisissez sa référence et son code sur la page de suivi.",
     trackingPage: "Page de suivi",
     backToPayment: "Retour au paiement",
 
     suiviTitle: "Suivi de votre paiement",
-    suiviSubtitle: "Retrouvez à tout moment l'état de votre paiement d'abonnement grâce à votre code de suivi.",
+    suiviSubtitle:
+      "Retrouvez à tout moment l'état de votre paiement grâce à votre lien de suivi, ou à sa référence et à son code.",
     claimLabel: "Code de suivi",
-    claimInvalid: "Code invalide : reprenez celui affiché après votre paiement.",
+    claimInvalid: "Code invalide : il commence par « clm_ ».",
     showStatus: "Afficher l'état du paiement",
     notPaidYet: "Pas encore payé ?",
     choosePlan: "Choisir une offre",
+    emailHint:
+      "Créez ensuite votre compte avec cette même adresse : c'est elle qui permet d'utiliser le paiement.",
+    providerUnavailable:
+      "Le paiement en ligne est momentanément indisponible. Réessayez dans quelques minutes.",
+    refLabel: "Référence du paiement",
+    refInvalid: "Référence invalide : reprenez celle de votre lien de suivi.",
+    trackAnother: "Suivre un autre paiement",
   },
 } as const;

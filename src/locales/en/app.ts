@@ -132,6 +132,7 @@ export default {
     title: "Notifications",
     empty: "No notifications",
     markAllRead: "Mark all as read",
+    loadMore: "Show more",
     markRead: "Mark as read",
     unread: "unread",
     unread_other: "unread",
@@ -162,5 +163,10 @@ export default {
     missingField: "A required field is missing.",
     sessionExpired: "Your session has expired. Sign in again and retry.",
     generic: "Something went wrong. Please try again shortly.",
+  },
+  ai: {
+    quotaExceeded:
+      "The AI credits of the month are used up. The owner can change plans from the Subscription page.",
+    unavailable: "The AI assistant is temporarily unavailable. Try again later.",
   },
 } as const;
