@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import {
   Briefcase,
@@ -28,12 +27,12 @@ import { useOrg } from "@/hooks/useOrg";
 import { useProfile } from "@/hooks/useProfile";
 
 const searchSchema = z.object({
-  period: fallback(z.string(), "month").default("month"),
+  period: z.string().default("month").catch("month"),
 });
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({ meta: [{ title: "Tableau de bord — Konkouré" }] }),
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: searchSchema,
   component: DashboardPage,
 });
 

@@ -39,9 +39,7 @@ export function createDemoRequestSchema(lang: SchemaLang = "fr") {
     email: z.string().trim().email(m.email).max(255, m.emailMax),
     phone: z.string().trim().min(1, m.phone).max(40, m.phoneMax),
     companyName: z.string().trim().min(2, m.companyName).max(160, m.companyNameMax),
-    companySize: z.enum(COMPANY_SIZES, {
-      errorMap: () => ({ message: m.companySize }),
-    }),
+    companySize: z.enum(COMPANY_SIZES, { error: m.companySize }),
     message: z.string().trim().max(2000, m.messageMax).optional().or(z.literal("")),
   });
 }
