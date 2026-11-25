@@ -169,4 +169,10 @@ export default {
       "The AI credits of the month are used up. The owner can change plans from the Subscription page.",
     unavailable: "The AI assistant is temporarily unavailable. Try again later.",
   },
+  impersonation: {
+    banner: "Support session: you are acting as {{email}}.",
+    until: "Ends automatically at {{time}}.",
+    leave: "Leave",
+    ended: "Support session ended.",
+  },
 } as const;

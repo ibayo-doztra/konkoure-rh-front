@@ -86,10 +86,13 @@ export interface Paginated<T> {
 // ---------------------------------------------------------------------------
 
 let accessToken: string | null = null;
+/** A platform admin acting as another account, with a 30-minute token (06 §13). */
+let impersonating = false;
 let organizationId: string | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  impersonating = false;
 }
 export function getAccessToken() {
   return accessToken;
@@ -101,7 +104,7 @@ export function getOrganizationId() {
   return organizationId;
 }
 
-type ApiEvent = "unauthorized" | "module-forbidden";
+type ApiEvent = "unauthorized" | "module-forbidden" | "impersonation-ended";
 const listeners = new Map<ApiEvent, Set<(e: ApiError) => void>>();
 
 /** Subscribe to global API failures (401 after refresh, module 403). */
@@ -134,7 +137,10 @@ function getSessionChannel(): BroadcastChannel | null {
     sessionChannel?.addEventListener(
       "message",
       (event: MessageEvent<{ accessToken?: unknown }>) => {
-        if (typeof event.data?.accessToken === "string") accessToken = event.data.accessToken;
+        // The other tabs hold the admin's own session: never mix it into an impersonation.
+        if (typeof event.data?.accessToken === "string" && !impersonating) {
+          accessToken = event.data.accessToken;
+        }
       },
     );
   }
@@ -194,6 +200,11 @@ export function refreshSession(): Promise<boolean> {
         const json = (await res.json()) as { data: { accessToken: string } };
         accessToken = json.data.accessToken;
         channel?.postMessage({ accessToken });
+        // An impersonation token has no refresh: the cookie gives the admin's session back.
+        if (impersonating) {
+          impersonating = false;
+          emit("impersonation-ended", new ApiError(401, "E_TOKEN_EXPIRED", "Impersonation ended"));
+        }
         return true;
       });
     } catch {
@@ -342,6 +353,27 @@ export const api = {
   delete: <T = void>(path: string, opts: Omit<RequestOptions, "method"> = {}) =>
     data<T>(path, { ...opts, method: "DELETE" }),
 };
+
+/**
+ * Acts as another account in this tab only, with the token of
+ * `POST /platform/users/:id/impersonate`. Kept in memory and never shared with
+ * the other tabs; the admin's refresh cookie is left untouched.
+ */
+export function startImpersonation(token: string) {
+  accessToken = token;
+  impersonating = true;
+}
+
+export function isImpersonating() {
+  return impersonating;
+}
+
+/** Drops the impersonation token and gets the admin's own session back. */
+export function stopImpersonation(): Promise<boolean> {
+  impersonating = false;
+  accessToken = null;
+  return refreshSession();
+}
 
 export function newIdempotencyKey(): string {
   return crypto.randomUUID();

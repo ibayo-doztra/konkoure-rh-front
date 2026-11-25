@@ -33,9 +33,3 @@ export const publishJobToSocials = pendingFn("POST /org/recruitment/jobs/:id/soc
 export const listJobSocialPosts = pendingFn("GET /org/recruitment/jobs/:id/social-posts");
 
 // Platform back office — organizations & users
-export const searchAdminUsers = pendingFn("GET /platform/users");
-export const sendAdminPasswordReset = pendingFn(
-  "POST /platform/users/:id/password-reset (absent de 06)",
-);
-export const setAdminUserBanned = pendingFn("POST /platform/users/:id/ban (absent de 06)");
-export const setPlatformAdmin = pendingFn("POST|DELETE /platform/admins");
