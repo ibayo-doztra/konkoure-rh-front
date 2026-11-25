@@ -28,6 +28,7 @@ import { Route as KonkoureofficeOffresRouteImport } from './routes/konkoureoffic
 import { Route as KonkoureofficeOrganisationsRouteImport } from './routes/konkoureoffice.organisations'
 import { Route as KonkoureofficePaiementsRouteImport } from './routes/konkoureoffice.paiements'
 import { Route as KonkoureofficeReglagesRouteImport } from './routes/konkoureoffice.reglages'
+import { Route as KonkoureofficeSanteRouteImport } from './routes/konkoureoffice.sante'
 import { Route as KonkoureofficeUtilisateursRouteImport } from './routes/konkoureoffice.utilisateurs'
 import { Route as OnboardingOrganizationRouteImport } from './routes/onboarding.organization'
 import { Route as PaiementIndexRouteImport } from './routes/paiement.index'
@@ -169,6 +170,11 @@ const KonkoureofficePaiementsRoute = KonkoureofficePaiementsRouteImport.update({
 const KonkoureofficeReglagesRoute = KonkoureofficeReglagesRouteImport.update({
   id: '/reglages',
   path: '/reglages',
+  getParentRoute: () => KonkoureofficeRoute,
+} as any)
+const KonkoureofficeSanteRoute = KonkoureofficeSanteRouteImport.update({
+  id: '/sante',
+  path: '/sante',
   getParentRoute: () => KonkoureofficeRoute,
 } as any)
 const KonkoureofficeUtilisateursRoute =
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/konkoureoffice/organisations': typeof KonkoureofficeOrganisationsRoute
   '/konkoureoffice/paiements': typeof KonkoureofficePaiementsRoute
   '/konkoureoffice/reglages': typeof KonkoureofficeReglagesRoute
+  '/konkoureoffice/sante': typeof KonkoureofficeSanteRoute
   '/konkoureoffice/utilisateurs': typeof KonkoureofficeUtilisateursRoute
   '/onboarding/organization': typeof OnboardingOrganizationRoute
   '/paiement/retour': typeof PaiementRetourRoute
@@ -527,6 +534,7 @@ export interface FileRoutesByTo {
   '/konkoureoffice/organisations': typeof KonkoureofficeOrganisationsRoute
   '/konkoureoffice/paiements': typeof KonkoureofficePaiementsRoute
   '/konkoureoffice/reglages': typeof KonkoureofficeReglagesRoute
+  '/konkoureoffice/sante': typeof KonkoureofficeSanteRoute
   '/konkoureoffice/utilisateurs': typeof KonkoureofficeUtilisateursRoute
   '/onboarding/organization': typeof OnboardingOrganizationRoute
   '/paiement/retour': typeof PaiementRetourRoute
@@ -595,6 +603,7 @@ export interface FileRoutesById {
   '/konkoureoffice/organisations': typeof KonkoureofficeOrganisationsRoute
   '/konkoureoffice/paiements': typeof KonkoureofficePaiementsRoute
   '/konkoureoffice/reglages': typeof KonkoureofficeReglagesRoute
+  '/konkoureoffice/sante': typeof KonkoureofficeSanteRoute
   '/konkoureoffice/utilisateurs': typeof KonkoureofficeUtilisateursRoute
   '/onboarding/organization': typeof OnboardingOrganizationRoute
   '/paiement/retour': typeof PaiementRetourRoute
@@ -664,6 +673,7 @@ export interface FileRouteTypes {
     | '/konkoureoffice/organisations'
     | '/konkoureoffice/paiements'
     | '/konkoureoffice/reglages'
+    | '/konkoureoffice/sante'
     | '/konkoureoffice/utilisateurs'
     | '/onboarding/organization'
     | '/paiement/retour'
@@ -729,6 +739,7 @@ export interface FileRouteTypes {
     | '/konkoureoffice/organisations'
     | '/konkoureoffice/paiements'
     | '/konkoureoffice/reglages'
+    | '/konkoureoffice/sante'
     | '/konkoureoffice/utilisateurs'
     | '/onboarding/organization'
     | '/paiement/retour'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/konkoureoffice/organisations'
     | '/konkoureoffice/paiements'
     | '/konkoureoffice/reglages'
+    | '/konkoureoffice/sante'
     | '/konkoureoffice/utilisateurs'
     | '/onboarding/organization'
     | '/paiement/retour'
@@ -1004,6 +1016,13 @@ declare module '@tanstack/react-router' {
       path: '/reglages'
       fullPath: '/konkoureoffice/reglages'
       preLoaderRoute: typeof KonkoureofficeReglagesRouteImport
+      parentRoute: typeof KonkoureofficeRoute
+    }
+    '/konkoureoffice/sante': {
+      id: '/konkoureoffice/sante'
+      path: '/sante'
+      fullPath: '/konkoureoffice/sante'
+      preLoaderRoute: typeof KonkoureofficeSanteRouteImport
       parentRoute: typeof KonkoureofficeRoute
     }
     '/konkoureoffice/utilisateurs': {
@@ -1462,6 +1481,7 @@ interface KonkoureofficeRouteChildren {
   KonkoureofficeOrganisationsRoute: typeof KonkoureofficeOrganisationsRoute
   KonkoureofficePaiementsRoute: typeof KonkoureofficePaiementsRoute
   KonkoureofficeReglagesRoute: typeof KonkoureofficeReglagesRoute
+  KonkoureofficeSanteRoute: typeof KonkoureofficeSanteRoute
   KonkoureofficeUtilisateursRoute: typeof KonkoureofficeUtilisateursRoute
   KonkoureofficeIndexRoute: typeof KonkoureofficeIndexRoute
 }
@@ -1473,6 +1493,7 @@ const KonkoureofficeRouteChildren: KonkoureofficeRouteChildren = {
   KonkoureofficeOrganisationsRoute: KonkoureofficeOrganisationsRoute,
   KonkoureofficePaiementsRoute: KonkoureofficePaiementsRoute,
   KonkoureofficeReglagesRoute: KonkoureofficeReglagesRoute,
+  KonkoureofficeSanteRoute: KonkoureofficeSanteRoute,
   KonkoureofficeUtilisateursRoute: KonkoureofficeUtilisateursRoute,
   KonkoureofficeIndexRoute: KonkoureofficeIndexRoute,
 }

@@ -16,7 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLandingCopy } from "@/lib/landing/useLandingCopy";
-import { submitDemoRequest } from "@/lib/api/legacy-functions";
+import { submitDemoRequest } from "@/lib/api/platform";
+import { ApiError, apiErrorMessage } from "@/lib/api/client";
 import { COMPANY_SIZES, createDemoRequestSchema } from "@/lib/demo-requests.schema";
 
 const TEXT = {
@@ -40,6 +41,7 @@ const TEXT = {
     successBody: "Merci ! Notre équipe vous contacte sous 24 heures ouvrées.",
     again: "Envoyer une autre demande",
     unexpectedError: "Erreur inattendue",
+    rateLimited: "Trop de demandes envoyées. Réessayez dans une heure.",
   },
   en: {
     eyebrow: "Demo",
@@ -61,6 +63,7 @@ const TEXT = {
     successBody: "Thank you! Our team will contact you within 24 business hours.",
     again: "Send another request",
     unexpectedError: "Unexpected error",
+    rateLimited: "Too many requests sent. Please try again in an hour.",
   },
 } as const;
 
@@ -95,7 +98,6 @@ const EMPTY = {
 function DemoRequestPage() {
   const { lang } = useLandingCopy();
   const t = TEXT[lang];
-  const send = submitDemoRequest;
 
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -136,11 +138,18 @@ function DemoRequestPage() {
     setErrors({});
     setPending(true);
     try {
-      await send({ data: parsed.data });
+      const { message, ...rest } = parsed.data;
+      await submitDemoRequest({ ...rest, ...(message ? { message } : {}) });
       setForm(EMPTY);
       setSent(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.unexpectedError);
+      toast.error(
+        err instanceof ApiError && err.status === 429
+          ? t.rateLimited
+          : err instanceof ApiError
+            ? apiErrorMessage(err)
+            : t.unexpectedError,
+      );
     } finally {
       setPending(false);
     }
@@ -196,7 +205,12 @@ function DemoRequestPage() {
                   onChange={(e) => set("phone", e.target.value)}
                 />
               </Field>
-              <Field label={t.companyName} error={errors["companyName"]} htmlFor="companyName" required>
+              <Field
+                label={t.companyName}
+                error={errors["companyName"]}
+                htmlFor="companyName"
+                required
+              >
                 <Input
                   id="companyName"
                   value={form.companyName}
@@ -204,7 +218,12 @@ function DemoRequestPage() {
                   onChange={(e) => set("companyName", e.target.value)}
                 />
               </Field>
-              <Field label={t.companySize} error={errors["companySize"]} htmlFor="companySize" required>
+              <Field
+                label={t.companySize}
+                error={errors["companySize"]}
+                htmlFor="companySize"
+                required
+              >
                 <Select value={form.companySize} onValueChange={(v) => set("companySize", v)}>
                   <SelectTrigger id="companySize">
                     <SelectValue placeholder={t.sizePlaceholder} />
