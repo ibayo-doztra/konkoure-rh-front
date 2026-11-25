@@ -5,6 +5,7 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { api, isApiError } from "@/lib/api/client";
 import type {
   BillingCycle,
+  PaymentStatus,
   Plan,
   Subscription,
   SubscriptionStatus,
@@ -279,3 +280,205 @@ export function grantPlatformAdmin(email: string, level: PlatformLevel) {
 export function revokePlatformAdmin(userId: string) {
   return api.delete(`/platform/admins/${encodeURIComponent(userId)}`);
 }
+
+// ------------------------------------------------------------------ Settings
+
+export interface PlatformSetting {
+  key: string;
+  /** Always `null` for a secret setting. */
+  value: unknown;
+  isSecret: boolean;
+  description: string | null;
+  updatedAt: string;
+}
+
+export const MODULES_OPEN_FOR_TESTING = "modules_open_for_testing";
+
+export const platformSettingsQuery = () =>
+  queryOptions({
+    queryKey: [...platformKey, "settings"],
+    queryFn: () => api.get<PlatformSetting[]>("/platform/settings"),
+  });
+
+/** Root. Known keys only, value validated per key (422). */
+export function updatePlatformSettings(settings: { key: string; value: unknown }[]) {
+  return api.put<PlatformSetting[]>("/platform/settings", { settings });
+}
+
+// ------------------------------------------------------------------ Payments
+
+export interface PlatformPayment {
+  id: string;
+  organizationId: string | null;
+  merchantReference: string;
+  providerTransactionId: string | null;
+  planId: string | null;
+  cycle: BillingCycle | null;
+  method: string | null;
+  status: PaymentStatus;
+  expectedAmount: number;
+  paidAmount: number | null;
+  currency: string;
+  failureReason: string | null;
+  /** Paid before sign-up. */
+  presignup: boolean;
+  claimedAt: string | null;
+  createdAt: string;
+}
+
+export interface PaymentFilters {
+  status?: PaymentStatus;
+  failureReason?: string;
+  organizationId?: string;
+}
+
+export const platformPaymentsQuery = (page: number, filters: PaymentFilters) =>
+  queryOptions({
+    queryKey: [...platformKey, "payments", page, filters],
+    queryFn: () =>
+      api.list<PlatformPayment>("/platform/payments", {
+        page,
+        perPage: PLATFORM_PAGE_SIZE,
+        "filter[status]": filters.status,
+        "filter[failureReason]": filters.failureReason,
+        "filter[organizationId]": filters.organizationId,
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+/**
+ * Root. Asks Djomy again; fully paid ⇒ settled normally even if it was
+ * failed or expired. 409 `notPaid` / `noTransaction`.
+ */
+export function reconcilePayment(id: string) {
+  return api.post<{ outcome: string; payment: PlatformPayment }>(
+    `/platform/payments/${encodeURIComponent(id)}/reconcile`,
+  );
+}
+
+// ------------------------------------------------------------------ Demo requests
+
+export type DemoRequestStatus = "new" | "contacted" | "scheduled" | "done" | "rejected";
+
+export const DEMO_STATUSES: DemoRequestStatus[] = [
+  "new",
+  "contacted",
+  "scheduled",
+  "done",
+  "rejected",
+];
+
+export const DEMO_STATUS_LABELS: Record<DemoRequestStatus, string> = {
+  new: "Nouvelle",
+  contacted: "Contactée",
+  scheduled: "Démo planifiée",
+  done: "Terminée",
+  rejected: "Écartée",
+};
+
+export interface DemoRequest {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  companySize: string;
+  message: string | null;
+  status: DemoRequestStatus;
+  emailStatus: string | null;
+  /** A platform admin. */
+  assignedTo: string | null;
+  createdAt: string;
+}
+
+export const demoRequestsQuery = (page: number, status?: DemoRequestStatus) =>
+  queryOptions({
+    queryKey: [...platformKey, "demo-requests", page, status ?? null],
+    queryFn: () =>
+      api.list<DemoRequest>("/platform/demo-requests", {
+        page,
+        perPage: PLATFORM_PAGE_SIZE,
+        "filter[status]": status,
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+/** Support. The assignee must be an active platform admin. */
+export function updateDemoRequest(
+  id: string,
+  patch: { status?: DemoRequestStatus; assignedTo?: string | null },
+) {
+  return api.patch<DemoRequest>(`/platform/demo-requests/${encodeURIComponent(id)}`, patch);
+}
+
+export interface DemoRequestInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  companySize: string;
+  message?: string;
+}
+
+/** Public, 10 per hour and per IP. */
+export function submitDemoRequest(input: DemoRequestInput) {
+  return api.post<{ id: string; received: true }>("/public/demo-requests", input);
+}
+
+// ------------------------------------------------------------------ Journals
+
+export type LogKind = "audit" | "system" | "usage";
+export const LOG_PAGE_SIZE = 100;
+
+export interface LogFilters {
+  organizationId?: string;
+  /** ISO 8601. */
+  from?: string;
+  to?: string;
+  actorUserId?: string;
+  action?: string;
+  channel?: string;
+  level?: string;
+  module?: string;
+}
+
+/** Rows keep their table columns, in camelCase. */
+export type LogRow = Record<string, unknown> & { id: string; createdAt: string };
+
+/** Cursor pagination, 500 rows at most per page (06 §13). */
+export function platformLogs(kind: LogKind, filters: LogFilters, cursor?: string) {
+  return api.list<LogRow>(`/platform/logs/${kind}`, {
+    cursor,
+    limit: LOG_PAGE_SIZE,
+    "filter[organizationId]": filters.organizationId,
+    "filter[from]": filters.from,
+    "filter[to]": filters.to,
+    ...(kind === "audit"
+      ? { "filter[actorUserId]": filters.actorUserId, "filter[action]": filters.action }
+      : {}),
+    ...(kind === "system"
+      ? { "filter[channel]": filters.channel, "filter[level]": filters.level }
+      : {}),
+    ...(kind === "usage" ? { "filter[module]": filters.module } : {}),
+  });
+}
+
+// ------------------------------------------------------------------ Health
+
+type Probe = "ok" | "unavailable" | "pending" | string;
+
+export interface PlatformHealth {
+  status: "ok" | "unavailable";
+  ready: boolean;
+  checks: { database: Probe; redis: Probe; migrations: Probe };
+  queue: { driver: string };
+  integrations: Record<string, "configured" | "missing">;
+  checkedAt: string;
+}
+
+export const platformHealthQuery = () =>
+  queryOptions({
+    queryKey: [...platformKey, "health"],
+    queryFn: () => api.get<PlatformHealth>("/platform/health"),
+    refetchInterval: 30_000,
+  });

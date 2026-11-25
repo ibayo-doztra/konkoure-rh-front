@@ -167,3 +167,75 @@ test("un admin root change les rôles d'un compte et nomme un admin support", as
     page.getByTestId(`user-state-${target.email}`).filter({ visible: true }),
   ).toContainText("Support");
 });
+
+test("une demande de démo publique est suivie dans le back office", async ({ page, request }) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "support");
+  const company = `Mines de Kindia ${Date.now()}`;
+
+  await open(page, "/demo");
+  await page.locator("#fullName").fill("Fatoumata Bah");
+  await page.locator("#email").fill(`demo${Date.now()}@example.com`);
+  await page.locator("#phone").fill("622 11 22 33");
+  await page.locator("#companyName").fill(company);
+  await page.locator("#companySize").click();
+  await page.getByRole("option", { name: "11-50" }).click();
+  await page.getByRole("button", { name: "Envoyer ma demande" }).click();
+  await expect(page.getByText("Demande envoyée")).toBeVisible();
+
+  await openBackOffice(page, admin.email, "/konkoureoffice/demandes");
+  await expect(page.getByText(company).filter({ visible: true })).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Statut de la demande de Fatoumata Bah" })
+    .first()
+    .click();
+  await page.getByRole("option", { name: "Contactée" }).click();
+  await expect(page.getByText("Demande mise à jour")).toBeVisible();
+  await page.getByRole("button", { name: "M'assigner" }).filter({ visible: true }).first().click();
+  await expect(
+    page.getByText("Moi", { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
+});
+
+test("un admin consulte les réglages, les paiements, le journal et la santé", async ({
+  page,
+  request,
+}) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "root");
+  const target = await createOwner(request);
+
+  // An audited root action to find in the journal.
+  await openBackOffice(page, admin.email, "/konkoureoffice/organisations");
+  await page.getByLabel("Rechercher une organisation").fill(target.organizationName);
+  await page.getByRole("button", { name: `Gérer ${target.organizationName}` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Suspendre" }).click();
+  await page.getByRole("dialog").last().getByRole("button", { name: "Suspendre" }).click();
+  await expect(page.getByText("Organisation suspendue")).toBeVisible();
+
+  await open(page, "/konkoureoffice/reglages");
+  // Not toggled: it would open every module to the other tests for a minute.
+  await expect(
+    page.getByLabel("Ouvrir tous les modules à toutes les organisations (test)"),
+  ).toBeEnabled();
+
+  await open(page, "/konkoureoffice/paiements");
+  await expect(page.getByRole("heading", { name: "Paiements" })).toBeVisible();
+
+  await open(page, "/konkoureoffice/journal");
+  await page.locator("#log-org").fill(target.organizationId);
+  await expect(page.getByTestId("log-rows")).toContainText("platform.organization_suspended");
+
+  await open(page, "/konkoureoffice/sante");
+  await expect(page.getByTestId("health-status")).toBeVisible();
+  await expect(page.getByText("Base de données", { exact: true })).toBeVisible();
+});
+
+test("un admin support ne peut pas changer les réglages", async ({ page, request }) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "support");
+  await openBackOffice(page, admin.email, "/konkoureoffice/reglages");
+  await expect(
+    page.getByLabel("Ouvrir tous les modules à toutes les organisations (test)"),
+  ).toBeDisabled();
+});

@@ -4,6 +4,7 @@ import {
   Building2,
   CreditCard,
   Gauge,
+  HeartPulse,
   LayoutList,
   MessageSquare,
   ScrollText,
@@ -46,6 +47,7 @@ const NAV = [
   { to: "/konkoureoffice/paiements", label: "Paiements", icon: CreditCard },
   { to: "/konkoureoffice/reglages", label: "Réglages", icon: Settings },
   { to: "/konkoureoffice/journal", label: "Journal", icon: ScrollText },
+  { to: "/konkoureoffice/sante", label: "Santé", icon: HeartPulse },
 ];
 
 function AdminLayout() {
