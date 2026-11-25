@@ -186,49 +186,16 @@
   "src/routes/konkoureoffice.demandes.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    },
-    "prettier/prettier": {
-      "count": 4
-    }
-  },
-  "src/routes/konkoureoffice.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "prettier/prettier": {
-      "count": 3
     }
   },
   "src/routes/konkoureoffice.journal.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    },
-    "prettier/prettier": {
-      "count": 6
-    }
-  },
-  "src/routes/konkoureoffice.offres.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prettier/prettier": {
-      "count": 6
-    }
-  },
-  "src/routes/konkoureoffice.organisations.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "prettier/prettier": {
-      "count": 11
     }
   },
   "src/routes/konkoureoffice.paiements.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "prettier/prettier": {
-      "count": 2
     }
   },
   "src/routes/konkoureoffice.reglages.tsx": {
@@ -236,17 +203,9 @@
       "count": 6
     }
   },
-  "src/routes/konkoureoffice.tsx": {
-    "prettier/prettier": {
-      "count": 2
-    }
-  },
   "src/routes/konkoureoffice.utilisateurs.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    },
-    "prettier/prettier": {
-      "count": 38
     }
   },
   "src/routes/resources.guide-tableau-de-bord-rh.tsx": {
