@@ -1,5 +1,9 @@
 export default {
   billing: {
+    pendingClaimTitle: "A paid subscription is waiting for its organization",
+    pendingClaimDesc:
+      "You paid for a subscription before signing in. It is used to create a new organization you will own.",
+    pendingClaimAction: "Use this payment",
     pageTitle: "Subscription",
     pageDescription: "Plan, billing and Mobile Money payments (GNF).",
     currentPlan: "Current plan",
@@ -348,13 +352,36 @@ export default {
     unlockWith: "By upgrading to the {{plan}} plan, you unlock:",
     seePlans: "See plans",
     backToDashboard: "Back to dashboard",
-    claimActivated: "Your paid subscription has been activated for this organization.",
-    claimEmailMismatch:
-      "The payment was made with a different email address. Track its status at /paiement/suivi with your tracking code.",
-    claimNotConfirmed:
-      "Your payment is not confirmed yet: track its status at /paiement/suivi, the subscription will be activated afterwards.",
-    claimNotFound: "The payment attachment code was not found.",
-    claimAttachError: "Unable to attach your payment right now.",
+    claimActivated: "Your paid subscription is active for this new organization.",
+    claimNotFound: "This payment cannot be found: check your tracking link.",
+    claimTitle: "Create the organization of your subscription",
+    claimSubtitle:
+      "Your payment goes to this new organization: you will be its owner and the paid subscription starts today.",
+    claimSubtitleExisting:
+      "You paid for a subscription before signing in. It applies to a new organization you will own; you can switch between organizations from the menu.",
+    claimSubmit: "Create the organization and activate the subscription",
+    claimLater: "Later",
+    claimWithout: "Create an organization without this payment",
+    claimAttached: "Your paid subscription now applies to this organization.",
+    claimTitleChoice: "Use your paid subscription",
+    claimSubtitleChoice:
+      "You paid for a subscription before signing in. Apply it to an organization you own, or create a new one.",
+    claimTargetLabel: "Organization of the subscription",
+    claimTargetExisting: "Apply it to an existing organization",
+    claimTargetNew: "Create a new organization",
+    claimOrganization: "Organization",
+    claimExistingHint:
+      "Same plan and cycle as the current paid subscription: the period is extended. Otherwise, the new subscription replaces the current one today.",
+    claimSubmitExisting: "Apply the subscription",
+    claimNotOwner: "Only the owner of this organization can apply the subscription to it.",
+    claimRule: {
+      notPaid:
+        "Your payment is not confirmed yet. Try again as soon as the tracking shows « Payment confirmed ».",
+      email:
+        "This payment was made with another email address ({{email}}). Sign in with that account to use it.",
+      used: "This payment has already been used to create an organization.",
+      expired: "This payment's 7-day window has passed. Please contact us.",
+    },
   },
   return: {
     metaTitle: "Payment confirmation — Konkouré HR",
@@ -373,37 +400,46 @@ export default {
   },
   paymentTracker: {
     loading: "Loading payment tracking…",
-    noPayment: "No payment matches this code.",
+    noPayment: "No payment matches this reference and code.",
     title: "Payment tracking",
-    claimedBadge: "Subscription attached",
-    statusPending: "Pending",
-    statusSuccess: "Payment confirmed",
-    statusFailed: "Payment failed",
-    statusCancelled: "Payment cancelled",
-    statusMismatch: "Amount mismatch",
-    helpPending:
-      "We are waiting for your operator's confirmation. This screen updates automatically.",
-    helpSuccess:
-      "Your payment has been recorded. Create your account with the same email address to activate the subscription.",
-    helpFailed: "No amount was charged. You can restart the payment.",
-    helpCancelled: "The payment was cancelled before validation.",
-    helpMismatch: "The amount received does not match the chosen plan. Contact us to fix it.",
-    helpGeneric: "Status being verified.",
-    helpClaimed: "Your payment is attached to your organization, the subscription is active.",
+    status: {
+      pending: "Pending",
+      processing: "Being confirmed",
+      succeeded: "Payment confirmed",
+      failed: "Payment failed",
+      expired: "Payment expired",
+      refunded: "Payment refunded",
+    },
+    help: {
+      pending:
+        "We are waiting for your operator's confirmation. This screen updates automatically.",
+      processing: "Your operator is processing the payment. This screen updates automatically.",
+      failed: "No amount was charged. You can restart the payment.",
+      expired: "The payment was not validated in time. You can restart it.",
+      refunded: "This payment was refunded: it can no longer activate a subscription.",
+      claimable:
+        "Your payment has been recorded. Create your account, or sign in, with the same email address: you will then create the organization of your subscription.",
+      notClaimable:
+        "This payment has already been used to create an organization, or its 7-day window has passed.",
+    },
+    plans: { starter: "Starter", pro: "Pro", enterprise: "Enterprise" },
+    cycleMonthly: "monthly",
+    cycleYearly: "yearly",
     stepInitiated: "Payment initiated",
     stepConfirmed: "Payment confirmed",
-    stepAttached: "Subscription attached",
+    stepAccount: "Organization created",
     offerLabel: "Plan",
     amountLabel: "Amount",
     emailLabel: "Payment email address",
-    trackingCodeLabel: "Tracking code (keep it)",
-    codeCopied: "Tracking code copied.",
+    trackingCodeLabel: "Tracking code (click to copy the tracking link)",
+    linkCopied: "Tracking link copied. Keep it: it lets you find this payment again.",
     copyError: "Unable to copy.",
     waitingSince: "Waiting for {{count}} s…",
     stalledHint:
-      "Confirmation is taking longer than expected. Use « Refresh » or come back later with your tracking code.",
+      "Confirmation is taking longer than expected. Use « Refresh » or come back later with your tracking link.",
     refresh: "Refresh",
     createAccount: "Create my account",
+    signIn: "I already have an account",
     retryPayment: "Retry payment",
   },
 } as const;

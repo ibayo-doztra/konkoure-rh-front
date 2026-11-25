@@ -13,13 +13,6 @@ export const recordPublicApplication = pendingFn(
   "POST /public/careers/:orgSlug/jobs/:jobSlug/apply",
 );
 
-// Billing
-export const listPublicPlans = pendingFn("GET /public/plans");
-export const requestPrepaidEmailCode = pendingFn("POST /public/prepaid/codes");
-export const startPrepaidPayment = pendingFn("POST /public/payments/checkout");
-export const getPrepaidSummary = pendingFn("GET /public/payments/:merchantReference");
-export const claimPrepaidPayment = pendingFn("POST /public/payments/:merchantReference/claim");
-
 // Public
 export const submitDemoRequest = pendingFn("POST /public/demo-requests");
 

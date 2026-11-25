@@ -1,5 +1,9 @@
 export default {
   billing: {
+    pendingClaimTitle: "Un abonnement payé attend son organisation",
+    pendingClaimDesc:
+      "Vous avez payé un abonnement avant de vous connecter. Il sert à créer une nouvelle organisation dont vous serez propriétaire.",
+    pendingClaimAction: "Utiliser ce paiement",
     pageTitle: "Abonnement",
     pageDescription: "Offre, facturation et paiements Mobile Money (GNF).",
     currentPlan: "Offre actuelle",
@@ -352,13 +356,36 @@ export default {
     unlockWith: "En passant à l'offre {{plan}}, vous débloquez :",
     seePlans: "Voir les offres",
     backToDashboard: "Retour au tableau de bord",
-    claimActivated: "Votre abonnement payé a été activé pour cette organisation.",
-    claimEmailMismatch:
-      "Le paiement a été effectué avec une autre adresse e-mail. Suivez son état sur /paiement/suivi avec votre code de suivi.",
-    claimNotConfirmed:
-      "Votre paiement n'est pas encore confirmé : suivez son état sur /paiement/suivi, l'abonnement sera activé ensuite.",
-    claimNotFound: "Le code de rattachement du paiement est introuvable.",
-    claimAttachError: "Impossible de rattacher votre paiement pour le moment.",
+    claimActivated: "Votre abonnement payé est actif pour cette nouvelle organisation.",
+    claimNotFound: "Ce paiement est introuvable : vérifiez votre lien de suivi.",
+    claimTitle: "Créez l'organisation de votre abonnement",
+    claimSubtitle:
+      "Votre paiement est rattaché à cette nouvelle organisation : vous en serez propriétaire et l'abonnement payé démarre aujourd'hui.",
+    claimSubtitleExisting:
+      "Vous avez payé un abonnement avant de vous connecter. Il s'applique à une nouvelle organisation dont vous serez propriétaire ; vous pourrez passer de l'une à l'autre depuis le menu.",
+    claimSubmit: "Créer l'organisation et activer l'abonnement",
+    claimLater: "Plus tard",
+    claimWithout: "Créer une organisation sans ce paiement",
+    claimAttached: "Votre abonnement payé est appliqué à cette organisation.",
+    claimTitleChoice: "Utilisez votre abonnement payé",
+    claimSubtitleChoice:
+      "Vous avez payé un abonnement avant de vous connecter. Appliquez-le à une organisation dont vous êtes propriétaire, ou créez-en une nouvelle.",
+    claimTargetLabel: "Organisation de l'abonnement",
+    claimTargetExisting: "L'appliquer à une organisation existante",
+    claimTargetNew: "Créer une nouvelle organisation",
+    claimOrganization: "Organisation",
+    claimExistingHint:
+      "Même offre et même cycle que l'abonnement payé en cours : la période est prolongée. Sinon, le nouvel abonnement remplace l'actuel dès aujourd'hui.",
+    claimSubmitExisting: "Appliquer l'abonnement",
+    claimNotOwner: "Seul le propriétaire de cette organisation peut y appliquer l'abonnement.",
+    claimRule: {
+      notPaid:
+        "Votre paiement n'est pas encore confirmé. Réessayez dès que le suivi indique « Paiement confirmé ».",
+      email:
+        "Ce paiement a été fait avec une autre adresse e-mail ({{email}}). Connectez-vous avec ce compte pour l'utiliser.",
+      used: "Ce paiement a déjà servi à créer une organisation.",
+      expired: "Le délai d'utilisation de ce paiement (7 jours) est dépassé. Contactez-nous.",
+    },
   },
   return: {
     metaTitle: "Confirmation de paiement — Konkouré RH",
@@ -378,38 +405,46 @@ export default {
   },
   paymentTracker: {
     loading: "Chargement du suivi de paiement…",
-    noPayment: "Aucun paiement ne correspond à ce code.",
+    noPayment: "Aucun paiement ne correspond à cette référence et à ce code.",
     title: "Suivi du paiement",
-    claimedBadge: "Abonnement rattaché",
-    statusPending: "En attente",
-    statusSuccess: "Paiement confirmé",
-    statusFailed: "Paiement échoué",
-    statusCancelled: "Paiement annulé",
-    statusMismatch: "Montant incohérent",
-    helpPending:
-      "Nous attendons la confirmation de votre opérateur. Cet écran se met à jour automatiquement.",
-    helpSuccess:
-      "Votre paiement est enregistré. Créez votre compte avec la même adresse e-mail pour activer l'abonnement.",
-    helpFailed: "Aucun montant n'a été prélevé. Vous pouvez relancer le paiement.",
-    helpCancelled: "Le paiement a été annulé avant sa validation.",
-    helpMismatch:
-      "Le montant reçu ne correspond pas à l'offre choisie. Contactez-nous pour régulariser.",
-    helpGeneric: "Statut en cours de vérification.",
-    helpClaimed: "Votre paiement est rattaché à votre organisation, l'abonnement est actif.",
+    status: {
+      pending: "En attente",
+      processing: "En cours de confirmation",
+      succeeded: "Paiement confirmé",
+      failed: "Paiement échoué",
+      expired: "Paiement expiré",
+      refunded: "Paiement remboursé",
+    },
+    help: {
+      pending:
+        "Nous attendons la confirmation de votre opérateur. Cet écran se met à jour automatiquement.",
+      processing: "Votre opérateur traite le paiement. Cet écran se met à jour automatiquement.",
+      failed: "Aucun montant n'a été prélevé. Vous pouvez relancer le paiement.",
+      expired: "Le paiement n'a pas été validé à temps. Vous pouvez le relancer.",
+      refunded: "Ce paiement a été remboursé : il ne peut plus activer d'abonnement.",
+      claimable:
+        "Votre paiement est enregistré. Créez votre compte, ou connectez-vous, avec la même adresse e-mail : vous créerez ensuite l'organisation de votre abonnement.",
+      notClaimable:
+        "Ce paiement a déjà servi à créer une organisation, ou son délai d'utilisation (7 jours) est dépassé.",
+    },
+    plans: { starter: "Starter", pro: "Pro", enterprise: "Entreprise" },
+    cycleMonthly: "mensuel",
+    cycleYearly: "annuel",
     stepInitiated: "Paiement initié",
     stepConfirmed: "Paiement confirmé",
-    stepAttached: "Abonnement rattaché",
+    stepAccount: "Organisation créée",
     offerLabel: "Offre",
     amountLabel: "Montant",
     emailLabel: "Adresse e-mail du paiement",
-    trackingCodeLabel: "Code de suivi (à conserver)",
-    codeCopied: "Code de suivi copié.",
+    trackingCodeLabel: "Code de suivi (cliquez pour copier le lien de suivi)",
+    linkCopied: "Lien de suivi copié. Conservez-le : il permet de retrouver ce paiement.",
     copyError: "Copie impossible.",
     waitingSince: "En attente depuis {{count}} s…",
     stalledHint:
-      "La confirmation prend plus de temps que prévu. Utilisez « Actualiser » ou revenez sur cette page plus tard avec votre code de suivi.",
+      "La confirmation prend plus de temps que prévu. Utilisez « Actualiser » ou revenez plus tard avec votre lien de suivi.",
     refresh: "Actualiser",
     createAccount: "Créer mon compte",
+    signIn: "J'ai déjà un compte",
     retryPayment: "Réessayer le paiement",
   },
 } as const;

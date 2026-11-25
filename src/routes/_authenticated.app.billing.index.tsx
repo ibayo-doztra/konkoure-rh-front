@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Check, FileDown, Loader2 } from "lucide-react";
+import { Check, FileDown, Loader2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/client";
 import {
@@ -42,6 +42,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/format";
+import { peekPendingClaim } from "@/lib/pending-claim";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated/app/billing/")({
   head: () => ({
@@ -71,6 +73,26 @@ const PAYMENT_STATUS_VARIANT: Record<
 };
 
 /** Subscription, usage, plans, payments and invoices of the organization (owner). */
+/** A subscription paid before signing in, still waiting for its organization. */
+function PendingClaimNotice() {
+  const { t } = useTranslation();
+  const [pending, setPending] = useState(false);
+  useEffect(() => setPending(!!peekPendingClaim()), []);
+  if (!pending) return null;
+  return (
+    <Alert>
+      <Wallet className="h-4 w-4" />
+      <AlertTitle>{t("billing.pendingClaimTitle")}</AlertTitle>
+      <AlertDescription className="space-y-2">
+        <p>{t("billing.pendingClaimDesc")}</p>
+        <Button asChild size="sm" variant="outline">
+          <Link to="/onboarding/organization">{t("billing.pendingClaimAction")}</Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 function BillingPage() {
   const { t } = useTranslation();
   const { org } = useOrg();
@@ -82,6 +104,8 @@ function BillingPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("billing.pageTitle")} description={t("billing.pageDescription")} />
+
+      <PendingClaimNotice />
 
       {subscription.isPending ? (
         <Skeleton className="h-32 w-full" />

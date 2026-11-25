@@ -1,5 +1,5 @@
-// Bloc de suivi du paiement Djomy, réutilisé avant et après la création du
-// compte (page publique /paiement, retour carte, inscription, abonnement).
+// Tracking block of a payment made before sign-up, reused on the public pages
+// (/paiement, card return, tracking), on sign-up and on onboarding.
 import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,67 +8,46 @@ import { Check, CheckCircle2, Clock, Copy, Loader2, RefreshCw, XCircle } from "l
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { gnf, type PlanCode } from "@/components/billing/checkout-shared";
+import { gnf, PLAN_CODES, type PlanCode } from "@/components/billing/checkout-shared";
 import { usePaymentClaimStatus, type ClaimSummary } from "@/hooks/usePaymentClaimStatus";
+import { isFinalPayment, type PaymentStatus } from "@/lib/api/billing";
+import type { PendingClaim } from "@/lib/api/billing-public";
 
 type Tone = "pending" | "success" | "error";
 
-function useStatusMeta() {
-  const { t } = useTranslation();
-  const STATUS_META: Record<string, { label: string; tone: Tone; help: string }> = {
-    pending: {
-      label: t("paymentTracker.statusPending"),
-      tone: "pending",
-      help: t("paymentTracker.helpPending"),
-    },
-    success: {
-      label: t("paymentTracker.statusSuccess"),
-      tone: "success",
-      help: t("paymentTracker.helpSuccess"),
-    },
-    failed: {
-      label: t("paymentTracker.statusFailed"),
-      tone: "error",
-      help: t("paymentTracker.helpFailed"),
-    },
-    cancelled: {
-      label: t("paymentTracker.statusCancelled"),
-      tone: "error",
-      help: t("paymentTracker.helpCancelled"),
-    },
-    mismatch: {
-      label: t("paymentTracker.statusMismatch"),
-      tone: "error",
-      help: t("paymentTracker.helpMismatch"),
-    },
-  };
-  return (status: string) =>
-    STATUS_META[status] ?? {
-      label: status,
-      tone: "pending" as Tone,
-      help: t("paymentTracker.helpGeneric"),
-    };
+const TONES: Record<PaymentStatus, Tone> = {
+  pending: "pending",
+  processing: "pending",
+  succeeded: "success",
+  failed: "error",
+  expired: "error",
+  refunded: "error",
+};
+
+/** Link that reopens this tracking page, with the claim code. */
+export function trackingUrl(claim: PendingClaim) {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const params = new URLSearchParams({ ref: claim.ref, claim: claim.token });
+  return `${origin}/paiement/suivi?${params.toString()}`;
 }
 
-function StatusBadge({ status, claimed }: { status: string; claimed: boolean }) {
+function StatusBadge({ status }: { status: PaymentStatus }) {
   const { t } = useTranslation();
-  const statusMeta = useStatusMeta();
-  if (claimed) return <Badge variant="success">{t("paymentTracker.claimedBadge")}</Badge>;
-  const { label, tone } = statusMeta(status);
+  const label = t(`paymentTracker.status.${status}`);
+  const tone = TONES[status] ?? "pending";
   if (tone === "success") return <Badge variant="success">{label}</Badge>;
   if (tone === "error") return <Badge variant="destructive">{label}</Badge>;
   return <Badge variant="secondary">{label}</Badge>;
 }
 
-function Steps({ status, claimed }: { status: string; claimed: boolean }) {
+function Steps({ summary }: { summary: ClaimSummary }) {
   const { t } = useTranslation();
-  const statusMeta = useStatusMeta();
-  const paid = status === "success";
-  const failed = statusMeta(status).tone === "error";
+  const paid = summary.status === "succeeded";
+  const failed = TONES[summary.status] === "error";
   const steps = [
     { label: t("paymentTracker.stepInitiated"), done: true, failed: false },
     { label: t("paymentTracker.stepConfirmed"), done: paid, failed },
-    { label: t("paymentTracker.stepAttached"), done: claimed, failed: false },
+    { label: t("paymentTracker.stepAccount"), done: false, failed: false },
   ];
 
   return (
@@ -93,9 +72,7 @@ function Steps({ status, claimed }: { status: string; claimed: boolean }) {
             )}
           </span>
           <span
-            className={`text-xs font-medium ${
-              s.done ? "text-foreground" : "text-muted-foreground"
-            }`}
+            className={`text-xs font-medium ${s.done ? "text-foreground" : "text-muted-foreground"}`}
           >
             {i + 1}. {s.label}
           </span>
@@ -105,7 +82,7 @@ function Steps({ status, claimed }: { status: string; claimed: boolean }) {
   );
 }
 
-function CopyToken({ token }: { token: string }) {
+function CopyTrackingLink({ claim }: { claim: PendingClaim }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
@@ -113,17 +90,17 @@ function CopyToken({ token }: { token: string }) {
       type="button"
       onClick={() => {
         void navigator.clipboard
-          .writeText(token)
+          .writeText(trackingUrl(claim))
           .then(() => {
             setCopied(true);
-            toast.success(t("paymentTracker.codeCopied"));
+            toast.success(t("paymentTracker.linkCopied"));
             setTimeout(() => setCopied(false), 2000);
           })
           .catch(() => toast.error(t("paymentTracker.copyError")));
       }}
       className="inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-primary"
     >
-      <span className="truncate">{token}</span>
+      <span className="truncate">{claim.token}</span>
       {copied ? (
         <Check className="h-3.5 w-3.5 shrink-0 text-success" />
       ) : (
@@ -134,28 +111,27 @@ function CopyToken({ token }: { token: string }) {
 }
 
 export interface PaymentStatusTrackerProps {
-  claimToken: string;
-  /** Version condensée (inscription, encart d'abonnement). */
+  claim: PendingClaim;
+  /** Condensed version (sign-up, onboarding). */
   compact?: boolean;
-  /** Masque les actions contextuelles (créer un compte, réessayer…). */
+  /** Hides the contextual actions (create an account, retry…). */
   hideActions?: boolean;
-  /** Action supplémentaire rendue à côté des actions par défaut. */
+  /** Extra action rendered next to the default ones. */
   extraActions?: React.ReactNode;
-  /** Notifié à chaque mise à jour du résumé. */
+  /** Called on every update of the summary. */
   onStatus?: (summary: ClaimSummary | null) => void;
 }
 
 export function PaymentStatusTracker({
-  claimToken,
+  claim,
   compact = false,
   hideActions = false,
   extraActions,
   onStatus,
 }: PaymentStatusTrackerProps) {
   const { t } = useTranslation();
-  const statusMeta = useStatusMeta();
-  const { summary, loading, error, elapsed, stalled, refreshNow } =
-    usePaymentClaimStatus(claimToken);
+  const { summary, loading, refreshing, error, elapsed, stalled, refreshNow } =
+    usePaymentClaimStatus(claim);
 
   useEffect(() => {
     onStatus?.(summary);
@@ -164,8 +140,11 @@ export function PaymentStatusTracker({
   if (!summary) {
     return (
       <Card>
-        <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-          {loading ? (
+        <CardContent
+          className="flex items-center gap-3 p-6 text-sm text-muted-foreground"
+          role="status"
+        >
+          {loading || !error ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
               {t("paymentTracker.loading")}
@@ -173,7 +152,7 @@ export function PaymentStatusTracker({
           ) : (
             <>
               <XCircle className="h-4 w-4 text-destructive" />
-              {error ?? t("paymentTracker.noPayment")}
+              {t("paymentTracker.noPayment")}
             </>
           )}
         </CardContent>
@@ -181,12 +160,20 @@ export function PaymentStatusTracker({
     );
   }
 
-  const meta = statusMeta(summary.status);
-  const paid = summary.status === "success";
-  const failed = meta.tone === "error";
+  const tone = TONES[summary.status] ?? "pending";
+  const paid = summary.status === "succeeded";
+  const failed = tone === "error";
+  const help = paid
+    ? summary.claimable
+      ? t("paymentTracker.help.claimable")
+      : t("paymentTracker.help.notClaimable")
+    : t(`paymentTracker.help.${summary.status}`);
+  const planCode = PLAN_CODES.includes(summary.planCode as PlanCode)
+    ? (summary.planCode as PlanCode)
+    : "starter";
 
   return (
-    <Card>
+    <Card data-testid="payment-tracker">
       <CardContent className={compact ? "space-y-3 p-4" : "space-y-5 p-6"}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -199,41 +186,48 @@ export function PaymentStatusTracker({
             )}
             <span className="text-sm font-semibold">{t("paymentTracker.title")}</span>
           </div>
-          <StatusBadge status={summary.status} claimed={summary.claimed} />
+          <StatusBadge status={summary.status} />
         </div>
 
-        {!compact && <Steps status={summary.status} claimed={summary.claimed} />}
+        {!compact && <Steps summary={summary} />}
 
-        <p className="text-sm text-muted-foreground">
-          {summary.claimed ? t("paymentTracker.helpClaimed") : meta.help}
+        <p className="text-sm text-muted-foreground" role="status">
+          {help}
         </p>
 
         <dl className="grid gap-2 text-xs sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">{t("paymentTracker.offerLabel")}</dt>
             <dd className="font-medium text-foreground">
-              {summary.planName ?? "—"} — {summary.cycle}
+              {t(`paymentTracker.plans.${planCode}`)} —{" "}
+              {summary.cycle === "yearly"
+                ? t("paymentTracker.cycleYearly")
+                : t("paymentTracker.cycleMonthly")}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">{t("paymentTracker.amountLabel")}</dt>
             <dd className="font-medium tabular-nums text-foreground">
-              {gnf(summary.amount)} {summary.currency}
+              {gnf(summary.expectedAmount)} {summary.currency}
             </dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground">{t("paymentTracker.emailLabel")}</dt>
-            <dd className="font-medium text-foreground">{summary.emailMasked}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t("paymentTracker.trackingCodeLabel")}</dt>
-            <dd>
-              <CopyToken token={claimToken} />
-            </dd>
-          </div>
+          {summary.emailMasked && (
+            <div>
+              <dt className="text-muted-foreground">{t("paymentTracker.emailLabel")}</dt>
+              <dd className="font-medium text-foreground">{summary.emailMasked}</dd>
+            </div>
+          )}
+          {!compact && (
+            <div>
+              <dt className="text-muted-foreground">{t("paymentTracker.trackingCodeLabel")}</dt>
+              <dd>
+                <CopyTrackingLink claim={claim} />
+              </dd>
+            </div>
+          )}
         </dl>
 
-        {!summary.claimed && !paid && !failed && (
+        {!isFinalPayment(summary.status) && (
           <p className="text-xs text-muted-foreground">
             {stalled
               ? t("paymentTracker.stalledHint")
@@ -243,14 +237,14 @@ export function PaymentStatusTracker({
 
         {!hideActions && (
           <div className="flex flex-wrap gap-2">
-            {!summary.claimed && !paid && (
+            {!isFinalPayment(summary.status) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => void refreshNow()}
-                disabled={loading}
+                disabled={refreshing}
               >
-                {loading ? (
+                {refreshing ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -258,20 +252,27 @@ export function PaymentStatusTracker({
                 {t("paymentTracker.refresh")}
               </Button>
             )}
-            {paid && !summary.claimed && (
-              <Button asChild size="sm">
-                <Link to="/signup" search={{ claim: claimToken }}>
-                  {t("paymentTracker.createAccount")}
-                </Link>
-              </Button>
+            {paid && summary.claimable && (
+              <>
+                <Button asChild size="sm">
+                  <Link to="/signup" search={{ ref: claim.ref, claim: claim.token }}>
+                    {t("paymentTracker.createAccount")}
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/login" search={{}}>
+                    {t("paymentTracker.signIn")}
+                  </Link>
+                </Button>
+              </>
             )}
             {failed && (
               <Button asChild variant="outline" size="sm">
                 <Link
                   to="/paiement"
                   search={{
-                    plan: (summary.planCode as PlanCode) ?? "starter",
-                    cycle: summary.cycle === "annuel" ? "annuel" : "mensuel",
+                    plan: planCode,
+                    cycle: summary.cycle === "yearly" ? "annuel" : "mensuel",
                   }}
                 >
                   {t("paymentTracker.retryPayment")}

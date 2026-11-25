@@ -120,11 +120,6 @@
       "count": 1
     }
   },
-  "src/hooks/usePaymentClaimStatus.ts": {
-    "prettier/prettier": {
-      "count": 1
-    }
-  },
   "src/lib/currency.ts": {
     "prettier/prettier": {
       "count": 1
@@ -252,21 +247,6 @@
     },
     "prettier/prettier": {
       "count": 38
-    }
-  },
-  "src/routes/paiement.index.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/routes/paiement.retour.tsx": {
-    "prettier/prettier": {
-      "count": 3
-    }
-  },
-  "src/routes/paiement.suivi.tsx": {
-    "prettier/prettier": {
-      "count": 3
     }
   },
   "src/routes/resources.guide-tableau-de-bord-rh.tsx": {
