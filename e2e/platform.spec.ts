@@ -90,3 +90,80 @@ test("un admin support consulte sans pouvoir modifier", async ({ page, request }
   await expect(dialog.getByText("Lecture seule", { exact: false })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Suspendre" })).toHaveCount(0);
 });
+
+test("un admin root bannit puis réactive un compte", async ({ page, request }) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "root");
+  const target = await createOwner(request);
+
+  await openBackOffice(page, admin.email, "/konkoureoffice/utilisateurs");
+  await page.getByLabel("Rechercher un utilisateur").fill(target.email);
+  const state = page.getByTestId(`user-state-${target.email}`).filter({ visible: true });
+  await expect(state).toContainText("Actif");
+
+  await page.getByRole("button", { name: `Actions pour ${target.email}` }).click();
+  await page.getByRole("menuitem", { name: "Bannir le compte" }).click();
+  await page.locator("#reason").fill("Fraude constatée");
+  await page.getByRole("dialog").getByRole("button", { name: "Bannir" }).click();
+  await expect(page.getByText("Compte banni", { exact: false })).toBeVisible();
+  await expect(state).toContainText("Banni");
+
+  await page.getByRole("button", { name: `Actions pour ${target.email}` }).click();
+  await page.getByRole("menuitem", { name: "Réactiver le compte" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Réactiver" }).click();
+  await expect(state).toContainText("Actif");
+});
+
+test("un admin root agit en tant qu'un compte puis revient au back office", async ({
+  page,
+  request,
+}) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "root");
+  const target = await createOwner(request);
+
+  await openBackOffice(page, admin.email, "/konkoureoffice/utilisateurs");
+  await page.getByLabel("Rechercher un utilisateur").fill(target.email);
+  await page.getByRole("button", { name: `Actions pour ${target.email}` }).click();
+  await page.getByRole("menuitem", { name: "Se connecter en tant que" }).click();
+  await page.locator("#reason").fill("Assistance demandée par le client");
+  await page.getByRole("dialog").getByRole("button", { name: "Se connecter" }).click();
+
+  await expect(page).toHaveURL(APP_URL);
+  const banner = page.getByTestId("impersonation-banner");
+  await expect(banner).toContainText(target.email);
+
+  await banner.getByRole("button", { name: "Quitter" }).click();
+  await expect(page).toHaveURL(/\/konkoureoffice\/utilisateurs$/);
+  // Back in the admin's own session: the back office answers again.
+  await expect(page.getByRole("heading", { name: "Utilisateurs" })).toBeVisible();
+  await expect(page.getByTestId("impersonation-banner")).toHaveCount(0);
+});
+
+test("un admin root change les rôles d'un compte et nomme un admin support", async ({
+  page,
+  request,
+}) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "root");
+  const target = await createOwner(request);
+
+  await openBackOffice(page, admin.email, "/konkoureoffice/utilisateurs");
+  await page.getByLabel("Rechercher un utilisateur").fill(target.email);
+  await page.getByRole("button", { name: `Actions pour ${target.email}` }).click();
+  await page.getByRole("menuitem", { name: "Modifier les rôles" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: "Manager" }).click();
+  await dialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Rôles mis à jour")).toBeVisible();
+  await expect(
+    page.getByText(`Manager · ${target.organizationName}`).filter({ visible: true }),
+  ).toBeVisible();
+
+  await page.locator("#admin-email").fill(target.email);
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByTestId("platform-admins")).toContainText(target.email);
+  await expect(
+    page.getByTestId(`user-state-${target.email}`).filter({ visible: true }),
+  ).toContainText("Support");
+});

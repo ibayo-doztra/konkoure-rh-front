@@ -15,7 +15,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { AppBreadcrumbs } from "@/components/AppBreadcrumbs";
 import { AppFooter } from "@/components/AppFooter";
 import { SplashScreen } from "@/components/SplashScreen";
-
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthLayout,
@@ -56,7 +56,6 @@ function AuthLayout() {
     }
   }, [loading, orgLoading, roleLoading, user, org, role, path, nav, t]);
 
-
   // Module guard: an org may only open the modules included in its plan.
   useEffect(() => {
     if (loading || orgLoading || subLoading) return;
@@ -89,21 +88,24 @@ function AuthLayout() {
     return <SplashScreen />;
   }
 
-
   if (!org) {
     // No org and not loading: onboarding redirect already triggered above.
     return null;
   }
-
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full min-w-0">
         <AppSidebar />
         <SidebarInset className="flex min-h-screen min-w-0 max-w-full flex-col">
+          <ImpersonationBanner />
           <AppHeader />
           <AppBreadcrumbs />
-          <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 bg-muted/20 p-6 focus:outline-none">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="min-w-0 flex-1 bg-muted/20 p-6 focus:outline-none"
+          >
             <Outlet />
           </main>
           <AppFooter />
@@ -112,4 +114,3 @@ function AuthLayout() {
     </SidebarProvider>
   );
 }
-

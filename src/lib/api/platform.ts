@@ -11,6 +11,8 @@ import type {
   Usage,
 } from "@/lib/api/billing";
 import type { ModuleKey } from "@/lib/entitlements";
+import type { AppRole } from "@/lib/permissions";
+import type { PlatformLevel } from "@/lib/api/types";
 
 export const PLATFORM_PAGE_SIZE = 25;
 
@@ -191,4 +193,89 @@ export function updatePlan(id: string, input: Partial<PlanInput>) {
 /** Root. Soft delete; 409 `inUse` while a live subscription uses or schedules it. */
 export function deletePlan(id: string) {
   return api.delete(`/platform/plans/${encodeURIComponent(id)}`);
+}
+
+// ------------------------------------------------------------------ Accounts
+
+export interface PlatformUser {
+  id: string;
+  email: string;
+  fullName: string | null;
+  /** `false`: banned. */
+  isActive: boolean;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  platformLevel: PlatformLevel | null;
+  organizations: { organizationId: string; organizationName: string; roles: AppRole[] }[];
+}
+
+export const platformUsersQuery = (page: number, q: string) =>
+  queryOptions({
+    queryKey: [...platformKey, "users", page, q],
+    queryFn: () =>
+      api.list<PlatformUser>("/platform/users", {
+        page,
+        perPage: PLATFORM_PAGE_SIZE,
+        q: q || undefined,
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+const userPath = (id: string) => `/platform/users/${encodeURIComponent(id)}`;
+
+/** Root. Replaces the roles in one organization (empty: removed); 409 `lastOwner`. */
+export function updateUserRoles(id: string, organizationId: string, roles: AppRole[]) {
+  return api.patch<PlatformUser>(`${userPath(id)}/roles`, { organizationId, roles });
+}
+
+/** Root. Revokes every session; 409 `self`, `platformAdmin`, or already banned. */
+export function banUser(id: string, reason: string) {
+  return api.post<PlatformUser>(`${userPath(id)}/ban`, { reason });
+}
+
+/** Root. 409 `notBanned`. */
+export function unbanUser(id: string) {
+  return api.post<PlatformUser>(`${userPath(id)}/unban`);
+}
+
+export interface Impersonation {
+  /** 30 minutes, no refresh. */
+  accessToken: string;
+  expiresIn: number;
+  expiresAt: string;
+  user: { id: string; email: string; fullName: string | null };
+}
+
+/** Root. Audited with the reason; refused on oneself, an admin or a banned account (409). */
+export function impersonateUser(id: string, reason: string) {
+  return api.post<Impersonation>(`${userPath(id)}/impersonate`, { reason });
+}
+
+// ------------------------------------------------------------------ Platform admins
+
+export interface PlatformAdmin {
+  userId: string;
+  email: string | null;
+  fullName: string | null;
+  level: PlatformLevel;
+  createdAt: string;
+}
+
+/** Root only. */
+export const platformAdminsQuery = () =>
+  queryOptions({
+    queryKey: [...platformKey, "admins"],
+    queryFn: () => api.get<PlatformAdmin[]>("/platform/admins"),
+    retry: false,
+  });
+
+/** Root. Grants or changes the level of an existing account (422 if unknown or banned). */
+export function grantPlatformAdmin(email: string, level: PlatformLevel) {
+  return api.post<PlatformAdmin>("/platform/admins", { email, level });
+}
+
+/** Root. The last active root can be neither removed nor demoted (409 `lastRoot`). */
+export function revokePlatformAdmin(userId: string) {
+  return api.delete(`/platform/admins/${encodeURIComponent(userId)}`);
 }
