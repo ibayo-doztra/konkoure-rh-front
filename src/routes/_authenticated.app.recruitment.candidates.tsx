@@ -1288,6 +1288,11 @@ function describeActivity(
         icon: <Sparkles className="h-3 w-3" />,
         label: t("recruitment.candidates.activityDescriptions.scored", { score: p.score }),
       };
+    case "scoring_skipped":
+      return {
+        icon: <Sparkles className="h-3 w-3" />,
+        label: t("recruitment.candidates.activityDescriptions.scoringSkipped"),
+      };
     case "note_added":
       return {
         icon: <StickyNote className="h-3 w-3" />,

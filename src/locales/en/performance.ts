@@ -13,6 +13,9 @@ export default {
     quarterPlaceholder: "2026-Q1",
     keyResults: "Key results (one per line)",
     keyResultsHint: "At least one key result is required, 20 at most.",
+    aiSuggest: "Suggest with AI",
+    aiSuggestHint: "1 AI credit, from an objective of at least 10 characters.",
+    aiSuggested: "Key results suggested: review them before creating the objective.",
     suggestSmart: "Suggest SMART",
     aiError: "Unable to generate suggestions right now.",
     aiRateLimit: "Too many requests. Please try again shortly.",
@@ -140,6 +143,15 @@ export default {
     },
   },
   reviews: {
+    ai: {
+      title: "AI summary",
+      description:
+        "Summary of the review to prepare the meeting. Never shown to the evaluated employee.",
+      generate: "Generate the summary",
+      regenerate: "Regenerate",
+      generated: "Summary generated",
+      empty: "No summary yet (1 AI credit per generation).",
+    },
     title: "Performance reviews",
     description: "Your reviews linked to performance plans",
     myReviews: "My reviews",
@@ -423,6 +435,16 @@ export default {
       descriptionPlaceholder: "Describe the mission, company context and main responsibilities…",
       requirementsLabel: "Requirements",
       requirementsPlaceholder: "List the skills, experience and expected qualities…",
+      aiHint:
+        "Draft the description and requirements with AI, from the title and contract (1 AI credit).",
+      aiWrite: "Write with AI",
+      aiDescription: "Add details if needed: duties, profile, benefits. No salary is sent.",
+      aiReplaces:
+        "The suggested text will replace the current description and requirements. Nothing is saved until you save the offer.",
+      aiNotes: "Details (optional)",
+      aiNotesPlaceholder: "E.g. team of 5, frequent travel to Kindia…",
+      aiGenerate: "Generate",
+      aiGenerated: "Text suggested: review it, then save the offer.",
       locationLabel: "Location",
       locationPlaceholder: "E.g. Conakry, Guinea",
       contractTypeLabel: "Contract type",
@@ -641,6 +663,7 @@ export default {
       deleteNote: "Delete the note",
       aiScoreLabel: "AI score: {{score}}/100",
       activityDescriptions: {
+        scoringSkipped: "AI analysis not run: monthly AI credits used up",
         created: "Application received",
         createdWithJob: "Application received — {{job}}",
         stageChanged: 'Moved from "{{from}}" to "{{to}}"',

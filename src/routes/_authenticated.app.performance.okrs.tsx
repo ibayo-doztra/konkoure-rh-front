@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MessageSquare, Plus, Send, Trash2, Undo2 } from "lucide-react";
+import { Check, Loader2, MessageSquare, Plus, Send, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { apiErrorMessage } from "@/lib/api/client";
+import { aiErrorMessage } from "@/lib/api/ai";
 import {
   acceptsCheckins,
   createOkr,
@@ -20,6 +21,7 @@ import {
   replaceKeyResults,
   requestOkrRevision,
   submitOkr,
+  suggestKeyResults,
   updateKeyResult,
   validateOkr,
   type KeyResult,
@@ -108,6 +110,20 @@ function OkrsPage() {
       return refresh();
     },
     onError,
+  });
+  // AI key results (1 credit): they fill the field, to be reviewed before creating.
+  const suggest = useMutation({
+    mutationFn: () => suggestKeyResults({ objective: form.objective.trim() }),
+    onSuccess: ({ keyResults }) => {
+      const lines = keyResults.map((kr) =>
+        kr.targetValue != null && !/\d/.test(kr.title)
+          ? `${kr.title} (${kr.targetValue}${kr.unit ? ` ${kr.unit}` : ""})`
+          : kr.title,
+      );
+      setForm((f) => ({ ...f, keyResults: lines.join("\n") }));
+      toast.success(t("okrs.aiSuggested"));
+    },
+    onError: (e) => toast.error(aiErrorMessage(e)),
   });
   const toggleKr = useMutation({
     mutationFn: ({ okr, kr }: { okr: Okr; kr: KeyResult }) =>
@@ -271,6 +287,25 @@ function OkrsPage() {
                       onChange={(e) => setForm({ ...form, keyResults: e.target.value })}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">{t("okrs.keyResultsHint")}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={form.objective.trim().length < 10 || suggest.isPending}
+                        onClick={() => suggest.mutate()}
+                      >
+                        {suggest.isPending ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="mr-1.5 h-4 w-4" />
+                        )}
+                        {t("okrs.aiSuggest")}
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {t("okrs.aiSuggestHint")}
+                      </span>
+                    </div>
                   </div>
                   <Button onClick={save} className="w-full" disabled={!canSubmit}>
                     {t("okrs.create")}

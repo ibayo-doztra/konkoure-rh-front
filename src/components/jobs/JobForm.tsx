@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ArrowLeft, FileText, Check, Lock } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, FileText, Check, Lock, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { apiErrorMessage } from "@/lib/api/client";
+import { aiErrorMessage, plainTextToHtml } from "@/lib/api/ai";
 import {
   createJob,
+  generateJobText,
   MAX_REQUIRED_DOCUMENTS,
   publishJob,
   recruitmentKey,
@@ -29,6 +31,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type DocItem = RequiredDocument;
 
@@ -290,6 +302,19 @@ export function JobForm({ initial }: { initial?: Job }) {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
+          {initial && (
+            <JobAiButton
+              jobId={initial.id}
+              replaces={!!(form.description.trim() || form.requirements.trim())}
+              onGenerated={(text) =>
+                setForm((f) => ({
+                  ...f,
+                  description: plainTextToHtml(text.description),
+                  requirements: plainTextToHtml(text.requirements),
+                }))
+              }
+            />
+          )}
           <div>
             <Label>{t("recruitment.form.descriptionLabel")}</Label>
             <RichTextEditor
@@ -376,5 +401,81 @@ export function JobForm({ initial }: { initial?: Job }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Drafts the description and requirements with AI (1 credit), from the saved
+ * offer's title, contract, department and location, plus optional notes.
+ * Nothing is saved until the form is.
+ */
+function JobAiButton({
+  jobId,
+  replaces,
+  onGenerated,
+}: {
+  jobId: string;
+  replaces: boolean;
+  onGenerated: (text: { description: string; requirements: string }) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState("");
+  const generate = useMutation({
+    mutationFn: () => generateJobText(jobId, notes.trim() ? { notes: notes.trim() } : {}),
+    onSuccess: (text) => {
+      onGenerated(text);
+      setOpen(false);
+      setNotes("");
+      toast.success(t("recruitment.form.aiGenerated"));
+    },
+    onError: (e) => toast.error(aiErrorMessage(e)),
+  });
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3">
+        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+          {t("recruitment.form.aiHint")}
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          {t("recruitment.form.aiWrite")}
+        </Button>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("recruitment.form.aiWrite")}</DialogTitle>
+            <DialogDescription>
+              {replaces ? t("recruitment.form.aiReplaces") : t("recruitment.form.aiDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <Label htmlFor="job-ai-notes">{t("recruitment.form.aiNotes")}</Label>
+            <Textarea
+              id="job-ai-notes"
+              rows={4}
+              maxLength={2000}
+              value={notes}
+              placeholder={t("recruitment.form.aiNotesPlaceholder")}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <DialogActions>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="button" disabled={generate.isPending} onClick={() => generate.mutate()}>
+                {generate.isPending ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1.5 h-4 w-4" />
+                )}
+                {t("recruitment.form.aiGenerate")}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
