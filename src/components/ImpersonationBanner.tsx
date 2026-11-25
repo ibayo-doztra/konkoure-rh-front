@@ -24,8 +24,8 @@ export function ImpersonationBanner() {
   const leave = async () => {
     setLeaving(true);
     await endImpersonation();
+    await nav({ to: "/konkoureoffice/utilisateurs" });
     toast.success(t("impersonation.ended"));
-    nav({ to: "/konkoureoffice/utilisateurs" });
   };
 
   return (

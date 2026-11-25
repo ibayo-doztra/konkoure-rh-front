@@ -135,7 +135,8 @@ test("un admin root agit en tant qu'un compte puis revient au back office", asyn
 
   await banner.getByRole("button", { name: "Quitter" }).click();
   await expect(page).toHaveURL(/\/konkoureoffice\/utilisateurs$/);
-  await expect(page.getByText("Session d'assistance terminée.")).toBeVisible();
+  // Back in the admin's own session: the back office answers again.
+  await expect(page.getByRole("heading", { name: "Utilisateurs" })).toBeVisible();
   await expect(page.getByTestId("impersonation-banner")).toHaveCount(0);
 });
 
