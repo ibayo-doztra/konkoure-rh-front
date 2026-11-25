@@ -119,7 +119,7 @@ function AdminLayout() {
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
           <div className="md:hidden">
             <Logo responsive />
@@ -154,7 +154,7 @@ function AdminLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="min-w-0 flex-1 p-4 md:p-6">
           <Outlet />
         </main>
       </div>
