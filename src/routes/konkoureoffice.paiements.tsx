@@ -38,7 +38,16 @@ function AdminPaymentsPage() {
     .reduce((s, p) => s + Number(p.expected_amount ?? 0), 0);
 
   const exportCsv = () => {
-    const header = ["Date", "Organisation", "Offre", "Cycle", "Montant", "Statut", "Méthode", "Transaction"];
+    const header = [
+      "Date",
+      "Organisation",
+      "Offre",
+      "Cycle",
+      "Montant",
+      "Statut",
+      "Méthode",
+      "Transaction",
+    ];
     const lines = rows.map((p) =>
       [
         formatDateTime(p.created_at),
@@ -53,7 +62,9 @@ function AdminPaymentsPage() {
         .map(csvCell)
         .join(";"),
     );
-    const blob = new Blob([[header.join(";"), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([[header.join(";"), ...lines].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

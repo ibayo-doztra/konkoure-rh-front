@@ -17,8 +17,6 @@ export const recordPublicApplication = pendingFn(
 export const submitDemoRequest = pendingFn("POST /public/demo-requests");
 
 // Platform back office (/konkoureoffice)
-export const getAdminStatus = pendingFn("GET /me (isPlatformAdmin)");
-export const getAdminOverview = pendingFn("GET /platform/dashboard");
 export const getPlatformSettings = pendingFn("GET /platform/settings");
 export const updatePlatformSettings = pendingFn("PUT /platform/settings");
 export const listAdminLogs = pendingFn("GET /platform/logs/audit");
@@ -26,9 +24,6 @@ export const getAdminUsageStats = pendingFn("GET /platform/logs/usage");
 export const listAdminPayments = pendingFn("GET /platform/payments");
 export const listAdminDemoRequests = pendingFn("GET /platform/demo-requests");
 export const updateAdminDemoRequest = pendingFn("PATCH /platform/demo-requests/:id");
-export const listAdminPlans = pendingFn("GET /platform/plans");
-export const upsertAdminPlan = pendingFn("POST|PATCH /platform/plans");
-export const deleteAdminPlan = pendingFn("DELETE /platform/plans/:id");
 
 // Social publishing
 export const listSocialAccounts = pendingFn("GET /org/integrations/social/accounts");
@@ -38,9 +33,6 @@ export const publishJobToSocials = pendingFn("POST /org/recruitment/jobs/:id/soc
 export const listJobSocialPosts = pendingFn("GET /org/recruitment/jobs/:id/social-posts");
 
 // Platform back office — organizations & users
-export const listAdminOrganizations = pendingFn("GET /platform/organizations");
-export const getAdminOrganization = pendingFn("GET /platform/organizations/:id");
-export const updateAdminOrganization = pendingFn("PATCH /platform/organizations/:id/subscription");
 export const searchAdminUsers = pendingFn("GET /platform/users");
 export const sendAdminPasswordReset = pendingFn(
   "POST /platform/users/:id/password-reset (absent de 06)",

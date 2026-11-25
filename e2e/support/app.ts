@@ -136,3 +136,13 @@ export function grantPlan(organizationId: string, plan: "starter" | "pro" | "ent
   );
   expect(result.status, `subscription:grant → ${result.stderr || result.stdout}`).toBe(0);
 }
+
+/** Makes an existing account a platform admin through the API's own command. */
+export function grantPlatform(email: string, level: "support" | "root") {
+  const result = spawnSync(process.execPath, ["ace", "platform:grant", email, level], {
+    cwd: API_DIR,
+    env: { ...process.env, ...API_ENV },
+    encoding: "utf8",
+  });
+  expect(result.status, `platform:grant → ${result.stderr || result.stdout}`).toBe(0);
+}

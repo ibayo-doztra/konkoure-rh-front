@@ -84,44 +84,51 @@ function AdminUsersPage() {
 
   const rows: any[] = data ?? [];
 
-  const confirmDialog = confirm ? (() => {
-    if (confirm.type === "reset") {
-      return {
-        title: "Réinitialiser le mot de passe",
-        description: `Un e-mail de réinitialisation va être envoyé à ${confirm.email ?? "cet utilisateur"}. Cette action est immédiate.`,
-        actionLabel: "Envoyer l'e-mail",
-        actionVariant: "default" as const,
-        onConfirm: () => reset.mutate(confirm.userId),
-        loading: reset.isPending,
-      };
-    }
-    if (confirm.type === "grant") {
-      return {
-        title: confirm.active ? "Donner les droits super-admin" : "Retirer les droits super-admin",
-        description: confirm.active
-          ? `Cet utilisateur (${confirm.email ?? "-"}) obtiendra les droits super-administrateur (root) sur toute la plateforme. Confirmez-vous ?`
-          : `Cet utilisateur (${confirm.email ?? "-"}) perdra les droits super-administrateur. Confirmez-vous ?`,
-        actionLabel: confirm.active ? "Donner les droits" : "Retirer les droits",
-        actionVariant: confirm.active ? ("default" as const) : ("destructive" as const),
-        onConfirm: () => grant.mutate({ userId: confirm.userId, active: confirm.active }),
-        loading: grant.isPending,
-      };
-    }
-    return {
-      title: confirm.banned ? "Désactiver le compte" : "Réactiver le compte",
-      description: confirm.banned
-        ? `Le compte de ${confirm.email ?? "cet utilisateur"} va être désactivé. Il ne pourra plus se connecter ni accéder à la plateforme. Confirmez-vous ?`
-        : `Le compte de ${confirm.email ?? "cet utilisateur"} va être réactivé. Il pourra à nouveau se connecter. Confirmez-vous ?`,
-      actionLabel: confirm.banned ? "Désactiver" : "Réactiver",
-      actionVariant: "destructive" as const,
-      onConfirm: () => ban.mutate({ userId: confirm.userId, banned: confirm.banned }),
-      loading: ban.isPending,
-    };
-  })() : null;
+  const confirmDialog = confirm
+    ? (() => {
+        if (confirm.type === "reset") {
+          return {
+            title: "Réinitialiser le mot de passe",
+            description: `Un e-mail de réinitialisation va être envoyé à ${confirm.email ?? "cet utilisateur"}. Cette action est immédiate.`,
+            actionLabel: "Envoyer l'e-mail",
+            actionVariant: "default" as const,
+            onConfirm: () => reset.mutate(confirm.userId),
+            loading: reset.isPending,
+          };
+        }
+        if (confirm.type === "grant") {
+          return {
+            title: confirm.active
+              ? "Donner les droits super-admin"
+              : "Retirer les droits super-admin",
+            description: confirm.active
+              ? `Cet utilisateur (${confirm.email ?? "-"}) obtiendra les droits super-administrateur (root) sur toute la plateforme. Confirmez-vous ?`
+              : `Cet utilisateur (${confirm.email ?? "-"}) perdra les droits super-administrateur. Confirmez-vous ?`,
+            actionLabel: confirm.active ? "Donner les droits" : "Retirer les droits",
+            actionVariant: confirm.active ? ("default" as const) : ("destructive" as const),
+            onConfirm: () => grant.mutate({ userId: confirm.userId, active: confirm.active }),
+            loading: grant.isPending,
+          };
+        }
+        return {
+          title: confirm.banned ? "Désactiver le compte" : "Réactiver le compte",
+          description: confirm.banned
+            ? `Le compte de ${confirm.email ?? "cet utilisateur"} va être désactivé. Il ne pourra plus se connecter ni accéder à la plateforme. Confirmez-vous ?`
+            : `Le compte de ${confirm.email ?? "cet utilisateur"} va être réactivé. Il pourra à nouveau se connecter. Confirmez-vous ?`,
+          actionLabel: confirm.banned ? "Désactiver" : "Réactiver",
+          actionVariant: "destructive" as const,
+          onConfirm: () => ban.mutate({ userId: confirm.userId, banned: confirm.banned }),
+          loading: ban.isPending,
+        };
+      })()
+    : null;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Utilisateurs" description="Comptes, rôles et droits super-administrateur" />
+      <PageHeader
+        title="Utilisateurs"
+        description="Comptes, rôles et droits super-administrateur"
+      />
 
       <Card>
         <CardContent className="p-4">
@@ -160,7 +167,9 @@ function AdminUsersPage() {
                   cell: (u) => (
                     <div className="min-w-0">
                       <p className="truncate font-medium">{u.fullName || u.email}</p>
-                      <p className="truncate text-xs font-normal text-muted-foreground">{u.email}</p>
+                      <p className="truncate text-xs font-normal text-muted-foreground">
+                        {u.email}
+                      </p>
                     </div>
                   ),
                 },
@@ -169,7 +178,9 @@ function AdminUsersPage() {
                   header: "Rôles",
                   cell: (u) => (
                     <div className="flex flex-wrap gap-1">
-                      {u.roles.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                      {u.roles.length === 0 && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                       {u.roles.map((r: any, i: number) => (
                         <Badge key={i} variant="secondary" className="text-[10px]">
                           {ROLE_LABELS[r.role as AppRole] ?? r.role} · {r.organizationName}
@@ -210,7 +221,8 @@ function AdminUsersPage() {
                           {
                             label: "Réinitialiser le mot de passe",
                             icon: <KeyRound className="h-4 w-4" />,
-                            onSelect: () => setConfirm({ type: "reset", userId: u.id, email: u.email }),
+                            onSelect: () =>
+                              setConfirm({ type: "reset", userId: u.id, email: u.email }),
                           },
                           {
                             label: u.platformAdmin?.is_active

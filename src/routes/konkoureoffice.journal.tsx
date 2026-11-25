@@ -10,7 +10,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/konkoureoffice/journal")({
@@ -36,7 +42,9 @@ function AdminLogsPage() {
   const logsQ = useQuery({
     queryKey: ["admin-logs", kind, days, search],
     queryFn: () =>
-      logsFn({ data: { kind, days: Number(days), search: search || undefined, limit: 200 } as any }),
+      logsFn({
+        data: { kind, days: Number(days), search: search || undefined, limit: 200 } as any,
+      }),
   });
   const statsQ = useQuery({
     queryKey: ["admin-usage-stats", days],
@@ -47,7 +55,10 @@ function AdminLogsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Journal & usage" description="Traçabilité des actions sensibles et statistiques d'utilisation" />
+      <PageHeader
+        title="Journal & usage"
+        description="Traçabilité des actions sensibles et statistiques d'utilisation"
+      />
 
       {statsQ.data && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -66,7 +77,9 @@ function AdminLogsPage() {
                     {m.module} · {m.count}
                   </Badge>
                 ))}
-                {statsQ.data.byModule.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
+                {statsQ.data.byModule.length === 0 && (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -140,7 +153,9 @@ function AdminLogsPage() {
                   header: "Date",
                   className: "whitespace-nowrap text-sm",
                   cell: (r) => (
-                    <span className="whitespace-nowrap text-sm">{formatDateTime(r.created_at)}</span>
+                    <span className="whitespace-nowrap text-sm">
+                      {formatDateTime(r.created_at)}
+                    </span>
                   ),
                 },
                 {
@@ -149,7 +164,9 @@ function AdminLogsPage() {
                   className: "text-sm",
                   cell: (r) =>
                     kind === "system" ? (
-                      <Badge variant={r.level === "error" ? "destructive" : "secondary"}>{r.level}</Badge>
+                      <Badge variant={r.level === "error" ? "destructive" : "secondary"}>
+                        {r.level}
+                      </Badge>
                     ) : (
                       (r.actor_email ?? r.user_id ?? "—")
                     ),

@@ -7,7 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ResponsiveTable } from "@/components/ResponsiveTable";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/konkoureoffice/demandes")({
@@ -42,7 +48,10 @@ function AdminDemoRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Demandes de démo" description="Suivi commercial et état d'envoi des notifications" />
+      <PageHeader
+        title="Demandes de démo"
+        description="Suivi commercial et état d'envoi des notifications"
+      />
 
       {isLoading ? (
         <div className="space-y-2">
@@ -51,7 +60,10 @@ function AdminDemoRequestsPage() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState title="Aucune demande" hint="Les demandes envoyées depuis le site apparaîtront ici." />
+        <EmptyState
+          title="Aucune demande"
+          hint="Les demandes envoyées depuis le site apparaîtront ici."
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -124,7 +136,10 @@ function AdminDemoRequestsPage() {
                   header: "Statut",
                   headClassName: "w-44",
                   cell: (d) => (
-                    <Select value={d.status} onValueChange={(v) => update.mutate({ id: d.id, status: v })}>
+                    <Select
+                      value={d.status}
+                      onValueChange={(v) => update.mutate({ id: d.id, status: v })}
+                    >
                       <SelectTrigger className="w-full md:w-44">
                         <SelectValue />
                       </SelectTrigger>
