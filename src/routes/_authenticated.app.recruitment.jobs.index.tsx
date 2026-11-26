@@ -12,6 +12,7 @@ import {
   Plus,
   QrCode,
   Send,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import {
 import { contractTypeLabel } from "@/lib/contract-types";
 import { formatDate } from "@/lib/format";
 import { useOrg } from "@/hooks/useOrg";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ActionMenu } from "@/components/ActionMenu";
 import { ListPager, useClampedPage } from "@/components/ListPager";
 import { JobQrCodeDialog } from "@/components/jobs/JobQrCodeDialog";
+import { PublishToSocialsDialog } from "@/components/jobs/PublishToSocialsDialog";
 
 export const Route = createFileRoute("/_authenticated/app/recruitment/jobs/")({
   component: JobsPage,
@@ -53,6 +56,9 @@ function JobsPage() {
   useClampedPage(lastPage, page, setPage);
   const [pendingDelete, setPendingDelete] = useState<Job | null>(null);
   const [qrJob, setQrJob] = useState<Job | null>(null);
+  const [socialJob, setSocialJob] = useState<Job | null>(null);
+  const { hasModule } = useSubscription();
+  const canShare = hasModule("integrations");
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: recruitmentKey(organizationId) });
   const onError = (e: unknown) => toast.error(apiErrorMessage(e));
@@ -193,6 +199,13 @@ function JobsPage() {
                         hidden: !isPublic,
                       },
                       {
+                        label: t("recruitment.social.action"),
+                        icon: <Share2 className="h-4 w-4" />,
+                        onSelect: () => setSocialJob(j),
+                        // The API only shares a published offer (409 otherwise).
+                        hidden: !isPublished || !canShare,
+                      },
+                      {
                         label: t("recruitment.jobs.duplicate"),
                         icon: <Copy className="h-4 w-4" />,
                         onSelect: () => duplicate.mutate(j),
@@ -249,6 +262,13 @@ function JobsPage() {
         }}
         url={qrJob ? publicUrl(qrJob.slug) : ""}
         jobTitle={qrJob?.title ?? ""}
+      />
+
+      <PublishToSocialsDialog
+        job={socialJob}
+        onOpenChange={(v) => {
+          if (!v) setSocialJob(null);
+        }}
       />
     </div>
   );

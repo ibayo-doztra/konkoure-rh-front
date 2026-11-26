@@ -32,4 +32,9 @@ export const API_ENV: Record<string, string> = {
   RESEND_API_KEY: "e2e-fake-key",
   // Uploads go to the API's local disk, served under /uploads (refused in production).
   FILE_STORAGE_DISK: "fs",
+  // The API's .env.test holds fake LinkedIn and Facebook credentials for its own
+  // suite. Facebook is left unconfigured here so the 503 path is covered, while
+  // LinkedIn still starts a real OAuth redirect.
+  FACEBOOK_APP_ID: "",
+  FACEBOOK_APP_SECRET: "",
 };

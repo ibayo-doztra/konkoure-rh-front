@@ -34,14 +34,6 @@
       "count": 4
     }
   },
-  "src/components/jobs/PublishToSocialsDialog.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    },
-    "prettier/prettier": {
-      "count": 49
-    }
-  },
   "src/components/landing/GeoAttendanceSection.tsx": {
     "prettier/prettier": {
       "count": 1
@@ -160,14 +152,6 @@
   "src/routes/_authenticated.app.settings.index.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    }
-  },
-  "src/routes/_authenticated.app.settings.integrations.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    },
-    "prettier/prettier": {
-      "count": 41
     }
   },
   "src/routes/resources.guide-tableau-de-bord-rh.tsx": {
