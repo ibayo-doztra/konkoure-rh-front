@@ -104,7 +104,7 @@ export default {
   },
   accountPage: {
     title: "My account",
-    description: "Manage your profile, password and sessions.",
+    description: "Manage your profile, password, sessions and data.",
     profileTitle: "Profile",
     fullName: "Full name",
     email: "Email",
@@ -124,6 +124,27 @@ export default {
     revokeTitle: "Revoke this session?",
     revokeDescription: "The device will have to sign in again.",
     sessionRevoked: "Session revoked",
+    exportTitle: "My data",
+    exportHint:
+      "Get an archive of your personal data by email (profile, sessions and, in each organization, your record as you see it). The link is valid for 24 hours.",
+    exportAction: "Export my data",
+    exportQueued: "Export started: you will receive an email with the download link.",
+    exportTooSoon: "An export was already requested less than an hour ago. Try again later.",
+    deleteTitle: "Delete my account",
+    deleteHint:
+      "Your account is anonymized and all your sessions are closed. Your employee records stay in the organizations, detached from your account. This cannot be undone.",
+    deleteAction: "Delete my account",
+    deleteDialogTitle: "Permanently delete your account?",
+    deleteDialogDescription:
+      "Confirm with your password. You will be signed out and your email address can be used for a new sign-up.",
+    deletePassword: "Password",
+    deleteConfirm: "Delete permanently",
+    deleteCancel: "Cancel",
+    deleteWrongPassword: "Incorrect password.",
+    deleteLastOwner:
+      "You are the only owner of these organizations. Name another owner or delete them first:",
+    deleteLastRoot: "You are the last root administrator of the platform: name another one first.",
+    deleted: "Your account has been deleted.",
   },
   footer: {
     rights: "© {{year}} Konkouré — All rights reserved.",
