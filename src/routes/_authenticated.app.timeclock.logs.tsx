@@ -14,6 +14,7 @@ import { useRole } from "@/hooks/useRole";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportLogsDialog } from "@/components/timeclock/ExportLogsDialog";
+import { PunchesCard } from "@/components/timeclock/PunchesCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -104,7 +105,7 @@ function LogsPage() {
   };
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title={t("timeclock.logs.title")}
         description={t("timeclock.logs.description")}
@@ -121,7 +122,7 @@ function LogsPage() {
         <ExportLogsDialog defaultFrom={from} defaultTo={to} onClose={() => setExporting(false)} />
       )}
 
-      <Card className="mb-4">
+      <Card>
         <CardContent className="flex flex-wrap items-end gap-4 p-4">
           <div className="grid gap-1.5">
             <Label htmlFor="attendance-from">{t("timeclock.logs.from")}</Label>
@@ -179,7 +180,7 @@ function LogsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-testid="attendance-card">
         <CardContent className="p-0">
           <div className="border-b bg-muted/30 p-3 text-sm font-semibold">
             {t("timeclock.logs.sessionsTitle")}
@@ -245,6 +246,8 @@ function LogsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {rangeValid && <PunchesCard from={from} to={to} names={names} canCorrect={isAdmin} />}
     </div>
   );
 }

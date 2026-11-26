@@ -296,3 +296,56 @@ export const todayQuery = (organizationId: string) =>
     queryFn: () => api.get<TimeclockToday>("/org/timeclock/today"),
     refetchInterval: 60_000,
   });
+
+// ---------------------------------------------------------------------------
+// Raw punches: read by O H S (all), M (team + self), E (self); corrected by O H.
+// ---------------------------------------------------------------------------
+
+export const PUNCHES_PAGE_SIZE = 50;
+
+export interface TimeLog {
+  id: string;
+  employeeId: string;
+  type: PunchType;
+  punchedAt: string;
+  recordedAt: string;
+  source: PunchSource | "import";
+  workZoneId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMeters: number | null;
+  distanceMeters: number | null;
+  isWithinZone: boolean | null;
+  anomaly: "out_of_zone" | "low_accuracy" | "clock_drift" | null;
+  deviceId: string | null;
+  notes: string | null;
+  updatedAt: string;
+}
+
+export const timeLogsQuery = (
+  organizationId: string,
+  filters: { page: number; from: string; to: string },
+) =>
+  queryOptions({
+    queryKey: [...timeclockKey(organizationId), "logs", filters],
+    queryFn: () =>
+      api.list<TimeLog>("/org/timeclock/logs", {
+        page: filters.page,
+        perPage: PUNCHES_PAGE_SIZE,
+        "filter[from]": filters.from,
+        "filter[to]": filters.to,
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+/** Audited `time_log.corrected` with the previous values. */
+export function correctTimeLog(
+  id: string,
+  changes: { type?: PunchType; punchedAt?: string; notes?: string | null },
+) {
+  return api.patch<TimeLog>(`/org/timeclock/logs/${encodeURIComponent(id)}`, changes);
+}
+
+export function deleteTimeLog(id: string) {
+  return api.delete(`/org/timeclock/logs/${encodeURIComponent(id)}`);
+}

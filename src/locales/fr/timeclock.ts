@@ -65,6 +65,37 @@ export default {
       recordedAt: "enregistrée à",
       refused: "Pointage refusé",
     },
+    punches: {
+      title: "Pointages enregistrés",
+      empty: "Aucun pointage sur la période.",
+      type: "Type",
+      types: { in: "Arrivée", out: "Départ" },
+      at: "Date et heure",
+      source: "Source",
+      sources: {
+        nfc: "Badge",
+        kiosk: "Kiosque",
+        manual: "Manuel",
+        mobile_gps: "Mobile",
+        import: "Import",
+      },
+      notes: "Notes",
+      editFor: "Corriger le pointage {{label}}",
+      deleteFor: "Supprimer le pointage {{label}}",
+      correctTitle: "Corriger le pointage",
+      reason: "Motif de la correction",
+      reasonPlaceholder: "Oubli de badge, erreur de type…",
+      audited:
+        "La correction est tracée dans le journal d'audit avec les anciennes valeurs, et la journée est recalculée.",
+      save: "Enregistrer",
+      cancel: "Annuler",
+      corrected: "Pointage corrigé",
+      delete: "Supprimer",
+      deleteTitle: "Supprimer ce pointage ?",
+      deleteDescription:
+        "La suppression est tracée dans le journal d'audit et la journée est recalculée.",
+      deleted: "Pointage supprimé",
+    },
     kiosks: {
       title: "Kiosques de pointage",
       description:
