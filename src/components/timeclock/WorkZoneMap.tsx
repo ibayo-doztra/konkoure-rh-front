@@ -4,8 +4,7 @@ import i18next from "i18next";
 
 export type LatLng = { lat: number; lng: number };
 export type ZoneShape =
-  | { shape: "circle"; center: LatLng; radius: number }
-  | { shape: "polygon"; points: LatLng[] };
+  { shape: "circle"; center: LatLng; radius: number } | { shape: "polygon"; points: LatLng[] };
 
 type ExistingZone = {
   id: string;
@@ -39,16 +38,11 @@ function loadGoogleMaps(): Promise<typeof google> {
   if ((window as any).google?.maps) return Promise.resolve((window as any).google);
   if (googleMapsLoader) return googleMapsLoader;
 
-  const key = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as
-    | string
-    | undefined;
-  const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as
-    | string
-    | undefined;
+  const key = import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY as string | undefined;
   if (!key) return Promise.reject(new Error("Google Maps browser key manquante"));
 
   googleMapsLoader = new Promise((resolve, reject) => {
-    const cbName = "__lovableInitGmap";
+    const cbName = "__konkoureInitGmap";
     (window as any)[cbName] = () => {
       resolve((window as any).google);
     };
@@ -59,7 +53,6 @@ function loadGoogleMaps(): Promise<typeof google> {
       libraries: "geometry",
       callback: cbName,
     });
-    if (channel) params.set("channel", channel);
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.async = true;
     script.defer = true;
@@ -143,8 +136,7 @@ export function WorkZoneMap({
               radius: d?.shape === "circle" ? d.radius : 100,
             });
           } else {
-            const pts =
-              d?.shape === "polygon" ? [...d.points, { lat, lng }] : [{ lat, lng }];
+            const pts = d?.shape === "polygon" ? [...d.points, { lat, lng }] : [{ lat, lng }];
             onDraftChangeRef.current({ shape: "polygon", points: pts });
           }
         });
