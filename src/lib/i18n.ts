@@ -73,6 +73,7 @@ const fr = {
     succession: "Succession",
     leaves: "Congés",
     leaveRequests: "Demandes",
+    leaveCalendar: "Calendrier",
     holidays: "Jours fériés",
   },
   settings: {
@@ -528,6 +529,9 @@ const fr = {
   },
   breadcrumbs: {
     app: "Accueil",
+    leaves: "Congés",
+    holidays: "Jours fériés",
+    calendar: "Calendrier",
     employees: "Employés",
     departments: "Départements",
     contracts: "Contrats",
@@ -620,6 +624,7 @@ const en: typeof fr = {
     succession: "Succession",
     leaves: "Leaves",
     leaveRequests: "Requests",
+    leaveCalendar: "Calendar",
     holidays: "Public holidays",
   },
   settings: {
@@ -1062,6 +1067,9 @@ const en: typeof fr = {
   },
   breadcrumbs: {
     app: "Home",
+    leaves: "Leaves",
+    holidays: "Public holidays",
+    calendar: "Calendar",
     employees: "Employees",
     departments: "Departments",
     contracts: "Contracts",

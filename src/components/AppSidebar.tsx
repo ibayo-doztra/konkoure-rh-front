@@ -30,6 +30,7 @@ import {
   CalendarDays,
   CalendarCheck,
   CalendarClock,
+  CalendarRange,
   Tablet,
   UserCheck,
   type LucideIcon,
@@ -146,6 +147,7 @@ export function AppSidebar() {
       icon: CalendarDays,
       items: [
         { to: "/app/leaves", icon: CalendarCheck, label: t("nav.leaveRequests"), exact: true },
+        { to: "/app/leaves/calendar", icon: CalendarRange, label: t("nav.leaveCalendar") },
         { to: "/app/leaves/holidays", icon: CalendarDays, label: t("nav.holidays") },
       ],
     },

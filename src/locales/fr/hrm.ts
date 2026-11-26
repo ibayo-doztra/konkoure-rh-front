@@ -318,6 +318,18 @@ export default {
     myBalance: "Mon solde de congé",
     pendingDays: "Jours en attente d'approbation",
     balanceHint: "Solde annuel disponible, déduction faite des congés approuvés.",
+    calendar: {
+      title: "Calendrier des congés",
+      description: "Les absences approuvées et en attente du mois, et les jours fériés.",
+      previous: "Mois précédent",
+      next: "Mois suivant",
+      today: "Aujourd'hui",
+      holiday: "Jour férié",
+      halfDay: "demi-journée",
+      more_one: "+ {{count}} autre",
+      more_other: "+ {{count}} autres",
+      empty: "Aucune absence ce mois-ci.",
+    },
     adjust: {
       open: "Ajuster",
       title: "Ajuster le solde de congés",
