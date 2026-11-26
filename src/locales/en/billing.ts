@@ -309,6 +309,13 @@ export default {
     headcountChartTitle: "Headcount over 12 months",
     punchesChartTitle: "Punches per day",
     leavesByTypeTitle: "Leave taken by type",
+    sectionPayroll: "Payroll",
+    payrollTotal: "Salaries of current contracts",
+    vsPrevious_week: "vs previous week",
+    vsPrevious_month: "vs previous month",
+    vsPrevious_quarter: "vs previous quarter",
+    noChange: "Unchanged",
+    previousValue: "Previous period: {{value}}",
   },
   auth: {
     invitationMetaTitle: "Activate my account — Konkouré HR",

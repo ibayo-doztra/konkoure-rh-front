@@ -312,6 +312,13 @@ export default {
     headcountChartTitle: "Effectif sur 12 mois",
     punchesChartTitle: "Pointages par jour",
     leavesByTypeTitle: "Congés pris par type",
+    sectionPayroll: "Masse salariale",
+    payrollTotal: "Salaires des contrats en cours",
+    vsPrevious_week: "vs semaine précédente",
+    vsPrevious_month: "vs mois précédent",
+    vsPrevious_quarter: "vs trimestre précédent",
+    noChange: "Stable",
+    previousValue: "Période précédente : {{value}}",
   },
   auth: {
     invitationMetaTitle: "Activer mon compte — Konkouré RH",

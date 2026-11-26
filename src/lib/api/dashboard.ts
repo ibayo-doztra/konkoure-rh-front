@@ -34,11 +34,45 @@ export interface Dashboard {
     /** Null while the organization has no goal. */
     avgGoalProgress: number | null;
   } | null;
+  /**
+   * Sum of the salaries of today's active contracts, in the organization's currency.
+   * Sensitive: filled for owner and hr_admin only, `null` for every other role.
+   */
+  payroll: { total: number; currency: string } | null;
+  /** Same blocks for the previous equivalent period, without series. */
+  previous: PreviousDashboard;
   series: {
     headcountByMonth: { month: string; total: number }[] | null;
     punchesByDay: { day: string; count: number }[] | null;
     leavesByType: { type: LeaveType; days: number }[] | null;
   };
+}
+
+/**
+ * Previous period. Point-in-time figures are not historized and are `null`
+ * (`headcount.active`, `onLeave`, `absencesToday`, `punctualityRate`,
+ * `leaves.pending`, `openJobs`, `reviewsInProgress`, `avgGoalProgress`): no
+ * variation is shown for them. `headcount.total` is the headcount on the last day.
+ */
+export interface PreviousDashboard {
+  period: { from: string; to: string };
+  headcount: {
+    total: number;
+    active: null;
+    onLeave: null;
+    newHires: number;
+    exits: number;
+  } | null;
+  attendance: {
+    punctualityRate: null;
+    avgWorkedHours: number | null;
+    absencesToday: null;
+    outOfZonePunches: number;
+  } | null;
+  leaves: { pending: null; approvedThisPeriod: number; daysTaken: number } | null;
+  recruitment: { openJobs: null; newCandidates: number; hired: number } | null;
+  performance: { reviewsInProgress: null; reviewsSigned: number; avgGoalProgress: null } | null;
+  payroll: { total: number; currency: string } | null;
 }
 
 export const dashboardQuery = (organizationId: string, period: DashboardPeriod) =>
