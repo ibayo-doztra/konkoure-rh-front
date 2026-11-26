@@ -41,9 +41,15 @@ export interface MeSubscription {
   planEffective: boolean;
 }
 
+export type PlatformLevel = "support" | "root";
+
 export interface Me {
   user: AuthUser;
   isPlatformAdmin: boolean;
+  /** Platform admin level (`support` reads, `root` writes); absent on older APIs. */
+  platformLevel?: PlatformLevel | null;
+  /** Set while a platform admin acts as this account (06 §13). */
+  impersonation?: { by: string; expiresAt: string | null } | null;
   organizations: MeOrganization[];
   employee: { id: string; firstName: string | null; lastName: string | null } | null;
   subscription: MeSubscription | null;

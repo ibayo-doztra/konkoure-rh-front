@@ -1,7 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, CreditCard, MessageSquare, Users, Activity, ScrollText } from "lucide-react";
-import { getAdminOverview } from "@/lib/api/legacy-functions";
+import { Building2, CreditCard, TrendingDown, Users } from "lucide-react";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  platformDashboardQuery,
+  SUBSCRIPTION_STATUS_LABELS,
+  SUBSCRIPTION_STATUSES,
+} from "@/lib/api/platform";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,15 +51,24 @@ function Kpi({
 }
 
 function AdminOverviewPage() {
-  const fn = getAdminOverview;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-overview"], queryFn: () => fn() });
+  const dashboard = useQuery(platformDashboardQuery());
+  const data = dashboard.data;
 
-  if (isLoading || !data) {
+  if (dashboard.isError) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Vue d'ensemble" description="État global de la plateforme" />
+        <p className="text-sm text-destructive">{apiErrorMessage(dashboard.error)}</p>
+      </div>
+    );
+  }
+
+  if (!data) {
     return (
       <div className="space-y-6">
         <PageHeader title="Vue d'ensemble" description="État global de la plateforme" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
@@ -69,31 +83,32 @@ function AdminOverviewPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           icon={Building2}
-          label="Organisations"
-          value={String(data.organizations)}
-          hint={`${data.activeOrganizations} actives · ${data.newOrganizations30} ce mois`}
+          label="Organisations actives"
+          value={String(data.organizations.live)}
+          hint={`${data.organizations.paying} sur une offre payante`}
         />
-        <Kpi icon={Users} label="Employés gérés" value={String(data.employees)} />
         <Kpi
           icon={CreditCard}
-          label="Encaissé (30 j)"
-          value={formatCurrency(data.revenue30)}
+          label="Revenu mensuel récurrent"
+          value={formatCurrency(data.mrrGnf)}
+          hint="Abonnements annuels ramenés au mois"
         />
-        <Kpi icon={MessageSquare} label="Demandes de démo à traiter" value={String(data.pendingDemos)} />
-        <Kpi icon={ScrollText} label="Événements d'audit (7 j)" value={String(data.auditEvents7)} />
-        <Kpi icon={Activity} label="Événements d'usage (7 j)" value={String(data.usageEvents7)} />
+        <Kpi
+          icon={TrendingDown}
+          label="Résiliations (30 j)"
+          value={String(data.churn30d)}
+          hint="Offres payantes arrivées à échéance"
+        />
+        <Kpi icon={Users} label="En essai" value={String(data.subscriptions.trialing ?? 0)} />
       </div>
 
       <Card>
         <CardContent className="space-y-3 p-5">
-          <h2 className="font-semibold">Répartition par offre</h2>
-          <div className="flex flex-wrap gap-2">
-            {data.planDistribution.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucune organisation.</p>
-            )}
-            {data.planDistribution.map((p: any) => (
-              <Badge key={p.code} variant="secondary" className="text-xs">
-                {p.code} · {p.count}
+          <h2 className="font-semibold">Abonnements par statut</h2>
+          <div className="flex flex-wrap gap-2" data-testid="subscriptions-by-status">
+            {SUBSCRIPTION_STATUSES.map((status) => (
+              <Badge key={status} variant="secondary" className="text-xs">
+                {SUBSCRIPTION_STATUS_LABELS[status]} · {data.subscriptions[status] ?? 0}
               </Badge>
             ))}
           </div>

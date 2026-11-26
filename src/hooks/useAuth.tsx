@@ -3,10 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   getAccessToken,
   getOrganizationId,
+  isImpersonating,
   onApiEvent,
   refreshSession,
   setAccessToken,
   setOrganizationId,
+  startImpersonation,
+  stopImpersonation,
 } from "@/lib/api/client";
 import { fetchMe, login as apiLogin, logout as apiLogout, meQueryKey } from "@/lib/api/auth";
 import type { AuthUser, Me } from "@/lib/api/types";
@@ -22,6 +25,8 @@ function readStoredOrganization(): string | null {
 }
 
 function storeOrganization(id: string | null) {
+  // The admin's other tabs share this choice: an impersonation never changes it.
+  if (isImpersonating()) return;
   try {
     if (id) localStorage.setItem(ACTIVE_ORGANIZATION_KEY, id);
     else localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
@@ -42,6 +47,10 @@ interface AuthCtx {
   reload: () => Promise<Me | null>;
   selectOrganization: (id: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Acts as another account in this tab with an impersonation token (06 §13). */
+  impersonate: (accessToken: string) => Promise<Me | null>;
+  /** Back to the admin's own session. */
+  endImpersonation: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx>({
@@ -53,6 +62,8 @@ const Ctx = createContext<AuthCtx>({
   reload: async () => null,
   selectOrganization: async () => {},
   signOut: async () => {},
+  impersonate: async () => null,
+  endImpersonation: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -113,11 +124,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setLoading(false);
     })();
     const off = onApiEvent("unauthorized", forceLocalSignOut);
+    // The 30-minute token expired: the refresh cookie gave the admin's session back.
+    const offImpersonation = onApiEvent("impersonation-ended", () => {
+      setOrganizationId(readStoredOrganization());
+      queryClient.clear();
+      void reload();
+    });
     return () => {
       cancelled = true;
       off();
+      offImpersonation();
     };
-  }, [reload, forceLocalSignOut]);
+  }, [reload, forceLocalSignOut, queryClient]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -127,14 +145,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [reload],
   );
 
+  const impersonate = useCallback(
+    async (token: string) => {
+      startImpersonation(token);
+      setOrganizationId(null);
+      queryClient.clear();
+      return reload();
+    },
+    [queryClient, reload],
+  );
+
+  const endImpersonation = useCallback(async () => {
+    const ok = await stopImpersonation();
+    setOrganizationId(readStoredOrganization());
+    queryClient.clear();
+    if (ok) await reload();
+    else forceLocalSignOut();
+  }, [queryClient, reload, forceLocalSignOut]);
+
   const signOut = useCallback(async () => {
+    // Signing out of an impersonated account must not end the admin's session.
+    if (isImpersonating()) {
+      await endImpersonation();
+      return;
+    }
     try {
       await apiLogout();
     } catch {
       /* the local session is cleared regardless */
     }
     forceLocalSignOut();
-  }, [forceLocalSignOut]);
+  }, [forceLocalSignOut, endImpersonation]);
 
   return (
     <Ctx.Provider
@@ -147,6 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         reload,
         selectOrganization,
         signOut,
+        impersonate,
+        endImpersonation,
       }}
     >
       {children}

@@ -1,128 +1,127 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { Lock } from "lucide-react";
 import { toast } from "sonner";
-import { getPlatformSettings, updatePlatformSettings } from "@/lib/api/legacy-functions";
+import { apiErrorMessage } from "@/lib/api/client";
+import {
+  isRootOnly,
+  MODULES_OPEN_FOR_TESTING,
+  platformSettingsQuery,
+  updatePlatformSettings,
+  type PlatformSetting,
+} from "@/lib/api/platform";
+import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/konkoureoffice/reglages")({
   component: AdminSettingsPage,
   head: () => ({
     meta: [
-      { title: "Réglages globaux — Administration Konkouré" },
+      { title: "Réglages — Administration Konkouré" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
 });
 
+/** Settings the API accepts to write (its registry); the others are read-only. */
+const LABELS: Record<string, string> = {
+  [MODULES_OPEN_FOR_TESTING]: "Ouvrir tous les modules à toutes les organisations (test)",
+};
+
+const display = (value: unknown) =>
+  value === null || value === undefined
+    ? "—"
+    : typeof value === "string"
+      ? value
+      : JSON.stringify(value);
+
 function AdminSettingsPage() {
   const qc = useQueryClient();
-  const getFn = getPlatformSettings;
-  const saveFn = updatePlatformSettings;
-
-  const { data, isLoading } = useQuery({ queryKey: ["admin-settings"], queryFn: () => getFn() });
-  const [values, setValues] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!data) return;
-    const next: Record<string, string> = {};
-    for (const s of data.settings as any[]) {
-      next[s.key] = typeof s.value === "string" ? s.value : JSON.stringify(s.value ?? "");
-    }
-    setValues(next);
-  }, [data]);
+  const { canWrite } = usePlatformAdmin();
+  const settings = useQuery(platformSettingsQuery());
 
   const save = useMutation({
-    mutationFn: async () =>
-      saveFn({
-        data: {
-          entries: Object.entries(values).map(([key, value]) => {
-            let parsed: unknown = value;
-            try {
-              parsed = JSON.parse(value);
-            } catch {
-              parsed = value;
-            }
-            return { key, value: parsed };
-          }),
-        } as any,
-      }),
-    onSuccess: () => {
-      toast.success("Réglages enregistrés");
-      void qc.invalidateQueries({ queryKey: ["admin-settings"] });
+    mutationFn: (entry: { key: string; value: unknown }) => updatePlatformSettings([entry]),
+    onSuccess: (rows) => {
+      qc.setQueryData(platformSettingsQuery().queryKey, rows);
+      toast.success("Réglage enregistré (effet sous une minute)");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+    onError: (e) =>
+      toast.error(isRootOnly(e) ? "Action réservée aux administrateurs root." : apiErrorMessage(e)),
   });
-
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Réglages globaux" description="Configuration de la plateforme" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Réglages globaux"
-        description="Configuration de la plateforme, sans modification du code"
-        actions={
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
-            Enregistrer
-          </Button>
-        }
-      />
+      <PageHeader title="Réglages globaux" description="Configuration de la plateforme" />
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="font-semibold">Paramètres</h2>
-          {(data.settings as any[]).length === 0 && (
-            <p className="text-sm text-muted-foreground">Aucun paramètre défini.</p>
-          )}
-          <div className="grid gap-4 md:grid-cols-2">
-            {(data.settings as any[]).map((s) => (
-              <div key={s.key} className="space-y-2">
-                <Label htmlFor={s.key}>{s.key}</Label>
-                <Input
-                  id={s.key}
-                  value={values[s.key] ?? ""}
-                  onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
-                />
-                {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
-              </div>
+      {settings.isError ? (
+        <p className="text-sm text-destructive">{apiErrorMessage(settings.error)}</p>
+      ) : settings.isPending ? (
+        <Skeleton className="h-64 w-full" />
+      ) : settings.data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aucun réglage défini.</p>
+      ) : (
+        <Card>
+          <CardContent className="divide-y p-0">
+            {settings.data.map((s) => (
+              <SettingRow
+                key={s.key}
+                setting={s}
+                editable={canWrite && s.key in LABELS && typeof s.value === "boolean"}
+                saving={save.isPending}
+                onChange={(value) => save.mutate({ key: s.key, value })}
+              />
             ))}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
-      <Card>
-        <CardContent className="space-y-3 p-5">
-          <h2 className="font-semibold">Clés et intégrations</h2>
-          <p className="text-sm text-muted-foreground">
-            Les valeurs ne sont jamais affichées : seul l'état de configuration est visible.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {data.secrets.map((s: any) => (
-              <div key={s.name} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-                {s.configured ? (
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                )}
-                <span className="truncate">{s.name}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+function SettingRow({
+  setting,
+  editable,
+  saving,
+  onChange,
+}: {
+  setting: PlatformSetting;
+  editable: boolean;
+  saving: boolean;
+  onChange: (value: unknown) => void;
+}) {
+  const id = `setting-${setting.key}`;
+  return (
+    <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <Label htmlFor={id} className="font-medium">
+          {LABELS[setting.key] ?? setting.key}
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          <code>{setting.key}</code>
+          {setting.description ? ` · ${setting.description}` : ""} · modifié le{" "}
+          {formatDateTime(setting.updatedAt)}
+        </p>
+      </div>
+      {setting.isSecret ? (
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4" /> Valeur masquée
+        </span>
+      ) : typeof setting.value === "boolean" ? (
+        <Switch
+          id={id}
+          checked={setting.value}
+          disabled={!editable || saving}
+          onCheckedChange={(checked) => onChange(checked)}
+        />
+      ) : (
+        <span className="break-all font-mono text-sm">{display(setting.value)}</span>
+      )}
     </div>
   );
 }

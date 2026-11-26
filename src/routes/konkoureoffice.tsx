@@ -1,10 +1,10 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   CreditCard,
   Gauge,
+  HeartPulse,
   LayoutList,
   MessageSquare,
   ScrollText,
@@ -13,7 +13,7 @@ import {
   Users,
   ArrowLeft,
 } from "lucide-react";
-import { getAdminStatus } from "@/lib/api/legacy-functions";
+import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -30,7 +30,10 @@ export const Route = createFileRoute("/konkoureoffice")({
     meta: [
       { title: "Administration plateforme — Konkouré RH" },
       { name: "robots", content: "noindex, nofollow" },
-      { name: "description", content: "Back-office réservé aux super-administrateurs de Konkouré RH." },
+      {
+        name: "description",
+        content: "Back-office réservé aux super-administrateurs de Konkouré RH.",
+      },
     ],
   }),
 });
@@ -44,30 +47,23 @@ const NAV = [
   { to: "/konkoureoffice/paiements", label: "Paiements", icon: CreditCard },
   { to: "/konkoureoffice/reglages", label: "Réglages", icon: Settings },
   { to: "/konkoureoffice/journal", label: "Journal", icon: ScrollText },
+  { to: "/konkoureoffice/sante", label: "Santé", icon: HeartPulse },
 ];
 
 function AdminLayout() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const statusFn = getAdminStatus;
-
-  const statusQ = useQuery({
-    queryKey: ["admin-status", user?.id ?? null],
-    queryFn: () => statusFn(),
-    enabled: !loading && !!user,
-    retry: false,
-    staleTime: 60_000,
-  });
+  const { isAdmin, level } = usePlatformAdmin();
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/login", replace: true, search: {} });
   }, [loading, user, nav]);
 
-  if (loading || (user && statusQ.isLoading)) return <SplashScreen />;
+  if (loading) return <SplashScreen />;
   if (!user) return null;
 
-  if (!statusQ.data?.isPlatformAdmin) {
+  if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/20 p-6">
         <Card className="max-w-md">
@@ -125,16 +121,20 @@ function AdminLayout() {
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
           <div className="md:hidden">
             <Logo responsive />
           </div>
           <div className="hidden text-sm text-muted-foreground md:block">
-            Administration plateforme · {statusQ.data.email}
+            Administration plateforme · {user.email}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Badge variant="outline" className="uppercase">{statusQ.data.level}</Badge>
+            {level && (
+              <Badge variant="outline" className="uppercase">
+                {level}
+              </Badge>
+            )}
             <ThemeToggle />
           </div>
         </header>
@@ -156,7 +156,7 @@ function AdminLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="min-w-0 flex-1 p-4 md:p-6">
           <Outlet />
         </main>
       </div>

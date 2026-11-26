@@ -170,4 +170,10 @@ export default {
       "Les crédits IA du mois sont épuisés. Le propriétaire peut changer d'offre depuis la page Abonnement.",
     unavailable: "L'assistant IA est momentanément indisponible. Réessayez plus tard.",
   },
+  impersonation: {
+    banner: "Session d'assistance : vous agissez en tant que {{email}}.",
+    until: "Fin automatique à {{time}}.",
+    leave: "Quitter",
+    ended: "Session d'assistance terminée.",
+  },
 } as const;
