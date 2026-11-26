@@ -285,3 +285,41 @@ test("les RH attribuent puis révoquent le badge NFC d'un employé", async ({ pa
   await expect(page.getByText("Aucun badge attribué.")).toBeVisible();
   await expect(page.getByText("Révoqué", { exact: true })).toBeVisible();
 });
+
+test("les RH ajustent le solde de congés d'un employé avec un motif", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  const employee = await createEmployee(request, owner, {
+    firstName: "Djénabou",
+    lastName: "Sylla",
+  });
+  const balanceOf = async () => {
+    const response = await request.get(`${API_URL}/api/v1/org/leaves/balances`, {
+      headers: {
+        Authorization: `Bearer ${owner.accessToken}`,
+        "X-Organization-Id": owner.organizationId,
+      },
+      params: { employeeId: employee.id },
+    });
+    const rows = ((await response.json()) as { data: { leaveType: string; balance: number }[] })
+      .data;
+    return rows.find((r) => r.leaveType === "annual")?.balance ?? 0;
+  };
+  await signInAt(page, owner.email, `/app/employees/${employee.id}`);
+
+  await page.getByRole("button", { name: "Ajuster" }).click();
+  const dialog = page.getByRole("dialog");
+  const submit = dialog.getByRole("button", { name: "Ajuster le solde" });
+  await dialog.getByLabel("Jours à ajouter ou retirer").fill("0");
+  await dialog.getByLabel("Motif").fill("Report validé par la direction");
+  await expect(submit).toBeDisabled();
+
+  await dialog.getByLabel("Jours à ajouter ou retirer").fill("2,5");
+  await submit.click();
+  await expect(page.getByText(/^Solde ajusté/)).toBeVisible();
+  // The first adjustment opens the year's line with the annual entitlement.
+  const after = await balanceOf();
+  expect(after % 1).toBe(0.5);
+  await expect(
+    page.getByText(`Solde ajusté : ${String(after).replace(".", ",")} j disponibles`),
+  ).toBeVisible();
+});
