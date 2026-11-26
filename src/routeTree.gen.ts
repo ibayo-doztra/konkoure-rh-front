@@ -20,7 +20,6 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated.app'
-import { Route as EmployesIdRouteImport } from './routes/employes.$id'
 import { Route as KonkoureofficeIndexRouteImport } from './routes/konkoureoffice.index'
 import { Route as KonkoureofficeDemandesRouteImport } from './routes/konkoureoffice.demandes'
 import { Route as KonkoureofficeJournalRouteImport } from './routes/konkoureoffice.journal'
@@ -37,8 +36,6 @@ import { Route as PaiementSuiviRouteImport } from './routes/paiement.suivi'
 import { Route as ResourcesGuideTableauDeBordRhRouteImport } from './routes/resources.guide-tableau-de-bord-rh'
 import { Route as ResourcesModeleFicheDePostePmeRouteImport } from './routes/resources.modele-fiche-de-poste-pme'
 import { Route as ResourcesOnboardingGuideAfricaRouteImport } from './routes/resources.onboarding-guide-africa'
-import { Route as RhDepartementsRouteImport } from './routes/rh.departements'
-import { Route as RhEmployesRouteImport } from './routes/rh.employes'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated.app.index'
 import { Route as AuthenticatedAppAccountRouteImport } from './routes/_authenticated.app.account'
 import { Route as AuthenticatedAppContractsRouteImport } from './routes/_authenticated.app.contracts'
@@ -131,11 +128,6 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const EmployesIdRoute = EmployesIdRouteImport.update({
-  id: '/employes/$id',
-  path: '/employes/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const KonkoureofficeIndexRoute = KonkoureofficeIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -221,16 +213,6 @@ const ResourcesOnboardingGuideAfricaRoute =
     path: '/resources/onboarding-guide-africa',
     getParentRoute: () => rootRouteImport,
   } as any)
-const RhDepartementsRoute = RhDepartementsRouteImport.update({
-  id: '/rh/departements',
-  path: '/rh/departements',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RhEmployesRoute = RhEmployesRouteImport.update({
-  id: '/rh/employes',
-  path: '/rh/employes',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -461,7 +443,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-email': typeof VerifyEmailRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
-  '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
   '/konkoureoffice/journal': typeof KonkoureofficeJournalRoute
   '/konkoureoffice/offres': typeof KonkoureofficeOffresRoute
@@ -476,8 +457,6 @@ export interface FileRoutesByFullPath {
   '/resources/guide-tableau-de-bord-rh': typeof ResourcesGuideTableauDeBordRhRoute
   '/resources/modele-fiche-de-poste-pme': typeof ResourcesModeleFicheDePostePmeRoute
   '/resources/onboarding-guide-africa': typeof ResourcesOnboardingGuideAfricaRoute
-  '/rh/departements': typeof RhDepartementsRoute
-  '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice/': typeof KonkoureofficeIndexRoute
   '/paiement/': typeof PaiementIndexRoute
   '/app/account': typeof AuthenticatedAppAccountRoute
@@ -527,7 +506,6 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-email': typeof VerifyEmailRoute
-  '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
   '/konkoureoffice/journal': typeof KonkoureofficeJournalRoute
   '/konkoureoffice/offres': typeof KonkoureofficeOffresRoute
@@ -542,8 +520,6 @@ export interface FileRoutesByTo {
   '/resources/guide-tableau-de-bord-rh': typeof ResourcesGuideTableauDeBordRhRoute
   '/resources/modele-fiche-de-poste-pme': typeof ResourcesModeleFicheDePostePmeRoute
   '/resources/onboarding-guide-africa': typeof ResourcesOnboardingGuideAfricaRoute
-  '/rh/departements': typeof RhDepartementsRoute
-  '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice': typeof KonkoureofficeIndexRoute
   '/paiement': typeof PaiementIndexRoute
   '/app/account': typeof AuthenticatedAppAccountRoute
@@ -596,7 +572,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
-  '/employes/$id': typeof EmployesIdRoute
   '/konkoureoffice/demandes': typeof KonkoureofficeDemandesRoute
   '/konkoureoffice/journal': typeof KonkoureofficeJournalRoute
   '/konkoureoffice/offres': typeof KonkoureofficeOffresRoute
@@ -611,8 +586,6 @@ export interface FileRoutesById {
   '/resources/guide-tableau-de-bord-rh': typeof ResourcesGuideTableauDeBordRhRoute
   '/resources/modele-fiche-de-poste-pme': typeof ResourcesModeleFicheDePostePmeRoute
   '/resources/onboarding-guide-africa': typeof ResourcesOnboardingGuideAfricaRoute
-  '/rh/departements': typeof RhDepartementsRoute
-  '/rh/employes': typeof RhEmployesRoute
   '/konkoureoffice/': typeof KonkoureofficeIndexRoute
   '/paiement/': typeof PaiementIndexRoute
   '/_authenticated/app/account': typeof AuthenticatedAppAccountRoute
@@ -666,7 +639,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/verify-email'
     | '/app'
-    | '/employes/$id'
     | '/konkoureoffice/demandes'
     | '/konkoureoffice/journal'
     | '/konkoureoffice/offres'
@@ -681,8 +653,6 @@ export interface FileRouteTypes {
     | '/resources/guide-tableau-de-bord-rh'
     | '/resources/modele-fiche-de-poste-pme'
     | '/resources/onboarding-guide-africa'
-    | '/rh/departements'
-    | '/rh/employes'
     | '/konkoureoffice/'
     | '/paiement/'
     | '/app/account'
@@ -732,7 +702,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/verify-email'
-    | '/employes/$id'
     | '/konkoureoffice/demandes'
     | '/konkoureoffice/journal'
     | '/konkoureoffice/offres'
@@ -747,8 +716,6 @@ export interface FileRouteTypes {
     | '/resources/guide-tableau-de-bord-rh'
     | '/resources/modele-fiche-de-poste-pme'
     | '/resources/onboarding-guide-africa'
-    | '/rh/departements'
-    | '/rh/employes'
     | '/konkoureoffice'
     | '/paiement'
     | '/app/account'
@@ -800,7 +767,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/verify-email'
     | '/_authenticated/app'
-    | '/employes/$id'
     | '/konkoureoffice/demandes'
     | '/konkoureoffice/journal'
     | '/konkoureoffice/offres'
@@ -815,8 +781,6 @@ export interface FileRouteTypes {
     | '/resources/guide-tableau-de-bord-rh'
     | '/resources/modele-fiche-de-poste-pme'
     | '/resources/onboarding-guide-africa'
-    | '/rh/departements'
-    | '/rh/employes'
     | '/konkoureoffice/'
     | '/paiement/'
     | '/_authenticated/app/account'
@@ -869,15 +833,12 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
-  EmployesIdRoute: typeof EmployesIdRoute
   OnboardingOrganizationRoute: typeof OnboardingOrganizationRoute
   PaiementRetourRoute: typeof PaiementRetourRoute
   PaiementSuiviRoute: typeof PaiementSuiviRoute
   ResourcesGuideTableauDeBordRhRoute: typeof ResourcesGuideTableauDeBordRhRoute
   ResourcesModeleFicheDePostePmeRoute: typeof ResourcesModeleFicheDePostePmeRoute
   ResourcesOnboardingGuideAfricaRoute: typeof ResourcesOnboardingGuideAfricaRoute
-  RhDepartementsRoute: typeof RhDepartementsRoute
-  RhEmployesRoute: typeof RhEmployesRoute
   PaiementIndexRoute: typeof PaiementIndexRoute
   CareersSlugJobSlugRoute: typeof CareersSlugJobSlugRoute
   CareersSlugIndexRoute: typeof CareersSlugIndexRoute
@@ -961,13 +922,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app'
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
-    }
-    '/employes/$id': {
-      id: '/employes/$id'
-      path: '/employes/$id'
-      fullPath: '/employes/$id'
-      preLoaderRoute: typeof EmployesIdRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/konkoureoffice/': {
       id: '/konkoureoffice/'
@@ -1079,20 +1033,6 @@ declare module '@tanstack/react-router' {
       path: '/resources/onboarding-guide-africa'
       fullPath: '/resources/onboarding-guide-africa'
       preLoaderRoute: typeof ResourcesOnboardingGuideAfricaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rh/departements': {
-      id: '/rh/departements'
-      path: '/rh/departements'
-      fullPath: '/rh/departements'
-      preLoaderRoute: typeof RhDepartementsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rh/employes': {
-      id: '/rh/employes'
-      path: '/rh/employes'
-      fullPath: '/rh/employes'
-      preLoaderRoute: typeof RhEmployesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/': {
@@ -1513,15 +1453,12 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   VerifyEmailRoute: VerifyEmailRoute,
-  EmployesIdRoute: EmployesIdRoute,
   OnboardingOrganizationRoute: OnboardingOrganizationRoute,
   PaiementRetourRoute: PaiementRetourRoute,
   PaiementSuiviRoute: PaiementSuiviRoute,
   ResourcesGuideTableauDeBordRhRoute: ResourcesGuideTableauDeBordRhRoute,
   ResourcesModeleFicheDePostePmeRoute: ResourcesModeleFicheDePostePmeRoute,
   ResourcesOnboardingGuideAfricaRoute: ResourcesOnboardingGuideAfricaRoute,
-  RhDepartementsRoute: RhDepartementsRoute,
-  RhEmployesRoute: RhEmployesRoute,
   PaiementIndexRoute: PaiementIndexRoute,
   CareersSlugJobSlugRoute: CareersSlugJobSlugRoute,
   CareersSlugIndexRoute: CareersSlugIndexRoute,

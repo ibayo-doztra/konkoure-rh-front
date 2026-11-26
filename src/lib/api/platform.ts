@@ -65,6 +65,8 @@ export interface PlatformOrganizationRow {
   name: string;
   slug: string;
   createdAt: string;
+  /** Set on deleted organizations (`filter[deleted]=true`), restorable for 30 days. */
+  deletedAt: string | null;
   employees: number;
   subscription: {
     /** Stored status of the current subscription. */
@@ -81,6 +83,8 @@ export interface OrganizationFilters {
   q?: string;
   status?: SubscriptionStatus;
   plan?: string;
+  /** Lists deleted organizations not yet purged instead of the live ones. */
+  deleted?: boolean;
 }
 
 export const platformOrganizationsQuery = (page: number, filters: OrganizationFilters) =>
@@ -93,6 +97,7 @@ export const platformOrganizationsQuery = (page: number, filters: OrganizationFi
         q: filters.q,
         "filter[status]": filters.status,
         "filter[plan]": filters.plan,
+        "filter[deleted]": filters.deleted ? "true" : undefined,
       }),
     placeholderData: keepPreviousData,
   });
@@ -106,6 +111,8 @@ export interface PlatformOrganization {
   defaultLanguage: string;
   createdAt: string;
   deletedAt: string | null;
+  /** Set once the 30-day window is over: the organization is anonymized for good. */
+  purgedAt: string | null;
   subscription:
     | (Subscription & {
         storedStatus: SubscriptionStatus;
@@ -150,6 +157,17 @@ export function suspendOrganization(id: string) {
 /** Root. From `suspended` only; the status is recomputed from the term (409 otherwise). */
 export function reactivateOrganization(id: string) {
   return api.post<PlatformOrganization>(`${organizationPath(id)}/reactivate`);
+}
+
+/** Days during which a deleted organization can be restored before it is purged. */
+export const RESTORE_WINDOW_DAYS = 30;
+
+/**
+ * Root. Cancels a `DELETE /org` within the restore window. 409 with
+ * `rule = "notDeleted"` (still live) or `rule = "purged"` (window over).
+ */
+export function restoreOrganization(id: string) {
+  return api.post<PlatformOrganization>(`${organizationPath(id)}/restore`);
 }
 
 // ------------------------------------------------------------------ Plans

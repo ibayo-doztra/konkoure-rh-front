@@ -73,13 +73,61 @@ test("le tableau de bord affiche les chiffres de l'API et suit la période chois
   await expect(page.getByTestId("kpi-employees")).toHaveText(String(headcount.total));
   await expect(page.getByRole("heading", { name: "Effectifs", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Congés", exact: true })).toBeVisible();
-  // Recruitment and performance are not delivered by the API yet.
+  // The free plan does not include recruitment: the API sends `recruitment: null`.
   await expect(page.getByRole("heading", { name: "Recrutement", exact: true })).toHaveCount(0);
 
   const monthRange = await page.getByText(/^Du .* au .*$/).textContent();
   await page.getByRole("radio", { name: "Semaine" }).click();
   await expect(page).toHaveURL(/period=week/);
   await expect(page.getByText(/^Du .* au .*$/)).not.toHaveText(monthRange ?? "");
+});
+
+test("la masse salariale et l'écart avec la période précédente ne sont montrés qu'aux RH", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const lastYear = new Date().getFullYear() - 1;
+  for (const [firstName, salary] of [
+    ["Fatoumata", 5_000_000],
+    ["Sékou", 3_000_000],
+  ] as const) {
+    const employee = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+      firstName,
+      lastName: "Camara",
+    });
+    await apiPost(request, owner, "/org/contracts", {
+      employeeId: employee.id,
+      type: "cdi",
+      status: "active",
+      startDate: `${lastYear}-01-01`,
+      salary,
+      currency: "GNF",
+    });
+  }
+  const member = await createMember(request, owner, "Kadiatou");
+
+  await signInAt(page, owner.email, "/app");
+  await expect(page.getByRole("heading", { name: "Masse salariale", exact: true })).toBeVisible();
+  const payroll = page.getByTestId("kpi-payroll");
+  await expect(payroll).toContainText("GNF");
+  expect((await payroll.textContent())?.replace(/\D/g, "")).toBe("8000000");
+  // Same contracts in force at the end of the previous month: no variation.
+  await expect(page.getByTestId("kpi-payroll-change")).toContainText("Stable");
+  await expect(page.getByTestId("kpi-payroll-change")).toContainText("vs mois précédent");
+  await expect(page.getByTestId("kpi-employees-change")).toBeVisible();
+  // Point-in-time figures have no previous value.
+  await expect(page.getByTestId("kpi-onLeave-change")).toHaveCount(0);
+  await expect(page.getByTestId("kpi-absencesToday-change")).toHaveCount(0);
+
+  await page.getByRole("radio", { name: "Trimestre" }).click();
+  await expect(page.getByTestId("kpi-payroll-change")).toContainText("vs trimestre précédent");
+
+  await page.context().clearCookies();
+  await signInAt(page, member.email, "/app");
+  await expect(page.getByRole("heading", { name: "Effectifs", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Masse salariale", exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("kpi-payroll")).toHaveCount(0);
 });
 
 test("une demande de congé notifie les RH, qui ouvrent la notification", async ({

@@ -8,10 +8,6 @@
 - [Connexion](/login): Espace de connexion pour les utilisateurs.
 - [Créer un compte](/signup): Inscription pour démarrer une organisation.
 
-## Documentation
-
-- [Spécification app mobile Flutter](/flutter-app.md): Source de vérité complète pour le développement de l'application mobile Flutter (Employés, Badges NFC, Recrutement, Performance, Timeclock).
-
 ## Optional
 
 - [Réinitialiser le mot de passe](/reset-password): Récupération d'accès au compte.

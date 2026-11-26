@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { SITE_URL } from "@/lib/site";
 
-const CANONICAL = "https://konkoure.lovable.app/resources/onboarding-guide-africa";
+const CANONICAL = `${SITE_URL}/resources/onboarding-guide-africa`;
 
 const TITLE = "Employee Onboarding in Africa: 2026 Guide | Konkouré";
 const DESCRIPTION =
@@ -40,7 +41,7 @@ export const Route = createFileRoute("/resources/onboarding-guide-africa")({
             name: "Konkouré",
             logo: {
               "@type": "ImageObject",
-              url: "https://konkoure.lovable.app/favicon.ico",
+              url: `${SITE_URL}/favicon.png`,
             },
           },
           mainEntityOfPage: CANONICAL,

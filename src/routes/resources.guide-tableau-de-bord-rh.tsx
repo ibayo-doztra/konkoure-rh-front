@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { SITE_URL } from "@/lib/site";
 
-const CANONICAL = "https://konkoure.lovable.app/resources/guide-tableau-de-bord-rh";
+const CANONICAL = `${SITE_URL}/resources/guide-tableau-de-bord-rh`;
 
 const TITLE = "Tableau de bord RH : le guide 2026 | Konkouré";
 const DESCRIPTION =
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/resources/guide-tableau-de-bord-rh")({
           publisher: {
             "@type": "Organization",
             name: "Konkouré",
-            logo: { "@type": "ImageObject", url: "https://konkoure.lovable.app/favicon.ico" },
+            logo: { "@type": "ImageObject", url: `${SITE_URL}/favicon.png` },
           },
           mainEntityOfPage: CANONICAL,
           inLanguage: ["fr", "en"],

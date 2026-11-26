@@ -19,6 +19,7 @@ import { useLandingCopy } from "@/lib/landing/useLandingCopy";
 import { submitDemoRequest } from "@/lib/api/platform";
 import { ApiError, apiErrorMessage } from "@/lib/api/client";
 import { COMPANY_SIZES, createDemoRequestSchema } from "@/lib/demo-requests.schema";
+import { SITE_URL } from "@/lib/site";
 
 const TEXT = {
   fr: {
@@ -81,7 +82,7 @@ export const Route = createFileRoute("/demo")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://konkoure.lovable.app/demo" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/demo` }],
   }),
   component: DemoRequestPage,
 });
