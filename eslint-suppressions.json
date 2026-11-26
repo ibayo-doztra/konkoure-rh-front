@@ -75,9 +75,6 @@
   "src/components/timeclock/WorkZoneMap.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
-    },
-    "prettier/prettier": {
-      "count": 4
     }
   },
   "src/components/ui/badge.tsx": {

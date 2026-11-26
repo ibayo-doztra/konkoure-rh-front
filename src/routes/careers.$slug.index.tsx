@@ -8,12 +8,13 @@ import { appliedKey, hasApplied, pruneExpired } from "@/lib/applied-jobs";
 import i18n from "@/lib/i18n";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/careers/$slug/")({
   // Public page, rendered on the server for search engines (06 §11).
   loader: ({ params }) => fetchCareersPage(params.slug),
   head: ({ params, loaderData }) => {
-    const url = `https://konkoure.lovable.app/careers/${params.slug}`;
+    const url = `${SITE_URL}/careers/${params.slug}`;
     const name = loaderData?.organization.name ?? params.slug;
     const title = i18n.t("careers.listMetaTitle", { slug: name });
     const desc = i18n.t("careers.listMetaDesc", { slug: name });

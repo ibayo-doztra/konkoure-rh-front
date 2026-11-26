@@ -27,6 +27,7 @@ import { z } from "zod";
 import { appliedKey, hasApplied, markApplied, pruneExpired } from "@/lib/applied-jobs";
 import { contractTypeLabel } from "@/lib/contract-types";
 import i18n from "@/lib/i18n";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/careers/$slug/$jobSlug")({
   // Public page, rendered on the server for search engines (06 §11).
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/careers/$slug/$jobSlug")({
   pendingComponent: CareersLoadingState,
   pendingMs: 0,
   head: ({ params, loaderData }) => {
-    const url = `https://konkoure.lovable.app/careers/${params.slug}/${params.jobSlug}`;
+    const url = `${SITE_URL}/careers/${params.slug}/${params.jobSlug}`;
     const job = loaderData?.job;
     const org = loaderData?.org;
     const title = job?.title
