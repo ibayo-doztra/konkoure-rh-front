@@ -2,7 +2,7 @@ import { csvCell } from "@/lib/csv";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Settings2, Download } from "lucide-react";
+import { Search, Settings2, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiErrorMessage, isApiError } from "@/lib/api/client";
 import {
@@ -12,6 +12,8 @@ import {
   platformOrganizationsQuery,
   platformPlansQuery,
   reactivateOrganization,
+  RESTORE_WINDOW_DAYS,
+  restoreOrganization,
   SUBSCRIPTION_STATUS_LABELS,
   SUBSCRIPTION_STATUSES,
   suspendOrganization,
@@ -74,6 +76,16 @@ function statusVariant(status: string) {
 const statusLabel = (status: string) =>
   SUBSCRIPTION_STATUS_LABELS[status as SubscriptionStatus] ?? status;
 
+/** Date after which a deleted organization is purged and can no longer be restored. */
+function purgeDate(deletedAt: string) {
+  const date = new Date(deletedAt);
+  date.setUTCDate(date.getUTCDate() + RESTORE_WINDOW_DAYS);
+  return date.toISOString();
+}
+
+const conflictRule = (error: unknown) =>
+  isApiError(error, "E_CONFLICT") ? error.details.find((d) => d.rule)?.rule : undefined;
+
 /** Message of a refused write: `support` cannot write, the rest comes from the API. */
 function writeError(error: unknown) {
   if (isRootOnly(error)) return "Action réservée aux administrateurs root.";
@@ -84,6 +96,7 @@ function AdminOrganizationsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>(ALL);
   const [plan, setPlan] = useState<string>(ALL);
+  const [deleted, setDeleted] = useState(false);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -92,6 +105,7 @@ function AdminOrganizationsPage() {
       q: search.trim() || undefined,
       status: status === ALL ? undefined : (status as SubscriptionStatus),
       plan: plan === ALL ? undefined : plan,
+      deleted,
     }),
   );
   const plans = useQuery(platformPlansQuery());
@@ -101,6 +115,7 @@ function AdminOrganizationsPage() {
 
   const exportCsv = () => {
     const header = ["Nom", "Offre", "Statut", "Cycle", "Échéance", "Employés", "Créée le"];
+    if (deleted) header.push("Supprimée le", "Purge le");
     const lines = rows.map((o) =>
       [
         o.name,
@@ -110,6 +125,9 @@ function AdminOrganizationsPage() {
         formatDate(o.subscription?.currentPeriodEnd ?? null),
         o.employees,
         formatDate(o.createdAt),
+        ...(deleted && o.deletedAt
+          ? [formatDate(o.deletedAt), formatDate(purgeDate(o.deletedAt))]
+          : []),
       ]
         .map(csvCell)
         .join(";"),
@@ -120,7 +138,7 @@ function AdminOrganizationsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "organisations.csv";
+    a.download = deleted ? "organisations-supprimees.csv" : "organisations.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -153,6 +171,21 @@ function AdminOrganizationsPage() {
               className="pl-9"
             />
           </div>
+          <Select
+            value={deleted ? "deleted" : "live"}
+            onValueChange={(value) => {
+              setDeleted(value === "deleted");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="sm:w-48" aria-label="Organisations affichées">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="live">Organisations actives</SelectItem>
+              <SelectItem value="deleted">Supprimées (30 jours)</SelectItem>
+            </SelectContent>
+          </Select>
           <Select
             value={status}
             onValueChange={(value) => {
@@ -203,7 +236,14 @@ function AdminOrganizationsPage() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState title="Aucune organisation" hint="Ajustez la recherche ou les filtres." />
+        <EmptyState
+          title={deleted ? "Aucune organisation supprimée" : "Aucune organisation"}
+          hint={
+            deleted
+              ? `Les organisations supprimées restent restaurables pendant ${RESTORE_WINDOW_DAYS} jours.`
+              : "Ajustez la recherche ou les filtres."
+          }
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -242,7 +282,28 @@ function AdminOrganizationsPage() {
                     ),
                 },
                 { key: "employees", header: "Employés", align: "right", cell: (o) => o.employees },
-                { key: "created", header: "Créée le", cell: (o) => formatDate(o.createdAt) },
+                deleted
+                  ? {
+                      key: "deleted",
+                      header: "Supprimée le",
+                      cell: (o) => (
+                        <span className="inline-flex items-center gap-1 text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          {formatDate(o.deletedAt)}
+                        </span>
+                      ),
+                    }
+                  : { key: "created", header: "Créée le", cell: (o) => formatDate(o.createdAt) },
+                ...(deleted
+                  ? [
+                      {
+                        key: "purge",
+                        header: "Purge le",
+                        cell: (o: (typeof rows)[number]) =>
+                          o.deletedAt ? formatDate(purgeDate(o.deletedAt)) : "—",
+                      },
+                    ]
+                  : []),
                 {
                   key: "actions",
                   header: "",
@@ -305,7 +366,7 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
   const detail = useQuery({ ...platformOrganizationQuery(id ?? ""), enabled: !!id });
   const plans = useQuery(platformPlansQuery());
   const [form, setForm] = useState<FormState | null>(null);
-  const [confirm, setConfirm] = useState<"suspend" | "reactivate" | null>(null);
+  const [confirm, setConfirm] = useState<"suspend" | "reactivate" | "restore" | null>(null);
   const org = detail.data;
 
   useEffect(() => {
@@ -340,26 +401,49 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
   });
 
   const toggle = useMutation({
-    mutationFn: (action: "suspend" | "reactivate") =>
-      action === "suspend" ? suspendOrganization(id!) : reactivateOrganization(id!),
+    mutationFn: (action: "suspend" | "reactivate" | "restore") =>
+      action === "suspend"
+        ? suspendOrganization(id!)
+        : action === "reactivate"
+          ? reactivateOrganization(id!)
+          : restoreOrganization(id!),
     onSuccess: async (result, action) => {
       setConfirm(null);
       await applied(
         result,
-        action === "suspend" ? "Organisation suspendue" : "Organisation réactivée",
+        action === "suspend"
+          ? "Organisation suspendue"
+          : action === "reactivate"
+            ? "Organisation réactivée"
+            : "Organisation restaurée",
       );
     },
-    onError: (e) => {
+    onError: async (e) => {
       setConfirm(null);
-      toast.error(
-        isApiError(e, "E_CONFLICT")
-          ? "Le statut actuel de l'abonnement ne permet pas cette action."
-          : writeError(e),
-      );
+      const rule = conflictRule(e);
+      if (rule === "purged") {
+        toast.error(
+          `Le délai de ${RESTORE_WINDOW_DAYS} jours est dépassé : l'organisation a été purgée.`,
+        );
+      } else if (rule === "notDeleted") {
+        toast.error("Cette organisation n'est pas supprimée.");
+      } else {
+        toast.error(
+          isApiError(e, "E_CONFLICT")
+            ? "Le statut actuel de l'abonnement ne permet pas cette action."
+            : writeError(e),
+        );
+      }
+      // The organization changed under us: show its real state.
+      if (rule === "purged" || rule === "notDeleted") {
+        await qc.invalidateQueries({ queryKey: [...platformKey, "organizations"] });
+        await qc.invalidateQueries({ queryKey: platformOrganizationQuery(id!).queryKey });
+      }
     },
   });
 
   const suspended = org?.subscription?.storedStatus === "suspended";
+  const isDeleted = !!org?.deletedAt;
 
   return (
     <>
@@ -375,6 +459,18 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
               <Skeleton className="h-64 w-full" />
             ) : (
               <div className="space-y-5">
+                {org.deletedAt && (
+                  <div
+                    role="status"
+                    data-testid="organization-deleted"
+                    className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"
+                  >
+                    {org.purgedAt
+                      ? `Organisation purgée le ${formatDate(org.purgedAt)} : ses données ont été effacées et elle ne peut plus être restaurée.`
+                      : `Supprimée par son propriétaire le ${formatDate(org.deletedAt)}. Elle sera purgée le ${formatDate(purgeDate(org.deletedAt))} si elle n'est pas restaurée d'ici là.`}
+                  </div>
+                )}
+
                 <dl
                   className="grid gap-3 text-sm sm:grid-cols-3"
                   data-testid="organization-summary"
@@ -429,7 +525,7 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
                   )}
                 </dl>
 
-                {form && (
+                {form && !isDeleted && (
                   <fieldset disabled={!canWrite} className="space-y-4">
                     <DialogFormGrid>
                       <div className="space-y-2">
@@ -563,7 +659,12 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
                 )}
 
                 <DialogActions>
-                  {canWrite && org.subscription && (
+                  {canWrite && isDeleted && !org.purgedAt && (
+                    <Button onClick={() => setConfirm("restore")} disabled={toggle.isPending}>
+                      Restaurer
+                    </Button>
+                  )}
+                  {canWrite && !isDeleted && org.subscription && (
                     <Button
                       variant={suspended ? "outline" : "destructive"}
                       onClick={() => setConfirm(suspended ? "reactivate" : "suspend")}
@@ -575,7 +676,7 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
                   <Button variant="outline" onClick={onClose}>
                     Fermer
                   </Button>
-                  {canWrite && form && (
+                  {canWrite && form && !isDeleted && (
                     <Button onClick={() => save.mutate()} disabled={save.isPending}>
                       Enregistrer
                     </Button>
@@ -593,15 +694,21 @@ function OrganizationDialog({ id, onClose }: { id: string | null; onClose: () =>
         title={
           confirm === "suspend"
             ? "Suspendre cette organisation ?"
-            : "Réactiver cette organisation ?"
+            : confirm === "restore"
+              ? "Restaurer cette organisation ?"
+              : "Réactiver cette organisation ?"
         }
         subtitle={org?.name}
         description={
           confirm === "suspend"
             ? "Ses modules sont coupés et les données RH passent en lecture seule jusqu'à la réactivation."
-            : "Le statut est recalculé à partir de l'échéance de l'abonnement."
+            : confirm === "restore"
+              ? "La suppression est annulée : ses membres retrouvent l'accès à l'organisation et à ses données."
+              : "Le statut est recalculé à partir de l'échéance de l'abonnement."
         }
-        actionLabel={confirm === "suspend" ? "Suspendre" : "Réactiver"}
+        actionLabel={
+          confirm === "suspend" ? "Suspendre" : confirm === "restore" ? "Restaurer" : "Réactiver"
+        }
         actionVariant={confirm === "suspend" ? "destructive" : "default"}
         loading={toggle.isPending}
         onConfirm={() => confirm && toggle.mutate(confirm)}
