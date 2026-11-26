@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { APP_URL, createOwner, grantPlatform, open, signIn } from "./support/app";
+import { API_URL } from "./support/settings";
 
 async function openBackOffice(page: Page, email: string, path = "/konkoureoffice") {
   await signIn(page, email);
@@ -45,6 +46,50 @@ test("un admin root consulte le tableau de bord, suspend puis réactive une orga
   await page.getByRole("dialog").last().getByRole("button", { name: "Réactiver" }).click();
   await expect(page.getByText("Organisation réactivée")).toBeVisible();
   await expect(dialog.getByTestId("organization-summary")).toContainText("Essai");
+});
+
+test("un admin root restaure une organisation supprimée par son propriétaire", async ({
+  page,
+  request,
+}) => {
+  const admin = await createOwner(request);
+  grantPlatform(admin.email, "root");
+  const client = await createOwner(request);
+  const removed = await request.delete(`${API_URL}/api/v1/org`, {
+    headers: {
+      Authorization: `Bearer ${client.accessToken}`,
+      "X-Organization-Id": client.organizationId,
+    },
+    data: { confirmName: client.organizationName },
+  });
+  expect(removed.status()).toBe(204);
+
+  await openBackOffice(page, admin.email, "/konkoureoffice/organisations");
+  const search = page.getByLabel("Rechercher une organisation");
+  const manage = page.getByRole("button", { name: `Gérer ${client.organizationName}` });
+  await search.fill(client.organizationName);
+  await expect(page.getByText("Aucune organisation", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Organisations affichées").click();
+  await page.getByRole("option", { name: "Supprimées (30 jours)" }).click();
+  await expect(manage).toHaveCount(1);
+  await manage.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByTestId("organization-deleted")).toContainText(
+    "Supprimée par son propriétaire",
+  );
+  await expect(dialog.getByRole("button", { name: "Enregistrer" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Restaurer" }).click();
+  await page.getByRole("dialog").last().getByRole("button", { name: "Restaurer" }).click();
+  await expect(page.getByText("Organisation restaurée")).toBeVisible();
+  await expect(dialog.getByTestId("organization-deleted")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Fermer" }).click();
+
+  await expect(page.getByText("Aucune organisation supprimée")).toBeVisible();
+  await page.getByLabel("Organisations affichées").click();
+  await page.getByRole("option", { name: "Organisations actives" }).click();
+  await expect(manage).toHaveCount(1);
 });
 
 test("un admin root crée, modifie puis supprime une offre", async ({ page, request }) => {
