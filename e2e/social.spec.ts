@@ -1,6 +1,15 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { APP_URL, createOwner, grantPlan, open, signIn, type Owner } from "./support/app";
-import { API_URL } from "./support/settings";
+import {
+  APP_URL,
+  createOwner,
+  grantPlan,
+  invite,
+  open,
+  signIn,
+  uniqueEmail,
+  type Owner,
+} from "./support/app";
+import { API_URL, PASSWORD } from "./support/settings";
 
 // The e2e API runs with fake LinkedIn credentials (its .env.test) and without
 // Facebook ones (e2e/support/settings.ts): LinkedIn starts the OAuth flow, Facebook
@@ -139,5 +148,46 @@ test("le formulaire de publication refuse une page qui n'est plus active", async
   await expect(dialog.getByText("38/3000")).toBeVisible();
   await dialog.getByRole("button", { name: "Publier sur 1 page" }).click();
   await expect(page.getByText("Une page choisie n'est plus active.")).toBeVisible();
+  await expect(dialog.getByText("Aucune publication pour cette offre.")).toBeVisible();
+});
+
+test("un recruteur partage une offre mais ne connecte aucune page", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  grantPlan(owner.organizationId, "pro");
+  await publishedJob(request, owner, "Chargé de recrutement");
+
+  const email = uniqueEmail("recruiter");
+  const token = new URL(await invite(request, owner, email, "recruiter"), API_URL).searchParams.get(
+    "token",
+  );
+  const accepted = await request.post(`${API_URL}/api/v1/auth/invitations/${token}/accept`, {
+    data: { password: PASSWORD, password_confirmation: PASSWORD, fullName: "Aïssatou Camara" },
+  });
+  expect(accepted.ok()).toBeTruthy();
+  const { accessToken } = ((await accepted.json()) as { data: { accessToken: string } }).data;
+
+  // The API lets a recruiter read the pages (reduced view) but not connect one.
+  const connect = await request.post(`${API_URL}/api/v1/org/integrations/social/accounts`, {
+    headers: { Authorization: `Bearer ${accessToken}`, "X-Organization-Id": owner.organizationId },
+    data: { provider: "linkedin" },
+  });
+  expect(connect.status()).toBe(403);
+
+  const accounts = page.waitForResponse("**/api/v1/org/integrations/social/accounts");
+  await signInAt(page, email, "/app/recruitment/jobs");
+  await expect(page.getByRole("link", { name: "Réseaux sociaux" })).toHaveCount(0);
+
+  const card = page.getByTestId("job-card").filter({ hasText: "Chargé de recrutement" });
+  await card.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Publier sur les réseaux" }).click();
+  expect((await accounts).status()).toBe(200);
+
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText(
+      "Demandez à un propriétaire ou aux RH de connecter une page LinkedIn ou Facebook.",
+    ),
+  ).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Aller aux intégrations" })).toHaveCount(0);
   await expect(dialog.getByText("Aucune publication pour cette offre.")).toBeVisible();
 });
