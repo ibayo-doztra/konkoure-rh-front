@@ -215,3 +215,84 @@ export function lateTolerance(settings: Record<string, unknown> | undefined): nu
     ? timeclock.lateToleranceMinutes
     : DEFAULT_LATE_TOLERANCE;
 }
+
+// ---------------------------------------------------------------------------
+// Kiosk tokens (O H): a fixed tablet scans badges with `Authorization: Bearer kd_…`.
+// ---------------------------------------------------------------------------
+
+export interface DeviceToken {
+  id: string;
+  name: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export const DEFAULT_DEVICE_TOKEN_DAYS = 90;
+export const MAX_DEVICE_TOKEN_DAYS = 365;
+
+export const deviceTokensQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...timeclockKey(organizationId), "device-tokens"],
+    queryFn: () => api.get<DeviceToken[]>("/org/timeclock/device-tokens"),
+  });
+
+/** The `token` (`kd_…`) is returned only here: the API never shows it again. */
+export function createDeviceToken(input: { name: string; expiresInDays: number }) {
+  return api.post<DeviceToken & { token: string }>("/org/timeclock/device-tokens", input);
+}
+
+export function revokeDeviceToken(id: string) {
+  return api.delete(`/org/timeclock/device-tokens/${encodeURIComponent(id)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Punch export (O H): built by a job, e-mailed to the requester with a 24 h link.
+// ---------------------------------------------------------------------------
+
+export type ExportFormat = "csv" | "xlsx";
+
+/** `from`/`to` are ISO instants, 366 local days at most; 5 exports per hour. */
+export function exportTimeLogs(input: {
+  format: ExportFormat;
+  filter: { from: string; to: string; employeeId?: string };
+}) {
+  return api.post<{ jobId: string }>("/org/timeclock/logs/export", input);
+}
+
+// ---------------------------------------------------------------------------
+// Today (O H M S): present, absent and on leave, on active and on-leave employees.
+// ---------------------------------------------------------------------------
+
+export interface TodayPresent {
+  employeeId: string;
+  fullName: string;
+  departmentId: string | null;
+  firstIn: string | null;
+  lastOut: string | null;
+  isComplete: boolean;
+  anomaly: AttendanceAnomaly | null;
+}
+
+export interface TodayPerson {
+  employeeId: string;
+  fullName: string;
+  departmentId: string | null;
+}
+
+export interface TimeclockToday {
+  date: string;
+  isHoliday: boolean;
+  counts: { total: number; present: number; absent: number; onLeave: number };
+  present: TodayPresent[];
+  absent: TodayPerson[];
+  onLeave: TodayPerson[];
+}
+
+export const todayQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...timeclockKey(organizationId), "today"],
+    queryFn: () => api.get<TimeclockToday>("/org/timeclock/today"),
+    refetchInterval: 60_000,
+  });

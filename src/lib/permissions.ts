@@ -49,6 +49,8 @@ const RULES: Rule[] = [
   { path: "/app/performance", roles: ALL_ROLES },
 
   { path: "/app/timeclock/zones", roles: [...ADMINS, "security_agent"] },
+  // Kiosk tokens let a tablet punch for everyone: owner and hr_admin only.
+  { path: "/app/timeclock/kiosks", roles: ADMINS },
   { path: "/app/timeclock/scan", roles: [...ADMINS, "security_agent", "manager"] },
   // Historique de pointage : chacun voit au minimum le sien.
   { path: "/app/timeclock/logs", roles: ALL_ROLES },
