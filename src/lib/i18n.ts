@@ -308,7 +308,6 @@ const fr = {
       rateLimited: "Trop de tentatives. Patientez avant de réessayer.",
       invalidData: "Certaines informations sont invalides.",
       network: "Serveur injoignable. Vérifiez votre connexion.",
-      notMigrated: "Cette fonctionnalité est en cours de migration vers la nouvelle API.",
       invalidLink: "Lien invalide ou expiré.",
       passwordComposition:
         "Le mot de passe doit contenir une minuscule, une majuscule et un chiffre.",
@@ -840,7 +839,6 @@ const en: typeof fr = {
       rateLimited: "Too many attempts. Please wait before retrying.",
       invalidData: "Some information is invalid.",
       network: "Server unreachable. Check your connection.",
-      notMigrated: "This feature is being migrated to the new API.",
       invalidLink: "Invalid or expired link.",
       passwordComposition:
         "The password must contain a lowercase letter, an uppercase letter and a digit.",
@@ -1201,8 +1199,6 @@ export function authErrorKey(error: unknown): string {
       return "auth.errors.invalidLink";
     case "E_NETWORK":
       return "auth.errors.network";
-    case "E_NOT_MIGRATED":
-      return "auth.errors.notMigrated";
     default:
       return "auth.errors.generic";
   }

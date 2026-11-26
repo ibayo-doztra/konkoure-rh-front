@@ -26,8 +26,6 @@ export type ApiErrorCode =
   | "E_DEPENDENCY_UNAVAILABLE"
   /** Client-side only: the network request itself failed. */
   | "E_NETWORK"
-  /** Client-side only: the screen has not been migrated to the API yet. */
-  | "E_NOT_MIGRATED"
   | (string & {});
 
 export interface ApiErrorDetail {
