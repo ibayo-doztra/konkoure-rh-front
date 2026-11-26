@@ -28,6 +28,7 @@ const SEG_TO_KEY: Record<string, string> = {
   achievements: "achievements",
   timeclock: "timeclock",
   zones: "zones",
+  schedules: "schedules",
   logs: "logs",
   talents: "talents",
   skills: "skills",
@@ -51,8 +52,7 @@ const SKIP_SEGMENTS = new Set(["recruitment", "performance", "timeclock", "talen
 
 function isDynamicSegment(seg: string) {
   return (
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg) ||
-    /^\d+$/.test(seg)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg) || /^\d+$/.test(seg)
   );
 }
 
@@ -80,7 +80,6 @@ export function AppBreadcrumbs() {
     crumbs.push({ label, href: acc });
   });
 
-
   if (crumbs.length <= 1) return null;
 
   return (
@@ -98,7 +97,10 @@ export function AppBreadcrumbs() {
                     </BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink asChild>
-                      <Link to={c.href as never} className="font-medium text-primary hover:underline">
+                      <Link
+                        to={c.href as never}
+                        className="font-medium text-primary hover:underline"
+                      >
                         {c.label}
                       </Link>
                     </BreadcrumbLink>

@@ -41,7 +41,13 @@ export interface Punch {
   anomaly: string | null;
 }
 
-export type AttendanceAnomaly = "missing_out" | "out_of_zone" | "duplicate";
+export type AttendanceAnomaly = "missing_out" | "out_of_zone" | "duplicate" | "late";
+export const ATTENDANCE_ANOMALIES: AttendanceAnomaly[] = [
+  "missing_out",
+  "duplicate",
+  "late",
+  "out_of_zone",
+];
 
 /** One employee's day, aggregated by the API from the punches. */
 export interface AttendanceDay {
@@ -52,6 +58,11 @@ export interface AttendanceDay {
   workedMinutes: number;
   punchCount: number;
   isComplete: boolean;
+  /**
+   * Minutes between the start of the day's first slot and the first `in` (0 when on
+   * time); `null` without a schedule slot, on a holiday or without `in`.
+   */
+  lateMinutes: number | null;
   anomaly: AttendanceAnomaly | null;
 }
 
@@ -61,6 +72,7 @@ export interface AttendanceFilters {
   from?: string;
   to?: string;
   employeeId?: string;
+  anomaly?: AttendanceAnomaly;
 }
 
 export const timeclockKey = (organizationId: string) =>
@@ -129,6 +141,77 @@ export const attendanceQuery = (organizationId: string, filters: AttendanceFilte
         "filter[from]": filters.from,
         "filter[to]": filters.to,
         "filter[employeeId]": filters.employeeId,
+        "filter[anomaly]": filters.anomaly,
       }),
     placeholderData: keepPreviousData,
   });
+
+// ---------------------------------------------------------------------------
+// Work schedules — 06 §6 « Horaires de travail ». Read by O H M S, written by O H.
+// ---------------------------------------------------------------------------
+
+export const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+export const MAX_SLOTS_PER_DAY = 4;
+
+/** `HH:MM`. A slot whose end is not after its start ends the next day (night shift). */
+export interface ScheduleSlot {
+  start: string;
+  end: string;
+}
+
+export type WeeklyPattern = Record<WeekDay, ScheduleSlot[]>;
+
+export interface WorkSchedule {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  /** Set for an employee's own schedule, which can never be the default. */
+  employeeId: string | null;
+  weeklyPattern: WeeklyPattern;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleInput {
+  name: string;
+  isDefault: boolean;
+  weeklyPattern: WeeklyPattern;
+  employeeId: string | null;
+}
+
+export const isNightSlot = (slot: ScheduleSlot) => slot.end <= slot.start;
+
+export const schedulesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...timeclockKey(organizationId), "schedules"],
+    queryFn: () => api.get<WorkSchedule[]>("/org/timeclock/schedules"),
+  });
+
+/**
+ * `422` rules `scheduleOverlap` (weeklyPattern), `scheduleDefaultEmployee`; `409` rules
+ * `scheduleName`, `scheduleEmployee` (one own schedule per employee).
+ */
+export function createSchedule(input: ScheduleInput) {
+  return api.post<WorkSchedule>("/org/timeclock/schedules", input);
+}
+
+export function updateSchedule(id: string, input: ScheduleInput) {
+  return api.patch<WorkSchedule>(`/org/timeclock/schedules/${encodeURIComponent(id)}`, input);
+}
+
+/** `409` rule `scheduleDefault`: the default schedule cannot be deleted. */
+export function deleteSchedule(id: string) {
+  return api.delete(`/org/timeclock/schedules/${encodeURIComponent(id)}`);
+}
+
+/** Minutes of delay tolerated before the `late` anomaly (`settings.timeclock`). */
+export const DEFAULT_LATE_TOLERANCE = 10;
+export const MAX_LATE_TOLERANCE = 120;
+
+export function lateTolerance(settings: Record<string, unknown> | undefined): number {
+  const timeclock = (settings?.timeclock ?? {}) as { lateToleranceMinutes?: unknown };
+  return typeof timeclock.lateToleranceMinutes === "number"
+    ? timeclock.lateToleranceMinutes
+    : DEFAULT_LATE_TOLERANCE;
+}

@@ -29,6 +29,7 @@ import {
   FileCode2,
   CalendarDays,
   CalendarCheck,
+  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -132,6 +133,7 @@ export function AppSidebar() {
       items: [
         { to: "/app/timeclock/logs", icon: Clock, label: t("nav.logs") },
         { to: "/app/timeclock/zones", icon: MapPin, label: t("nav.zones") },
+        { to: "/app/timeclock/schedules", icon: CalendarClock, label: t("nav.schedules") },
       ],
     },
 
