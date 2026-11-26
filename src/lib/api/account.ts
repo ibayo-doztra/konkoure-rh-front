@@ -40,3 +40,21 @@ export const sessionsQuery = () =>
 export function revokeSession(id: string) {
   return api.delete(`/me/sessions/${encodeURIComponent(id)}`);
 }
+
+/**
+ * `GET /me/export` (06 §2): queues the personal-data export, `202 { jobId }`. The API
+ * e-mails a link valid 24 h. One per hour (`429 E_RATE_LIMITED`), refused while
+ * impersonating.
+ */
+export function requestDataExport() {
+  return api.get<{ jobId: string }>("/me/export");
+}
+
+/**
+ * `DELETE /me` (06 §2): anonymizes the account and closes every session. `422` on
+ * `password`; `409 E_CONFLICT` with one `organizations.<id>` detail (rule `lastOwner`)
+ * per organization the user is the only active owner of, or `platform` (`lastRoot`).
+ */
+export function deleteAccount(password: string) {
+  return api.delete("/me", { body: { password } });
+}

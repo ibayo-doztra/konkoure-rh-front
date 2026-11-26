@@ -6,13 +6,15 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import {
   changePassword,
+  deleteAccount,
+  requestDataExport,
   revokeSession,
   sessionsKey,
   sessionsQuery,
   updateProfile,
   type UserSession,
 } from "@/lib/api/account";
-import { apiErrorMessage } from "@/lib/api/client";
+import { apiErrorMessage, isApiError } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useConfirm } from "@/hooks/useConfirm";
 import { formatDateTime } from "@/lib/format";
@@ -20,6 +22,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,6 +48,9 @@ export const Route = createFileRoute("/_authenticated/app/account")({
 
 function AccountPage() {
   const { t } = useTranslation();
+  // An admin acting as this account must not export or delete it (06 §2).
+  const { me } = useAuth();
+  const impersonated = !!me?.impersonation;
   return (
     <div className="space-y-6">
       <PageHeader title={t("accountPage.title")} description={t("accountPage.description")} />
@@ -54,6 +68,12 @@ function AccountPage() {
       >
         <SessionsCard />
       </Suspense>
+      {!impersonated && (
+        <>
+          <ExportCard />
+          <DeleteAccountCard />
+        </>
+      )}
     </div>
   );
 }
@@ -286,6 +306,153 @@ function SessionsCard() {
           ))}
         </ul>
       </CardContent>
+    </Card>
+  );
+}
+
+function ExportCard() {
+  const { t } = useTranslation();
+  const request = useMutation({
+    mutationFn: requestDataExport,
+    onSuccess: () => toast.success(t("accountPage.exportQueued")),
+    onError: (error) =>
+      toast.error(
+        isApiError(error, "E_RATE_LIMITED")
+          ? t("accountPage.exportTooSoon")
+          : apiErrorMessage(error),
+      ),
+  });
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold">{t("accountPage.exportTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("accountPage.exportHint")}</p>
+        </div>
+        <Button
+          variant="outline"
+          className="shrink-0"
+          disabled={request.isPending}
+          onClick={() => request.mutate()}
+        >
+          {request.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {t("accountPage.exportAction")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteAccountCard() {
+  const { t } = useTranslation();
+  const { me, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+
+  const remove = useMutation({
+    mutationFn: () => deleteAccount(password),
+    onSuccess: async () => {
+      setOpen(false);
+      toast.success(t("accountPage.deleted"));
+      // Every session is already revoked: this only clears the local one.
+      await signOut();
+    },
+  });
+
+  const close = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      setPassword("");
+      remove.reset();
+    }
+  };
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    remove.mutate();
+  };
+
+  const error = remove.error;
+  const conflict = isApiError(error, "E_CONFLICT") ? error.details : [];
+  const lastOwnerOf = conflict
+    .filter((d) => d.rule === "lastOwner" && d.field.startsWith("organizations."))
+    .map((d) => {
+      const id = d.field.slice("organizations.".length);
+      return me?.organizations.find((o) => o.id === id)?.name ?? id;
+    });
+  const lastRoot = conflict.some((d) => d.rule === "lastRoot");
+  const wrongPassword =
+    isApiError(error) && error.status === 422 && error.details.some((d) => d.field === "password");
+  const otherError = error && !conflict.length && !wrongPassword ? apiErrorMessage(error) : null;
+
+  return (
+    <Card className="border-destructive/40">
+      <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold text-destructive">{t("accountPage.deleteTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("accountPage.deleteHint")}</p>
+        </div>
+        <Button variant="destructive" className="shrink-0" onClick={() => setOpen(true)}>
+          {t("accountPage.deleteAction")}
+        </Button>
+      </CardContent>
+      <Dialog open={open} onOpenChange={close}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("accountPage.deleteDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("accountPage.deleteDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="delete-password">{t("accountPage.deletePassword")}</Label>
+                <Input
+                  id="delete-password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  aria-invalid={wrongPassword || undefined}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                {wrongPassword && (
+                  <p className="text-sm text-destructive">{t("accountPage.deleteWrongPassword")}</p>
+                )}
+              </div>
+              {lastOwnerOf.length > 0 && (
+                <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">
+                  <p>{t("accountPage.deleteLastOwner")}</p>
+                  <ul className="mt-2 list-disc pl-5">
+                    {lastOwnerOf.map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {lastRoot && (
+                <p role="alert" className="text-sm text-destructive">
+                  {t("accountPage.deleteLastRoot")}
+                </p>
+              )}
+              {otherError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {otherError}
+                </p>
+              )}
+              <DialogActions>
+                <Button type="button" variant="outline" onClick={() => close(false)}>
+                  {t("accountPage.deleteCancel")}
+                </Button>
+                <Button type="submit" variant="destructive" disabled={remove.isPending}>
+                  {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("accountPage.deleteConfirm")}
+                </Button>
+              </DialogActions>
+            </form>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

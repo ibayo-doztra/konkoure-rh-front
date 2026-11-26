@@ -324,6 +324,8 @@ export default {
     vsPrevious_month: "vs mois précédent",
     vsPrevious_quarter: "vs trimestre précédent",
     noChange: "Stable",
+    points_one: "{{count}} pt",
+    points_other: "{{count}} pts",
     previousValue: "Période précédente : {{value}}",
   },
   auth: {

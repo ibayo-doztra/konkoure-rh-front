@@ -333,3 +333,13 @@ export const directoryQuery = (organizationId: string) =>
     queryKey: [...hrKey(organizationId), "directory"],
     queryFn: () => api.all<DirectoryEntry>("/org/employees/directory"),
   });
+
+/** `POST /org/employees/:id/photo` (O H · self): PNG, JPEG or WebP, 2 MB at most. */
+export const EMPLOYEE_PHOTO_TYPES = ["image/png", "image/jpeg", "image/webp"];
+export const EMPLOYEE_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+
+export function uploadEmployeePhoto(id: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<Employee>(`/org/employees/${encodeURIComponent(id)}/photo`, form);
+}

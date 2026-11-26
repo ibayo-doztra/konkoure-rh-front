@@ -3,12 +3,24 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { allEmployeesQuery } from "@/lib/api/hr";
-import { attendanceQuery, type AttendanceDay } from "@/lib/api/timeclock";
+import {
+  ATTENDANCE_ANOMALIES,
+  attendanceQuery,
+  type AttendanceAnomaly,
+  type AttendanceDay,
+} from "@/lib/api/timeclock";
 import { useOrg } from "@/hooks/useOrg";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ListPager, useClampedPage } from "@/components/ListPager";
 import { PageHeader } from "@/components/PageHeader";
 import { ResponsiveTable } from "@/components/ResponsiveTable";
@@ -45,10 +57,16 @@ function LogsPage() {
   const [from, setFrom] = useState(() => isoDay(-29));
   const [to, setTo] = useState(() => isoDay(0));
   const [page, setPage] = useState(1);
+  const [anomaly, setAnomaly] = useState<AttendanceAnomaly | "all">("all");
 
   const rangeValid = !!from && !!to && from <= to && daysBetween(from, to) < MAX_RANGE_DAYS;
   const attendance = useQuery({
-    ...attendanceQuery(organizationId, { page, from, to }),
+    ...attendanceQuery(organizationId, {
+      page,
+      from,
+      to,
+      anomaly: anomaly === "all" ? undefined : anomaly,
+    }),
     enabled: !!org && rangeValid,
   });
   const lastPage = attendance.data?.meta.lastPage ?? 1;
@@ -110,6 +128,28 @@ function LogsPage() {
               }}
             />
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="attendance-anomaly">{t("timeclock.logs.anomalyFilter")}</Label>
+            <Select
+              value={anomaly}
+              onValueChange={(v) => {
+                setAnomaly(v as AttendanceAnomaly | "all");
+                setPage(1);
+              }}
+            >
+              <SelectTrigger id="attendance-anomaly" className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("timeclock.logs.allAnomalies")}</SelectItem>
+                {ATTENDANCE_ANOMALIES.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {t(`timeclock.anomaly.${a}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {!rangeValid && (
             <p className="text-sm text-destructive">
               {t("timeclock.logs.rangeError", { max: MAX_RANGE_DAYS })}
@@ -159,6 +199,15 @@ function LogsPage() {
                 cell: (d) => (
                   <span className="tabular-nums">
                     {d.workedMinutes > 0 ? formatMinutes(d.workedMinutes) : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "retard",
+                header: t("timeclock.logs.columns.retard"),
+                cell: (d) => (
+                  <span className="tabular-nums text-muted-foreground">
+                    {d.lateMinutes ? t("timeclock.logs.lateBy", { minutes: d.lateMinutes }) : "—"}
                   </span>
                 ),
               },

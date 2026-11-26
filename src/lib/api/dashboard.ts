@@ -21,6 +21,7 @@ export interface Dashboard {
     exits: number;
   } | null;
   attendance: {
+    /** Share of scheduled days within the late tolerance (0..1), `null` without any. */
     punctualityRate: number | null;
     avgWorkedHours: number | null;
     absencesToday: number;
@@ -50,7 +51,7 @@ export interface Dashboard {
 
 /**
  * Previous period. Point-in-time figures are not historized and are `null`
- * (`headcount.active`, `onLeave`, `absencesToday`, `punctualityRate`,
+ * (`headcount.active`, `onLeave`, `absencesToday`,
  * `leaves.pending`, `openJobs`, `reviewsInProgress`, `avgGoalProgress`): no
  * variation is shown for them. `headcount.total` is the headcount on the last day.
  */
@@ -64,7 +65,8 @@ export interface PreviousDashboard {
     exits: number;
   } | null;
   attendance: {
-    punctualityRate: null;
+    /** Share of scheduled days within the late tolerance (0..1), `null` without any. */
+    punctualityRate: number | null;
     avgWorkedHours: number | null;
     absencesToday: null;
     outOfZonePunches: number;

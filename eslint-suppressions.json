@@ -1,9 +1,4 @@
 {
-  "src/components/AppBreadcrumbs.tsx": {
-    "prettier/prettier": {
-      "count": 3
-    }
-  },
   "src/components/ConfirmDialog.tsx": {
     "prettier/prettier": {
       "count": 2
