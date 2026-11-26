@@ -104,7 +104,7 @@ export default {
   },
   accountPage: {
     title: "Mon compte",
-    description: "Gérez votre profil, votre mot de passe et vos sessions.",
+    description: "Gérez votre profil, votre mot de passe, vos sessions et vos données.",
     profileTitle: "Profil",
     fullName: "Nom complet",
     email: "E-mail",
@@ -124,6 +124,28 @@ export default {
     revokeTitle: "Révoquer cette session ?",
     revokeDescription: "L'appareil concerné devra se reconnecter.",
     sessionRevoked: "Session révoquée",
+    exportTitle: "Mes données",
+    exportHint:
+      "Recevez par e-mail une archive de vos données personnelles (profil, sessions et, dans chaque organisation, votre dossier tel que vous le voyez). Le lien est valable 24 heures.",
+    exportAction: "Exporter mes données",
+    exportQueued: "Export lancé : vous recevrez un e-mail avec le lien de téléchargement.",
+    exportTooSoon: "Un export a déjà été demandé il y a moins d'une heure. Réessayez plus tard.",
+    deleteTitle: "Supprimer mon compte",
+    deleteHint:
+      "Votre compte est anonymisé et toutes vos sessions sont fermées. Vos fiches employé restent dans les organisations, détachées de votre compte. Cette action est irréversible.",
+    deleteAction: "Supprimer mon compte",
+    deleteDialogTitle: "Supprimer définitivement votre compte ?",
+    deleteDialogDescription:
+      "Confirmez avec votre mot de passe. Vous serez déconnecté et votre adresse e-mail pourra servir à une nouvelle inscription.",
+    deletePassword: "Mot de passe",
+    deleteConfirm: "Supprimer définitivement",
+    deleteCancel: "Annuler",
+    deleteWrongPassword: "Mot de passe incorrect.",
+    deleteLastOwner:
+      "Vous êtes le seul propriétaire de ces organisations. Nommez un autre propriétaire ou supprimez-les d'abord :",
+    deleteLastRoot:
+      "Vous êtes le dernier administrateur root de la plateforme : nommez-en un autre d'abord.",
+    deleted: "Votre compte a été supprimé.",
   },
   footer: {
     rights: "© {{year}} Konkouré — Tous droits réservés.",
