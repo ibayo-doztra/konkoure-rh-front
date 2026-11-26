@@ -2,9 +2,9 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { APP_URL, createOwner, grantPlan, open, signIn, type Owner } from "./support/app";
 import { API_URL } from "./support/settings";
 
-// The e2e API runs with fake LinkedIn and Facebook credentials (its .env.test): the
-// OAuth flow starts, but no page can be connected for real, so the publishing form
-// itself is not reachable here.
+// The e2e API runs with fake LinkedIn credentials (its .env.test) and without
+// Facebook ones (e2e/support/settings.ts): LinkedIn starts the OAuth flow, Facebook
+// answers 503. No page can be connected for real.
 
 async function signInAt(page: Page, email: string, url: string) {
   await signIn(page, email);
@@ -29,7 +29,7 @@ async function publishedJob(request: APIRequestContext, owner: Owner, title: str
   return job;
 }
 
-test("les RH voient les réseaux à connecter et partent vers LinkedIn pour autoriser Konkouré", async ({
+test("un réseau non configuré est signalé, LinkedIn envoie vers son écran d'autorisation", async ({
   page,
   request,
 }) => {
@@ -38,10 +38,16 @@ test("les RH voient les réseaux à connecter et partent vers LinkedIn pour auto
   await signInAt(page, owner.email, "/app/settings/integrations");
 
   const linkedin = page.getByTestId("social-provider-linkedin");
+  const facebook = page.getByTestId("social-provider-facebook");
   await expect(linkedin).toContainText("Aucune page LinkedIn connectée.");
-  await expect(page.getByTestId("social-provider-facebook")).toContainText(
-    "Aucune page Facebook connectée.",
-  );
+  await expect(facebook).toContainText("Aucune page Facebook connectée.");
+
+  // No Facebook credentials on the API: 503, the member stays on the page.
+  await facebook.getByRole("button", { name: "Connecter" }).click();
+  await expect(
+    page.getByText("La connexion à Facebook n'est pas encore activée sur Konkouré."),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/settings\/integrations$/);
 
   // The consent screen is LinkedIn's own: stop there instead of leaving the test network.
   await page.route("https://www.linkedin.com/**", (route) =>
