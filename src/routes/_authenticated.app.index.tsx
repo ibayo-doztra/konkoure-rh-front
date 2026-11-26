@@ -355,6 +355,8 @@ function change(
   return { direction, text: `${sign}${format(Math.abs(diff))}`, previous: previousLabel };
 }
 
+const percent = (rate: number) => `${Math.round(rate * 100)} %`;
+
 function buildSections(data: Dashboard, { t, number, money }: Formatters) {
   const sections: { key: string; title: string; tiles: Tile[] }[] = [];
   const { headcount, attendance, leaves, recruitment, performance, payroll, previous } = data;
@@ -448,8 +450,15 @@ function buildSections(data: Dashboard, { t, number, money }: Formatters) {
               {
                 key: "punctuality",
                 label: t("dashboard.punctualityRate"),
-                value: `${Math.round(attendance.punctualityRate * 100)} %`,
+                value: percent(attendance.punctualityRate),
                 icon: LogIn,
+                // Compared in percentage points.
+                change: change(
+                  attendance.punctualityRate,
+                  before?.punctualityRate,
+                  (n) => t("dashboard.points", { count: Math.round(n * 100) }),
+                  before?.punctualityRate == null ? undefined : percent(before.punctualityRate),
+                ),
               },
             ]),
       ],
