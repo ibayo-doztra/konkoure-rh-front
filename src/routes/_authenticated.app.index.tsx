@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
   Briefcase,
   CalendarCheck,
   CalendarClock,
@@ -18,6 +21,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  Wallet,
 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { dashboardQuery, type Dashboard, type DashboardPeriod } from "@/lib/api/dashboard";
@@ -36,12 +40,24 @@ export const Route = createFileRoute("/_authenticated/app/")({
   component: DashboardPage,
 });
 
+interface TileChange {
+  direction: "up" | "down" | "flat";
+  /** Signed difference, already formatted. */
+  text: string;
+  /** Value of the previous period, already formatted. */
+  previous: string;
+}
+
 interface Tile {
   key: string;
   label: string;
   value: string;
   icon: typeof Users;
+  /** Absent for point-in-time figures, which have no previous value. */
+  change?: TileChange;
 }
+
+const CHANGE_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
 
 const TOOLTIP_STYLE = {
   background: "var(--color-card)",
@@ -65,7 +81,12 @@ function DashboardPage() {
 
   const number = (n: number) => new Intl.NumberFormat(locale).format(n);
   const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale);
-  const sections = data ? buildSections(data, t, number) : null;
+  const money = (n: number, currency: string) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 0 }).format(
+      n,
+    );
+  const sections = data ? buildSections(data, { t, number, money }) : null;
+  const vsPrevious = t(`dashboard.vsPrevious_${period}`);
 
   const headcount = (data?.series.headcountByMonth ?? []).map((p) => ({
     label: new Date(`${p.month}-01T00:00:00`).toLocaleDateString(locale, { month: "short" }),
@@ -147,6 +168,9 @@ function DashboardPage() {
                         >
                           {tile.value}
                         </p>
+                        {tile.change && (
+                          <TileVariation change={tile.change} tileKey={tile.key} vs={vsPrevious} />
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -227,6 +251,36 @@ function DashboardPage() {
   );
 }
 
+/**
+ * Neutral on purpose: whether a rise is good depends on the figure (hires vs
+ * exits), so the arrow and the sign carry the meaning, not a colour.
+ */
+function TileVariation({
+  change,
+  tileKey,
+  vs,
+}: {
+  change: TileChange;
+  tileKey: string;
+  vs: string;
+}) {
+  const { t } = useTranslation();
+  const Icon = CHANGE_ICON[change.direction];
+  const text = change.direction === "flat" ? t("dashboard.noChange") : change.text;
+  return (
+    <p
+      className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground"
+      data-testid={`kpi-${tileKey}-change`}
+      title={t("dashboard.previousValue", { value: change.previous })}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="tabular-nums">{text}</span>
+      <span className="truncate">{vs}</span>
+      <span className="sr-only">{t("dashboard.previousValue", { value: change.previous })}</span>
+    </p>
+  );
+}
+
 /** A single series: one hue, no legend (the title names it), tooltip on hover. */
 function ChartCard({
   title,
@@ -277,13 +331,34 @@ function ChartCard({
   );
 }
 
-function buildSections(
-  data: Dashboard,
-  t: (key: string, options?: Record<string, unknown>) => string,
-  number: (n: number) => string,
-) {
+interface Formatters {
+  t: (key: string, options?: Record<string, unknown>) => string;
+  number: (n: number) => string;
+  money: (n: number, currency: string) => string;
+}
+
+/**
+ * Variation against the previous period. `undefined` when either side is
+ * missing: point-in-time figures are not historized (`null` in `previous`).
+ */
+function change(
+  current: number | null | undefined,
+  previous: number | null | undefined,
+  format: (n: number) => string,
+  previousLabel: string = format(previous ?? 0),
+): TileChange | undefined {
+  if (current === null || current === undefined) return undefined;
+  if (previous === null || previous === undefined) return undefined;
+  const diff = current - previous;
+  const direction = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  return { direction, text: `${sign}${format(Math.abs(diff))}`, previous: previousLabel };
+}
+
+function buildSections(data: Dashboard, { t, number, money }: Formatters) {
   const sections: { key: string; title: string; tiles: Tile[] }[] = [];
-  const { headcount, attendance, leaves, recruitment, performance } = data;
+  const { headcount, attendance, leaves, recruitment, performance, payroll, previous } = data;
+  const hours = (n: number) => t("dashboard.hoursValue", { value: n.toFixed(1) });
 
   if (headcount) {
     sections.push({
@@ -295,6 +370,7 @@ function buildSections(
           label: t("dashboard.totalEmployees"),
           value: number(headcount.total),
           icon: Users,
+          change: change(headcount.total, previous.headcount?.total, number),
         },
         {
           key: "onLeave",
@@ -307,17 +383,41 @@ function buildSections(
           label: t("dashboard.newHires"),
           value: number(headcount.newHires),
           icon: UserPlus,
+          change: change(headcount.newHires, previous.headcount?.newHires, number),
         },
         {
           key: "exits",
           label: t("dashboard.exits"),
           value: number(headcount.exits),
           icon: UserMinus,
+          change: change(headcount.exits, previous.headcount?.exits, number),
+        },
+      ],
+    });
+  }
+  if (payroll) {
+    const format = (n: number) => money(n, payroll.currency);
+    // Contracts in another currency are ignored by the API: compare like with like.
+    const before =
+      previous.payroll && previous.payroll.currency === payroll.currency
+        ? previous.payroll.total
+        : null;
+    sections.push({
+      key: "payroll",
+      title: t("dashboard.sectionPayroll"),
+      tiles: [
+        {
+          key: "payroll",
+          label: t("dashboard.payrollTotal"),
+          value: format(payroll.total),
+          icon: Wallet,
+          change: change(payroll.total, before, format),
         },
       ],
     });
   }
   if (attendance) {
+    const before = previous.attendance;
     sections.push({
       key: "attendance",
       title: t("dashboard.sectionAttendance"),
@@ -331,17 +431,16 @@ function buildSections(
         {
           key: "avgWorkedHours",
           label: t("dashboard.avgWorkedHours"),
-          value:
-            attendance.avgWorkedHours === null
-              ? "—"
-              : t("dashboard.hoursValue", { value: attendance.avgWorkedHours.toFixed(1) }),
+          value: attendance.avgWorkedHours === null ? "—" : hours(attendance.avgWorkedHours),
           icon: Clock,
+          change: change(attendance.avgWorkedHours, before?.avgWorkedHours, hours),
         },
         {
           key: "outOfZone",
           label: t("dashboard.outOfZonePunches"),
           value: number(attendance.outOfZonePunches),
           icon: MapPinOff,
+          change: change(attendance.outOfZonePunches, before?.outOfZonePunches, number),
         },
         ...(attendance.punctualityRate === null
           ? []
@@ -357,6 +456,7 @@ function buildSections(
     });
   }
   if (leaves) {
+    const before = previous.leaves;
     sections.push({
       key: "leaves",
       title: t("dashboard.sectionLeaves"),
@@ -372,17 +472,20 @@ function buildSections(
           label: t("dashboard.leavesApproved"),
           value: number(leaves.approvedThisPeriod),
           icon: CalendarCheck,
+          change: change(leaves.approvedThisPeriod, before?.approvedThisPeriod, number),
         },
         {
           key: "daysTaken",
           label: t("dashboard.daysTaken"),
           value: number(leaves.daysTaken),
           icon: CalendarDays,
+          change: change(leaves.daysTaken, before?.daysTaken, number),
         },
       ],
     });
   }
   if (recruitment) {
+    const before = previous.recruitment;
     sections.push({
       key: "recruitment",
       title: t("dashboard.sectionRecruitment"),
@@ -398,12 +501,14 @@ function buildSections(
           label: t("dashboard.newCandidates"),
           value: number(recruitment.newCandidates),
           icon: UserPlus,
+          change: change(recruitment.newCandidates, before?.newCandidates, number),
         },
         {
           key: "hired",
           label: t("dashboard.hired"),
           value: number(recruitment.hired),
           icon: UserCheck,
+          change: change(recruitment.hired, before?.hired, number),
         },
       ],
     });
@@ -424,6 +529,7 @@ function buildSections(
           label: t("dashboard.reviewsSigned"),
           value: number(performance.reviewsSigned),
           icon: PenLine,
+          change: change(performance.reviewsSigned, previous.performance?.reviewsSigned, number),
         },
         {
           key: "avgGoalProgress",
