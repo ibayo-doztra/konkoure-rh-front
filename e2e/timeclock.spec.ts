@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { APP_URL, createOwner, open, signIn, type Owner } from "./support/app";
 import { API_URL } from "./support/settings";
 
@@ -25,8 +25,8 @@ const randomUid = () =>
   Array.from({ length: 8 }, () => "0123456789ABCDEF"[Math.floor(Math.random() * 16)]).join("");
 
 /** A table row on desktop, a card on mobile: the visible one holding `text`. */
-const visibleText = (page: Page, text: string) =>
-  page.getByText(text, { exact: true }).filter({ visible: true });
+const visibleText = (scope: Page | Locator, text: string) =>
+  scope.getByText(text, { exact: true }).filter({ visible: true });
 
 test("un badge scanné enregistre l'arrivée puis la sortie, visibles dans les présences", async ({
   page,
@@ -57,8 +57,9 @@ test("un badge scanné enregistre l'arrivée puis la sortie, visibles dans les p
   await expect(page.getByText("Pointage refusé")).toBeVisible();
 
   await open(page, "/app/timeclock/logs");
-  await expect(visibleText(page, "Kadiatou Sow")).toBeVisible();
-  await expect(visibleText(page, "Terminée")).toBeVisible();
+  const days = page.getByTestId("attendance-card");
+  await expect(visibleText(days, "Kadiatou Sow")).toBeVisible();
+  await expect(visibleText(days, "Terminée")).toBeVisible();
 });
 
 test("les RH consultent puis suppriment une zone de travail", async ({ page, request }) => {
@@ -78,4 +79,115 @@ test("les RH consultent puis suppriment une zone de travail", async ({ page, req
   await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
   await expect(page.getByText("Zone supprimée")).toBeVisible();
   await expect(page.getByText("Aucune zone définie.")).toBeVisible();
+});
+
+test("un jeton de kiosque scanne les badges jusqu'à sa révocation", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  const employee = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+    firstName: "Fodé",
+    lastName: "Camara",
+  });
+  const uid = randomUid();
+  await apiPost(request, owner, `/org/employees/${employee.id}/badge`, { badgeUid: uid });
+  await signInAt(page, owner.email, "/app/timeclock/kiosks");
+
+  await page.getByRole("button", { name: "Nouveau jeton" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Nom de la tablette").fill("Accueil Kaloum");
+  await dialog.getByRole("button", { name: "Créer le jeton" }).click();
+  const tokenField = dialog.getByLabel("Jeton", { exact: true });
+  await expect(tokenField).toHaveValue(/^kd_/);
+  const token = await tokenField.inputValue();
+  await dialog.getByRole("button", { name: "J'ai copié le jeton" }).click();
+  await expect(visibleText(page, "Accueil Kaloum")).toBeVisible();
+  await expect(visibleText(page, "Actif")).toBeVisible();
+
+  // The tablet scans with the token alone: the organization comes from it.
+  const scan = () =>
+    request.post(`${API_URL}/api/v1/org/timeclock/scan`, {
+      headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": crypto.randomUUID() },
+      data: { badgeUid: uid, clientPunchId: crypto.randomUUID() },
+    });
+  expect((await scan()).status()).toBe(201);
+
+  await page
+    .getByRole("button", { name: "Révoquer Accueil Kaloum" })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: "Révoquer", exact: true }).click();
+  await expect(page.getByText("Jeton révoqué")).toBeVisible();
+  await expect(visibleText(page, "Révoqué")).toBeVisible();
+  expect((await scan()).status()).toBe(401);
+});
+
+test("l'écran du jour sépare présents et absents, et l'export des pointages se lance", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const present = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+    firstName: "Hawa",
+    lastName: "Keïta",
+  });
+  await apiPost(request, owner, "/org/employees", { firstName: "Ousmane", lastName: "Barry" });
+  const uid = randomUid();
+  await apiPost(request, owner, `/org/employees/${present.id}/badge`, { badgeUid: uid });
+  await apiPost(request, owner, "/org/timeclock/scan", {
+    badgeUid: uid,
+    clientPunchId: crypto.randomUUID(),
+  });
+  await signInAt(page, owner.email, "/app/timeclock/today");
+
+  // The owner has an employee record too: 3 employees, only Hawa has punched in.
+  await expect(page.getByTestId("today-present")).toHaveText(/^1\s*\/\s*3$/);
+  await expect(page.getByTestId("today-absent")).toHaveText(/^2\s*\/\s*3$/);
+  await expect(visibleText(page, "Hawa Keïta")).toBeVisible();
+  await expect(visibleText(page, "Sur place")).toBeVisible();
+  await page.getByRole("tab", { name: "Absents" }).click();
+  await expect(visibleText(page, "Ousmane Barry")).toBeVisible();
+
+  await open(page, "/app/timeclock/logs");
+  await page.getByRole("button", { name: "Exporter" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("CSV").check();
+  await dialog.getByRole("button", { name: "Lancer l'export" }).click();
+  await expect(page.getByText("Export lancé : vous recevrez le fichier par e-mail.")).toBeVisible();
+});
+
+test("les RH corrigent puis suppriment un pointage", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  const employee = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+    firstName: "Saran",
+    lastName: "Kouyaté",
+  });
+  const uid = randomUid();
+  await apiPost(request, owner, `/org/employees/${employee.id}/badge`, { badgeUid: uid });
+  await apiPost(request, owner, "/org/timeclock/scan", {
+    badgeUid: uid,
+    clientPunchId: crypto.randomUUID(),
+  });
+  await signInAt(page, owner.email, "/app/timeclock/logs");
+
+  const punches = page.getByTestId("punches-card");
+  await expect(visibleText(punches, "Arrivée")).toBeVisible();
+  await page
+    .getByRole("button", { name: /^Corriger le pointage Saran Kouyaté/ })
+    .filter({ visible: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox", { name: "Type" }).click();
+  await page.getByRole("option", { name: "Départ" }).click();
+  await dialog.getByLabel("Motif de la correction").fill("Erreur de type au kiosque");
+  await dialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Pointage corrigé")).toBeVisible();
+  await expect(visibleText(punches, "Erreur de type au kiosque")).toBeVisible();
+  await expect(visibleText(punches, "Départ")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: /^Supprimer le pointage Saran Kouyaté/ })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page.getByText("Pointage supprimé")).toBeVisible();
+  await expect(visibleText(punches, "Aucun pointage sur la période.")).toBeVisible();
 });

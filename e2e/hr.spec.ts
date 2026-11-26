@@ -323,3 +323,39 @@ test("les RH ajustent le solde de congés d'un employé avec un motif", async ({
     page.getByText(`Solde ajusté : ${String(after).replace(".", ",")} j disponibles`),
   ).toBeVisible();
 });
+
+test("les RH changent la photo d'un employé, au bon format seulement", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const employee = await createEmployee(request, owner, { firstName: "Aminata", lastName: "Bah" });
+  await signInAt(page, owner.email, `/app/employees/${employee.id}`);
+
+  const input = page.getByTestId("employee-photo-input");
+  await input.setInputFiles({
+    name: "photo.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from("47494638396101000100", "hex"),
+  });
+  await expect(page.getByText("Format accepté : PNG, JPEG ou WebP.")).toBeVisible();
+
+  const sent = page.waitForResponse(
+    (r) => r.url().endsWith(`/employees/${employee.id}/photo`) && r.request().method() === "POST",
+  );
+  await input.setInputFiles({
+    name: "photo.png",
+    mimeType: "image/png",
+    // 1×1 transparent PNG: the API checks the real file type.
+    buffer: Buffer.from(
+      "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082",
+      "hex",
+    ),
+  });
+  const response = await sent;
+  expect(response.status(), await response.text()).toBe(200);
+  await expect(page.getByText("Photo mise à jour")).toBeVisible();
+
+  await page.getByRole("button", { name: "Modifier la photo" }).click();
+  await expect(page.getByRole("menuitem", { name: "Voir en taille réelle" })).toBeEnabled();
+});

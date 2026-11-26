@@ -147,13 +147,16 @@ test("une arrivée après la tolérance apparaît en retard dans les présences"
   await signInAt(page, owner.email, "/app/timeclock/logs");
   await page.getByRole("combobox", { name: "Anomalie" }).click();
   await page.getByRole("option", { name: "Retard" }).click();
-  await expect(visibleText(page, "Alpha Condé")).toBeVisible();
-  await expect(visibleText(page, /^\+\d+ min$/)).toBeVisible();
-  await expect(visibleText(page, "Retard").last()).toBeVisible();
+  const days = page.getByTestId("attendance-card");
+  await expect(days.getByText("Alpha Condé").filter({ visible: true })).toBeVisible();
+  await expect(days.getByText(/^\+\d+ min$/).filter({ visible: true })).toBeVisible();
+  await expect(
+    days.getByText("Retard", { exact: true }).filter({ visible: true }).last(),
+  ).toBeVisible();
 
   await page.getByRole("combobox", { name: "Anomalie" }).click();
   await page.getByRole("option", { name: "Sortie manquante" }).click();
-  await expect(visibleText(page, "Aucune session.")).toBeVisible();
+  await expect(days.getByText("Aucune session.").filter({ visible: true })).toBeVisible();
 
   // The only scheduled day is late: the dashboard shows 0 % punctuality.
   await open(page, "/app");

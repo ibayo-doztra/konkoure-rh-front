@@ -10,6 +10,11 @@ import {
   type AttendanceDay,
 } from "@/lib/api/timeclock";
 import { useOrg } from "@/hooks/useOrg";
+import { useRole } from "@/hooks/useRole";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ExportLogsDialog } from "@/components/timeclock/ExportLogsDialog";
+import { PunchesCard } from "@/components/timeclock/PunchesCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -57,6 +62,9 @@ function LogsPage() {
   const [from, setFrom] = useState(() => isoDay(-29));
   const [to, setTo] = useState(() => isoDay(0));
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  // Exports are for owner and hr_admin only (06 §6).
+  const { isAdmin } = useRole();
   const [anomaly, setAnomaly] = useState<AttendanceAnomaly | "all">("all");
 
   const rangeValid = !!from && !!to && from <= to && daysBetween(from, to) < MAX_RANGE_DAYS;
@@ -97,10 +105,24 @@ function LogsPage() {
   };
 
   return (
-    <div>
-      <PageHeader title={t("timeclock.logs.title")} description={t("timeclock.logs.description")} />
+    <div className="space-y-4">
+      <PageHeader
+        title={t("timeclock.logs.title")}
+        description={t("timeclock.logs.description")}
+        actions={
+          isAdmin ? (
+            <Button variant="outline" onClick={() => setExporting(true)}>
+              <Download className="mr-2 h-4 w-4" />
+              {t("timeclock.export.open")}
+            </Button>
+          ) : undefined
+        }
+      />
+      {exporting && (
+        <ExportLogsDialog defaultFrom={from} defaultTo={to} onClose={() => setExporting(false)} />
+      )}
 
-      <Card className="mb-4">
+      <Card>
         <CardContent className="flex flex-wrap items-end gap-4 p-4">
           <div className="grid gap-1.5">
             <Label htmlFor="attendance-from">{t("timeclock.logs.from")}</Label>
@@ -158,7 +180,7 @@ function LogsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-testid="attendance-card">
         <CardContent className="p-0">
           <div className="border-b bg-muted/30 p-3 text-sm font-semibold">
             {t("timeclock.logs.sessionsTitle")}
@@ -224,6 +246,8 @@ function LogsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {rangeValid && <PunchesCard from={from} to={to} names={names} canCorrect={isAdmin} />}
     </div>
   );
 }

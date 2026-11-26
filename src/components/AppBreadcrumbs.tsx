@@ -29,6 +29,8 @@ const SEG_TO_KEY: Record<string, string> = {
   timeclock: "timeclock",
   zones: "zones",
   schedules: "schedules",
+  kiosks: "kiosks",
+  today: "today",
   logs: "logs",
   talents: "talents",
   skills: "skills",

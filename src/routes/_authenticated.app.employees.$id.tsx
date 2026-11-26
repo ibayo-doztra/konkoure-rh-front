@@ -1,3 +1,4 @@
+import { EmployeePhoto } from "@/components/employees/EmployeePhoto";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +24,6 @@ import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NfcBadgeCard } from "@/components/employees/NfcBadgeCard";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -158,13 +158,11 @@ function EmployeeDetailPage() {
           onEdit={isAdmin ? () => setDialog("personal") : undefined}
         >
           <div className="flex gap-5">
-            <Avatar className="h-24 w-24 shrink-0 bg-warning ring-2 ring-border ring-offset-2 ring-offset-background">
-              {emp.photoUrl && <AvatarImage src={emp.photoUrl} className="object-cover" />}
-              <AvatarFallback className="bg-warning text-2xl font-semibold text-warning-foreground">
-                {emp.firstName[0]}
-                {emp.lastName[0]}
-              </AvatarFallback>
-            </Avatar>
+            <EmployeePhoto
+              employee={emp}
+              organizationId={organizationId}
+              canEdit={isAdmin || isSelf}
+            />
             <div className="min-w-0 flex-1">
               <h1 className="break-words text-2xl font-semibold text-card-foreground">
                 {emp.firstName} {emp.lastName}
