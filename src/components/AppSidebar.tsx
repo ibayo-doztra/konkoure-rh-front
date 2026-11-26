@@ -30,6 +30,8 @@ import {
   CalendarDays,
   CalendarCheck,
   CalendarClock,
+  Tablet,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -131,9 +133,11 @@ export function AppSidebar() {
       label: t("nav.timeclock"),
       icon: Timer,
       items: [
+        { to: "/app/timeclock/today", icon: UserCheck, label: t("nav.today") },
         { to: "/app/timeclock/logs", icon: Clock, label: t("nav.logs") },
         { to: "/app/timeclock/zones", icon: MapPin, label: t("nav.zones") },
         { to: "/app/timeclock/schedules", icon: CalendarClock, label: t("nav.schedules") },
+        { to: "/app/timeclock/kiosks", icon: Tablet, label: t("nav.kiosks") },
       ],
     },
 

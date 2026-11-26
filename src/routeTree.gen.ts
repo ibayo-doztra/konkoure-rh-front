@@ -64,9 +64,11 @@ import { Route as AuthenticatedAppSettingsMembersRouteImport } from './routes/_a
 import { Route as AuthenticatedAppTalents9boxRouteImport } from './routes/_authenticated.app.talents.9box'
 import { Route as AuthenticatedAppTalentsSkillsRouteImport } from './routes/_authenticated.app.talents.skills'
 import { Route as AuthenticatedAppTalentsSuccessionRouteImport } from './routes/_authenticated.app.talents.succession'
+import { Route as AuthenticatedAppTimeclockKiosksRouteImport } from './routes/_authenticated.app.timeclock.kiosks'
 import { Route as AuthenticatedAppTimeclockLogsRouteImport } from './routes/_authenticated.app.timeclock.logs'
 import { Route as AuthenticatedAppTimeclockScanRouteImport } from './routes/_authenticated.app.timeclock.scan'
 import { Route as AuthenticatedAppTimeclockSchedulesRouteImport } from './routes/_authenticated.app.timeclock.schedules'
+import { Route as AuthenticatedAppTimeclockTodayRouteImport } from './routes/_authenticated.app.timeclock.today'
 import { Route as AuthenticatedAppTimeclockZonesRouteImport } from './routes/_authenticated.app.timeclock.zones'
 import { Route as AuthenticatedAppPerformanceReviewsIndexRouteImport } from './routes/_authenticated.app.performance.reviews.index'
 import { Route as AuthenticatedAppPerformanceReviewsIdRouteImport } from './routes/_authenticated.app.performance.reviews.$id'
@@ -378,6 +380,12 @@ const AuthenticatedAppTalentsSuccessionRoute =
     path: '/talents/succession',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppTimeclockKiosksRoute =
+  AuthenticatedAppTimeclockKiosksRouteImport.update({
+    id: '/timeclock/kiosks',
+    path: '/timeclock/kiosks',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppTimeclockLogsRoute =
   AuthenticatedAppTimeclockLogsRouteImport.update({
     id: '/timeclock/logs',
@@ -394,6 +402,12 @@ const AuthenticatedAppTimeclockSchedulesRoute =
   AuthenticatedAppTimeclockSchedulesRouteImport.update({
     id: '/timeclock/schedules',
     path: '/timeclock/schedules',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppTimeclockTodayRoute =
+  AuthenticatedAppTimeclockTodayRouteImport.update({
+    id: '/timeclock/today',
+    path: '/timeclock/today',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppTimeclockZonesRoute =
@@ -490,9 +504,11 @@ export interface FileRoutesByFullPath {
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
+  '/app/timeclock/kiosks': typeof AuthenticatedAppTimeclockKiosksRoute
   '/app/timeclock/logs': typeof AuthenticatedAppTimeclockLogsRoute
   '/app/timeclock/scan': typeof AuthenticatedAppTimeclockScanRoute
   '/app/timeclock/schedules': typeof AuthenticatedAppTimeclockSchedulesRoute
+  '/app/timeclock/today': typeof AuthenticatedAppTimeclockTodayRoute
   '/app/timeclock/zones': typeof AuthenticatedAppTimeclockZonesRoute
   '/app/billing/': typeof AuthenticatedAppBillingIndexRoute
   '/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
@@ -553,9 +569,11 @@ export interface FileRoutesByTo {
   '/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
+  '/app/timeclock/kiosks': typeof AuthenticatedAppTimeclockKiosksRoute
   '/app/timeclock/logs': typeof AuthenticatedAppTimeclockLogsRoute
   '/app/timeclock/scan': typeof AuthenticatedAppTimeclockScanRoute
   '/app/timeclock/schedules': typeof AuthenticatedAppTimeclockSchedulesRoute
+  '/app/timeclock/today': typeof AuthenticatedAppTimeclockTodayRoute
   '/app/timeclock/zones': typeof AuthenticatedAppTimeclockZonesRoute
   '/app/billing': typeof AuthenticatedAppBillingIndexRoute
   '/app/employees': typeof AuthenticatedAppEmployeesIndexRoute
@@ -621,9 +639,11 @@ export interface FileRoutesById {
   '/_authenticated/app/talents/9box': typeof AuthenticatedAppTalents9boxRoute
   '/_authenticated/app/talents/skills': typeof AuthenticatedAppTalentsSkillsRoute
   '/_authenticated/app/talents/succession': typeof AuthenticatedAppTalentsSuccessionRoute
+  '/_authenticated/app/timeclock/kiosks': typeof AuthenticatedAppTimeclockKiosksRoute
   '/_authenticated/app/timeclock/logs': typeof AuthenticatedAppTimeclockLogsRoute
   '/_authenticated/app/timeclock/scan': typeof AuthenticatedAppTimeclockScanRoute
   '/_authenticated/app/timeclock/schedules': typeof AuthenticatedAppTimeclockSchedulesRoute
+  '/_authenticated/app/timeclock/today': typeof AuthenticatedAppTimeclockTodayRoute
   '/_authenticated/app/timeclock/zones': typeof AuthenticatedAppTimeclockZonesRoute
   '/_authenticated/app/billing/': typeof AuthenticatedAppBillingIndexRoute
   '/_authenticated/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
@@ -689,9 +709,11 @@ export interface FileRouteTypes {
     | '/app/talents/9box'
     | '/app/talents/skills'
     | '/app/talents/succession'
+    | '/app/timeclock/kiosks'
     | '/app/timeclock/logs'
     | '/app/timeclock/scan'
     | '/app/timeclock/schedules'
+    | '/app/timeclock/today'
     | '/app/timeclock/zones'
     | '/app/billing/'
     | '/app/employees/'
@@ -752,9 +774,11 @@ export interface FileRouteTypes {
     | '/app/talents/9box'
     | '/app/talents/skills'
     | '/app/talents/succession'
+    | '/app/timeclock/kiosks'
     | '/app/timeclock/logs'
     | '/app/timeclock/scan'
     | '/app/timeclock/schedules'
+    | '/app/timeclock/today'
     | '/app/timeclock/zones'
     | '/app/billing'
     | '/app/employees'
@@ -819,9 +843,11 @@ export interface FileRouteTypes {
     | '/_authenticated/app/talents/9box'
     | '/_authenticated/app/talents/skills'
     | '/_authenticated/app/talents/succession'
+    | '/_authenticated/app/timeclock/kiosks'
     | '/_authenticated/app/timeclock/logs'
     | '/_authenticated/app/timeclock/scan'
     | '/_authenticated/app/timeclock/schedules'
+    | '/_authenticated/app/timeclock/today'
     | '/_authenticated/app/timeclock/zones'
     | '/_authenticated/app/billing/'
     | '/_authenticated/app/employees/'
@@ -1244,6 +1270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppTalentsSuccessionRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/timeclock/kiosks': {
+      id: '/_authenticated/app/timeclock/kiosks'
+      path: '/timeclock/kiosks'
+      fullPath: '/app/timeclock/kiosks'
+      preLoaderRoute: typeof AuthenticatedAppTimeclockKiosksRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/timeclock/logs': {
       id: '/_authenticated/app/timeclock/logs'
       path: '/timeclock/logs'
@@ -1263,6 +1296,13 @@ declare module '@tanstack/react-router' {
       path: '/timeclock/schedules'
       fullPath: '/app/timeclock/schedules'
       preLoaderRoute: typeof AuthenticatedAppTimeclockSchedulesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/timeclock/today': {
+      id: '/_authenticated/app/timeclock/today'
+      path: '/timeclock/today'
+      fullPath: '/app/timeclock/today'
+      preLoaderRoute: typeof AuthenticatedAppTimeclockTodayRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/timeclock/zones': {
@@ -1355,9 +1395,11 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppTalents9boxRoute: typeof AuthenticatedAppTalents9boxRoute
   AuthenticatedAppTalentsSkillsRoute: typeof AuthenticatedAppTalentsSkillsRoute
   AuthenticatedAppTalentsSuccessionRoute: typeof AuthenticatedAppTalentsSuccessionRoute
+  AuthenticatedAppTimeclockKiosksRoute: typeof AuthenticatedAppTimeclockKiosksRoute
   AuthenticatedAppTimeclockLogsRoute: typeof AuthenticatedAppTimeclockLogsRoute
   AuthenticatedAppTimeclockScanRoute: typeof AuthenticatedAppTimeclockScanRoute
   AuthenticatedAppTimeclockSchedulesRoute: typeof AuthenticatedAppTimeclockSchedulesRoute
+  AuthenticatedAppTimeclockTodayRoute: typeof AuthenticatedAppTimeclockTodayRoute
   AuthenticatedAppTimeclockZonesRoute: typeof AuthenticatedAppTimeclockZonesRoute
   AuthenticatedAppBillingIndexRoute: typeof AuthenticatedAppBillingIndexRoute
   AuthenticatedAppLeavesIndexRoute: typeof AuthenticatedAppLeavesIndexRoute
@@ -1400,10 +1442,12 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppTalentsSkillsRoute: AuthenticatedAppTalentsSkillsRoute,
   AuthenticatedAppTalentsSuccessionRoute:
     AuthenticatedAppTalentsSuccessionRoute,
+  AuthenticatedAppTimeclockKiosksRoute: AuthenticatedAppTimeclockKiosksRoute,
   AuthenticatedAppTimeclockLogsRoute: AuthenticatedAppTimeclockLogsRoute,
   AuthenticatedAppTimeclockScanRoute: AuthenticatedAppTimeclockScanRoute,
   AuthenticatedAppTimeclockSchedulesRoute:
     AuthenticatedAppTimeclockSchedulesRoute,
+  AuthenticatedAppTimeclockTodayRoute: AuthenticatedAppTimeclockTodayRoute,
   AuthenticatedAppTimeclockZonesRoute: AuthenticatedAppTimeclockZonesRoute,
   AuthenticatedAppBillingIndexRoute: AuthenticatedAppBillingIndexRoute,
   AuthenticatedAppLeavesIndexRoute: AuthenticatedAppLeavesIndexRoute,

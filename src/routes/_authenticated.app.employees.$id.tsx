@@ -228,7 +228,18 @@ function EmployeeDetailPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <LeaveBalanceCard balance={emp.leaveBalance ?? null} />
+        <LeaveBalanceCard
+          balance={emp.leaveBalance ?? null}
+          adjust={
+            isAdmin && hasModule("leaves")
+              ? {
+                  organizationId,
+                  employeeId: emp.id,
+                  employeeName: `${emp.firstName} ${emp.lastName}`,
+                }
+              : undefined
+          }
+        />
         {isAdmin && hasModule("timeclock") && (
           <NfcBadgeCard organizationId={organizationId} employeeId={emp.id} />
         )}
