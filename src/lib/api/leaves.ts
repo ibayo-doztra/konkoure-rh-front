@@ -202,3 +202,16 @@ export function estimateLeaveDays(
   if (halfDayEnd && counted(last)) days -= 0.5;
   return days;
 }
+
+/**
+ * `POST /org/leaves/balances/adjust` (O H): adds `deltaDays` (± 365, 2 decimals, not 0)
+ * to the entitlement of the year, written to the ledger with `reason` and audited.
+ */
+export function adjustLeaveBalance(input: {
+  employeeId: string;
+  leaveType: LeaveType;
+  deltaDays: number;
+  reason: string;
+}) {
+  return api.post<LeaveBalance>("/org/leaves/balances/adjust", input);
+}
