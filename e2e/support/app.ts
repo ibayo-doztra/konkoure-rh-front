@@ -110,7 +110,12 @@ export async function createOwner(request: APIRequestContext): Promise<Owner> {
   return { email, accessToken, organizationId: organization.id, organizationName };
 }
 
-export async function invite(request: APIRequestContext, owner: Owner, email: string) {
+export async function invite(
+  request: APIRequestContext,
+  owner: Owner,
+  email: string,
+  role: "manager" | "recruiter" | "hr_admin" | "employee" = "manager",
+) {
   await apiData(
     await request.post(`${API_URL}/api/v1/org/invitations`, {
       headers: {
@@ -118,7 +123,7 @@ export async function invite(request: APIRequestContext, owner: Owner, email: st
         "X-Organization-Id": owner.organizationId,
         "Idempotency-Key": crypto.randomUUID(),
       },
-      data: { email, role: "manager" },
+      data: { email, role },
     }),
   );
   return mailLink(email, "/invitation");
