@@ -215,3 +215,34 @@ export function adjustLeaveBalance(input: {
 }) {
   return api.post<LeaveBalance>("/org/leaves/balances/adjust", input);
 }
+
+export interface CalendarLeave {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  type: LeaveType;
+  /** Only `pending` and `approved` requests are returned. */
+  status: Extract<LeaveStatus, "pending" | "approved">;
+  startDate: string;
+  endDate: string;
+  halfDayStart: boolean;
+  halfDayEnd: boolean;
+}
+
+export interface LeaveCalendar {
+  from: string;
+  to: string;
+  leaves: CalendarLeave[];
+  holidays: Holiday[];
+}
+
+/**
+ * `GET /org/leaves/calendar?from&to` (local dates, 92 days at most): requests
+ * overlapping the period, scoped like the list (O H all, M team + self, else self).
+ */
+export const leaveCalendarQuery = (organizationId: string, from: string, to: string) =>
+  queryOptions({
+    queryKey: [...leavesKey(organizationId), "calendar", from, to],
+    queryFn: () => api.get<LeaveCalendar>("/org/leaves/calendar", { from, to }),
+    placeholderData: keepPreviousData,
+  });

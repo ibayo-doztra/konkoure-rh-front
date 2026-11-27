@@ -156,3 +156,45 @@ test("les RH importent les jours fériés guinéens et en ajoutent un", async ({
   await expect(page.getByText("Jour férié supprimé")).toBeVisible();
   await expect(page.getByText("Journée de l'entreprise")).toHaveCount(0);
 });
+
+test("le calendrier montre les absences du mois et les jours fériés", async ({ page, request }) => {
+  const owner = await createOwner(request);
+  const member = await createMember(request, owner, "Kadiatou");
+  const { monday, wednesday, friday } = nextFebruaryWeek();
+  const session = await request.post(`${API_URL}/api/v1/auth/login`, {
+    data: { email: member.email, password: PASSWORD },
+  });
+  const { accessToken } = ((await session.json()) as { data: { accessToken: string } }).data;
+  const created = await request.post(`${API_URL}/api/v1/org/leaves`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "X-Organization-Id": owner.organizationId,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { type: "annual", startDate: monday, endDate: wednesday, reason: "Voyage" },
+  });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const leave = ((await created.json()) as { data: { id: string } }).data;
+  await apiPost(request, owner, "/org/holidays", { name: "Fête de l'équipe", date: friday });
+
+  await signInAt(page, owner.email, "/app/leaves/calendar");
+  // From the current month to February next year.
+  const steps = 13 - new Date().getMonth();
+  for (let i = 0; i < steps; i++) {
+    await page.getByRole("button", { name: "Mois suivant" }).click();
+  }
+  await expect(page.getByRole("heading", { name: /février/i })).toBeVisible();
+
+  const day = (date: string) => page.locator(`[data-date="${date}"]`).filter({ visible: true });
+  const pending = day(wednesday).locator('li[data-status="pending"]');
+  await expect(pending).toHaveText("Kadiatou Camara");
+  await expect(day(friday).getByText("Fête de l'équipe")).toBeVisible();
+  await expect(day(friday).locator("li")).toHaveCount(0);
+
+  await apiPost(request, owner, `/org/leaves/${leave.id}/approve`, {});
+  await page.reload();
+  for (let i = 0; i < steps; i++) {
+    await page.getByRole("button", { name: "Mois suivant" }).click();
+  }
+  await expect(day(monday).locator('li[data-status="approved"]')).toHaveText("Kadiatou Camara");
+});
