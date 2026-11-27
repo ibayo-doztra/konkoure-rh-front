@@ -124,6 +124,11 @@ export default {
     revokeTitle: "Revoke this session?",
     revokeDescription: "The device will have to sign in again.",
     sessionRevoked: "Session revoked",
+    logoutAll: "Sign out of all devices",
+    logoutAllTitle: "Sign out of all devices?",
+    logoutAllDescription:
+      "Every session is closed, this one included. You will have to sign in again on each device.",
+    logoutAllDone: "All your devices have been signed out",
     exportTitle: "My data",
     exportHint:
       "Get an archive of your personal data by email (profile, sessions and, in each organization, your record as you see it). The link is valid for 24 hours.",

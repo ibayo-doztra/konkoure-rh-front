@@ -80,3 +80,34 @@ test("un membre supprime son compte et ne peut plus se connecter", async ({ page
   });
   expect(login.status()).toBe(401);
 });
+
+test("déconnecter tous les appareils ferme aussi les autres sessions", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  // A second device, signed in outside the browser.
+  const other = await request.post(`${API_URL}/api/v1/auth/login`, {
+    data: { email: owner.email, password: PASSWORD },
+  });
+  expect(other.ok()).toBeTruthy();
+  const { refreshToken } = ((await other.json()) as { data: { refreshToken: string } }).data;
+
+  await signInAt(page, owner.email, "/app/account");
+  await page.getByRole("button", { name: "Déconnecter tous les appareils" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Déconnecter tous les appareils" })
+    .click();
+  await expect(page.getByText("Tous vos appareils ont été déconnectés")).toBeVisible();
+  await expect(page).toHaveURL(/\/login/);
+
+  const refreshed = await request.post(`${API_URL}/api/v1/auth/refresh`, {
+    data: { refreshToken },
+  });
+  expect(refreshed.status()).toBe(401);
+
+  // The browser session is gone too: the app sends back to the login page.
+  await page.goto("/app/account");
+  await expect(page).toHaveURL(/\/login/);
+});
