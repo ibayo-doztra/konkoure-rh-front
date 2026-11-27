@@ -36,6 +36,11 @@ export async function logout() {
   }
 }
 
+/** `POST /auth/logout-all` (06 §1): revokes every session, this one included. */
+export async function logoutAll() {
+  await api.post("/auth/logout-all");
+}
+
 export function forgotPassword(email: string) {
   return api.post<void>("/auth/forgot-password", { email });
 }
