@@ -72,6 +72,13 @@ export const membersQuery = (organizationId: string, page: number) =>
     queryFn: () => api.list<Member>("/org/members", { page, perPage: LIST_PAGE_SIZE }),
   });
 
+/** Every member, for names (owner and hr_admin). */
+export const allMembersQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: [...membersKey(organizationId), "all"],
+    queryFn: () => api.all<Member>("/org/members"),
+  });
+
 export function updateMemberRoles(userId: string, roles: AppRole[]) {
   return api.patch<Member>(`/org/members/${encodeURIComponent(userId)}/roles`, { roles });
 }

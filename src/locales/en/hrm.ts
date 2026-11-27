@@ -122,6 +122,7 @@ export default {
       eventAssigned: "Assigned",
       eventRevoked: "Revoked",
       eventReassigned: "Replaced",
+      eventScanRejected: "Scan rejected",
     },
   },
   departments: {
