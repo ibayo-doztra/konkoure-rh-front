@@ -53,6 +53,8 @@ export interface EmployeeInput {
   birthDate?: string | null;
   address?: EmployeeAddress;
   emergencyContact?: EmergencyContact;
+  baseSalary?: number | null;
+  salaryCurrency?: string | null;
 }
 
 export interface EmployeeFilters {
@@ -132,6 +134,25 @@ export const employeeHeadcountQuery = (organizationId: string) =>
       ]);
       return (all.meta.total ?? 0) - (terminated.meta.total ?? 0);
     },
+  });
+
+export interface EmployeeSalary {
+  baseSalary: number | null;
+  salaryCurrency: string | null;
+}
+
+/**
+ * `GET /org/employees/:id/salary` (06 §4): owner, hr_admin and the employee. Every read
+ * is audited (`salary.viewed`): the key stays out of `hrKey` (no refetch when HR data is
+ * invalidated), the value is never refetched on its own and is dropped once unused.
+ */
+export const employeeSalaryQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["org", organizationId, "salary", id],
+    queryFn: () => api.get<EmployeeSalary>(`/org/employees/${encodeURIComponent(id)}/salary`),
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
   });
 
 export function createEmployee(input: EmployeeInput) {
