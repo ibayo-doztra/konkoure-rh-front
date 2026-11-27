@@ -33,6 +33,7 @@ const SEG_TO_KEY: Record<string, string> = {
   holidays: "holidays",
   calendar: "calendar",
   kiosks: "kiosks",
+  badges: "badges",
   today: "today",
   logs: "logs",
   talents: "talents",

@@ -359,3 +359,60 @@ test("les RH changent la photo d'un employé, au bon format seulement", async ({
   await page.getByRole("button", { name: "Modifier la photo" }).click();
   await expect(page.getByRole("menuitem", { name: "Voir en taille réelle" })).toBeEnabled();
 });
+
+test("le salaire de base n'est lu qu'à la demande, modifié par les RH et lu par l'employé", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const email = uniqueEmail("salary");
+  const employee = await createEmployee(request, owner, {
+    firstName: "Fatoumata",
+    lastName: "Camara",
+    email,
+  });
+  const salaryReads: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith(`/employees/${employee.id}/salary`)) salaryReads.push(r.url());
+  });
+
+  await signInAt(page, owner.email, `/app/employees/${employee.id}`);
+  await expect(page.getByRole("heading", { name: "Salaire de base" })).toBeVisible();
+  // Each read is audited: nothing is fetched until asked.
+  expect(salaryReads).toHaveLength(0);
+  await page.getByRole("button", { name: "Afficher" }).click();
+  await expect(page.getByTestId("base-salary")).toHaveText("Aucun salaire de base renseigné.");
+
+  await page.getByRole("button", { name: "Modifier", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Montant").fill("4500000");
+  await expect(dialog.getByLabel("Devise")).toHaveValue("GNF");
+  await dialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Salaire de base enregistré")).toBeVisible();
+  await expect(page.getByTestId("base-salary")).toHaveText(/4\s500\s000\sGNF/);
+  expect(salaryReads).toHaveLength(1);
+
+  await page.getByRole("button", { name: "Masquer" }).click();
+  await expect(page.getByTestId("base-salary")).toHaveCount(0);
+
+  // The employee reads their own salary but cannot change it.
+  const invited = await request.post(`${API_URL}/api/v1/org/invitations`, {
+    headers: {
+      Authorization: `Bearer ${owner.accessToken}`,
+      "X-Organization-Id": owner.organizationId,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { email, role: "employee", employeeId: employee.id },
+  });
+  expect(invited.ok(), await invited.text()).toBeTruthy();
+  const token = new URL(await mailLink(email, "/invitation"), API_URL).searchParams.get("token");
+  const accepted = await request.post(`${API_URL}/api/v1/auth/invitations/${token}/accept`, {
+    data: { password: PASSWORD, password_confirmation: PASSWORD, fullName: "Fatoumata Camara" },
+  });
+  expect(accepted.ok()).toBeTruthy();
+  await page.context().clearCookies();
+  await signInAt(page, email, `/app/employees/${employee.id}`);
+  await page.getByRole("button", { name: "Afficher" }).click();
+  await expect(page.getByTestId("base-salary")).toHaveText(/4\s500\s000\sGNF/);
+  await expect(page.getByRole("button", { name: "Modifier", exact: true })).toHaveCount(0);
+});

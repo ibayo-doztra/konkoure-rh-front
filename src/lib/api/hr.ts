@@ -53,6 +53,8 @@ export interface EmployeeInput {
   birthDate?: string | null;
   address?: EmployeeAddress;
   emergencyContact?: EmergencyContact;
+  baseSalary?: number | null;
+  salaryCurrency?: string | null;
 }
 
 export interface EmployeeFilters {
@@ -132,6 +134,25 @@ export const employeeHeadcountQuery = (organizationId: string) =>
       ]);
       return (all.meta.total ?? 0) - (terminated.meta.total ?? 0);
     },
+  });
+
+export interface EmployeeSalary {
+  baseSalary: number | null;
+  salaryCurrency: string | null;
+}
+
+/**
+ * `GET /org/employees/:id/salary` (06 §4): owner, hr_admin and the employee. Every read
+ * is audited (`salary.viewed`): the key stays out of `hrKey` (no refetch when HR data is
+ * invalidated), the value is never refetched on its own and is dropped once unused.
+ */
+export const employeeSalaryQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["org", organizationId, "salary", id],
+    queryFn: () => api.get<EmployeeSalary>(`/org/employees/${encodeURIComponent(id)}/salary`),
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
   });
 
 export function createEmployee(input: EmployeeInput) {
@@ -283,8 +304,9 @@ export interface NfcBadge {
 
 export interface NfcBadgeEvent {
   id: string;
-  employeeId: string;
-  badgeId: string;
+  /** `null` for a rejected scan of an unknown badge. */
+  employeeId: string | null;
+  badgeId: string | null;
   uid: string;
   event: string;
   reason: string | null;
@@ -298,6 +320,27 @@ export const employeeBadgeQuery = (organizationId: string, employeeId: string) =
   queryOptions({
     queryKey: [...hrKey(organizationId), "badge", employeeId],
     queryFn: () => api.get<NfcBadge | null>(badgePath(employeeId)),
+  });
+
+export const BADGE_JOURNAL_PAGE_SIZE = 25;
+
+/**
+ * `GET /org/timeclock/badge-events` (06 §6, owner and hr_admin): every badge event of
+ * the organization, newest first, including rejected scans of unknown badges.
+ */
+export const badgeJournalQuery = (
+  organizationId: string,
+  filters: { page: number; employeeId?: string },
+) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "badge-journal", filters],
+    queryFn: () =>
+      api.list<NfcBadgeEvent>("/org/timeclock/badge-events", {
+        page: filters.page,
+        perPage: BADGE_JOURNAL_PAGE_SIZE,
+        employeeId: filters.employeeId,
+      }),
+    placeholderData: keepPreviousData,
   });
 
 export const badgeEventsQuery = (organizationId: string, employeeId: string) =>

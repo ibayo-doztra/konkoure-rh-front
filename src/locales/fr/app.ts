@@ -124,6 +124,11 @@ export default {
     revokeTitle: "Révoquer cette session ?",
     revokeDescription: "L'appareil concerné devra se reconnecter.",
     sessionRevoked: "Session révoquée",
+    logoutAll: "Déconnecter tous les appareils",
+    logoutAllTitle: "Déconnecter tous les appareils ?",
+    logoutAllDescription:
+      "Toutes vos sessions sont fermées, celle-ci comprise. Vous devrez vous reconnecter sur chaque appareil.",
+    logoutAllDone: "Tous vos appareils ont été déconnectés",
     exportTitle: "Mes données",
     exportHint:
       "Recevez par e-mail une archive de vos données personnelles (profil, sessions et, dans chaque organisation, votre dossier tel que vous le voyez). Le lien est valable 24 heures.",

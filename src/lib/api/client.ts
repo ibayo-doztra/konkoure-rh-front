@@ -303,7 +303,10 @@ export async function apiRequest<T>(
   // `/auth/*` calls are public, where a 401 means bad credentials, except these.
   // Logout must reach the API: otherwise the refresh cookie keeps the session alive.
   const usesSession =
-    !path.startsWith("/auth/") || path === "/auth/resend-verification" || path === "/auth/logout";
+    !path.startsWith("/auth/") ||
+    path === "/auth/resend-verification" ||
+    path === "/auth/logout" ||
+    path === "/auth/logout-all";
 
   // Expired access token: refresh once, then replay. Never loop (04-auth-rbac §1).
   // Another tab may already have rotated the session while this request was in flight.

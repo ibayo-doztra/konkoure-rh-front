@@ -139,6 +139,7 @@ export function AppSidebar() {
         { to: "/app/timeclock/zones", icon: MapPin, label: t("nav.zones") },
         { to: "/app/timeclock/schedules", icon: CalendarClock, label: t("nav.schedules") },
         { to: "/app/timeclock/kiosks", icon: Tablet, label: t("nav.kiosks") },
+        { to: "/app/timeclock/badges", icon: CreditCard, label: t("nav.badges") },
       ],
     },
 

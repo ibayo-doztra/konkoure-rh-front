@@ -94,6 +94,17 @@ export default {
       deleteDescription: "The deletion is recorded in the audit log and the day is recomputed.",
       deleted: "Punch deleted",
     },
+    badges: {
+      title: "Badge journal",
+      description:
+        "NFC badge assignments, revocations and replacements, and rejected scans of unknown badges.",
+      employee: "Employee",
+      allEmployees: "All employees",
+      empty: "No badge event.",
+      unknownBadge: "Unknown badge",
+      kiosk: "Kiosk",
+      columns: { date: "Date", employee: "Employee", uid: "Badge", event: "Event", actor: "By" },
+    },
     kiosks: {
       title: "Timeclock kiosks",
       description:

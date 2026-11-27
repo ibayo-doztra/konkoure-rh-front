@@ -150,7 +150,7 @@ export function NfcBadgeCard({ organizationId, employeeId }: Props) {
                       </div>
                     </div>
                     <Badge variant={event.event === "assigned" ? "default" : "outline"}>
-                      {eventLabel(event.event, t)}
+                      {badgeEventLabel(event.event, t)}
                     </Badge>
                   </li>
                 ))}
@@ -165,7 +165,7 @@ export function NfcBadgeCard({ organizationId, employeeId }: Props) {
 
 const KNOWN_EVENTS = new Set(["assigned", "revoked", "reassigned"]);
 
-function eventLabel(event: string, t: (key: string) => string): string {
+export function badgeEventLabel(event: string, t: (key: string) => string): string {
   switch (event) {
     case "assigned":
       return t("employees.badge.eventAssigned");
@@ -173,6 +173,8 @@ function eventLabel(event: string, t: (key: string) => string): string {
       return t("employees.badge.eventRevoked");
     case "reassigned":
       return t("employees.badge.eventReassigned");
+    case "scan_rejected":
+      return t("employees.badge.eventScanRejected");
     default:
       return event;
   }

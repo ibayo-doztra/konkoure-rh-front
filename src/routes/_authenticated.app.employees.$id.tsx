@@ -24,6 +24,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useRole } from "@/hooks/useRole";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NfcBadgeCard } from "@/components/employees/NfcBadgeCard";
+import { SalaryCard } from "@/components/employees/SalaryCard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -240,6 +241,9 @@ function EmployeeDetailPage() {
               : undefined
           }
         />
+        {(isAdmin || isSelf) && (
+          <SalaryCard organizationId={organizationId} employeeId={emp.id} canEdit={isAdmin} />
+        )}
         {isAdmin && hasModule("timeclock") && (
           <NfcBadgeCard organizationId={organizationId} employeeId={emp.id} />
         )}

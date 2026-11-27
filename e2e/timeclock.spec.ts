@@ -191,3 +191,59 @@ test("les RH corrigent puis suppriment un pointage", async ({ page, request }) =
   await expect(page.getByText("Pointage supprimé")).toBeVisible();
   await expect(visibleText(punches, "Aucun pointage sur la période.")).toBeVisible();
 });
+
+test("le journal des badges montre attributions, remplacements et scans refusés", async ({
+  page,
+  request,
+}) => {
+  const owner = await createOwner(request);
+  const headers = {
+    Authorization: `Bearer ${owner.accessToken}`,
+    "X-Organization-Id": owner.organizationId,
+  };
+  const employee = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+    firstName: "Mamadou",
+    lastName: "Bah",
+  });
+  const other = await apiPost<{ id: string }>(request, owner, "/org/employees", {
+    firstName: "Aïssatou",
+    lastName: "Barry",
+  });
+  const assign = async (employeeId: string, badgeUid: string) => {
+    const response = await request.post(`${API_URL}/api/v1/org/employees/${employeeId}/badge`, {
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+      data: { badgeUid },
+    });
+    expect(response.status(), await response.text()).toBe(201);
+  };
+  const first = randomUid();
+  const second = randomUid();
+  await assign(employee.id, first);
+  await assign(employee.id, second); // replaces the first one
+  await assign(other.id, randomUid());
+  const unknown = randomUid();
+  const rejected = await request.post(`${API_URL}/api/v1/org/timeclock/scan`, {
+    headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+    data: { badgeUid: unknown, clientPunchId: crypto.randomUUID() },
+  });
+  expect(rejected.status()).toBe(404);
+
+  await signInAt(page, owner.email, "/app/timeclock/badges");
+  await expect(page.getByRole("heading", { name: "Journal des badges" })).toBeVisible();
+  const journal = page.getByTestId("badge-journal");
+  await expect(visibleText(journal, "Scan refusé")).toBeVisible();
+  await expect(visibleText(journal, "Badge inconnu")).toBeVisible();
+  await expect(visibleText(journal, "Remplacé")).toBeVisible();
+  await expect(visibleText(journal, "Attribué")).toHaveCount(3);
+  // UIDs stay masked: only the last four characters are shown.
+  await expect(journal.getByText(first, { exact: true })).toHaveCount(0);
+  await expect(
+    journal.getByText(new RegExp(`${unknown.slice(-4)}$`)).filter({ visible: true }),
+  ).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Employé" }).click();
+  await page.getByRole("option", { name: "Aïssatou Barry" }).click();
+  await expect(visibleText(journal, "Attribué")).toHaveCount(1);
+  await expect(visibleText(journal, "Scan refusé")).toHaveCount(0);
+  await expect(visibleText(journal, "Remplacé")).toHaveCount(0);
+});

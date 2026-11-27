@@ -14,6 +14,7 @@ import {
   updateProfile,
   type UserSession,
 } from "@/lib/api/account";
+import { logoutAll } from "@/lib/api/auth";
 import { apiErrorMessage, isApiError } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -66,7 +67,7 @@ function AccountPage() {
           </Card>
         }
       >
-        <SessionsCard />
+        <SessionsCard impersonated={impersonated} />
       </Suspense>
       {!impersonated && (
         <>
@@ -236,8 +237,9 @@ function PasswordCard() {
   );
 }
 
-function SessionsCard() {
+function SessionsCard({ impersonated }: { impersonated: boolean }) {
   const { t } = useTranslation();
+  const { signOut } = useAuth();
   const queryClient = useQueryClient();
   const { confirm, confirmDialog } = useConfirm();
   const { data: sessions } = useSuspenseQuery(sessionsQuery());
@@ -250,6 +252,26 @@ function SessionsCard() {
     },
     onError: (error) => toast.error(apiErrorMessage(error)),
   });
+
+  const closeAll = useMutation({
+    mutationFn: logoutAll,
+    onSuccess: async () => {
+      toast.success(t("accountPage.logoutAllDone"));
+      // This session is revoked too: only the local state is left to clear.
+      await signOut();
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  });
+
+  const onCloseAll = async () => {
+    const confirmed = await confirm({
+      title: t("accountPage.logoutAllTitle"),
+      description: t("accountPage.logoutAllDescription"),
+      actionLabel: t("accountPage.logoutAll"),
+      actionVariant: "destructive",
+    });
+    if (confirmed) closeAll.mutate();
+  };
 
   const label = (session: UserSession) =>
     session.deviceLabel ?? session.userAgent ?? t("accountPage.unknownDevice");
@@ -269,9 +291,24 @@ function SessionsCard() {
     <Card>
       {confirmDialog}
       <CardContent className="space-y-4 p-6">
-        <div>
-          <h2 className="font-semibold">{t("accountPage.sessionsTitle")}</h2>
-          <p className="text-sm text-muted-foreground">{t("accountPage.sessionsHint")}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-semibold">{t("accountPage.sessionsTitle")}</h2>
+            <p className="text-sm text-muted-foreground">{t("accountPage.sessionsHint")}</p>
+          </div>
+          {/* Refused while an admin acts as this account (06 §13). */}
+          {!impersonated && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-fit shrink-0"
+              disabled={closeAll.isPending}
+              onClick={() => void onCloseAll()}
+            >
+              {closeAll.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("accountPage.logoutAll")}
+            </Button>
+          )}
         </div>
         <ul className="space-y-2">
           {sessions.map((session) => (
