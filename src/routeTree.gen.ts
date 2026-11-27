@@ -50,6 +50,7 @@ import { Route as AuthenticatedAppBillingReturnRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated.app.employees.index'
 import { Route as AuthenticatedAppEmployeesIdRouteImport } from './routes/_authenticated.app.employees.$id'
 import { Route as AuthenticatedAppLeavesIndexRouteImport } from './routes/_authenticated.app.leaves.index'
+import { Route as AuthenticatedAppLeavesCalendarRouteImport } from './routes/_authenticated.app.leaves.calendar'
 import { Route as AuthenticatedAppLeavesHolidaysRouteImport } from './routes/_authenticated.app.leaves.holidays'
 import { Route as AuthenticatedAppPerformanceAchievementsRouteImport } from './routes/_authenticated.app.performance.achievements'
 import { Route as AuthenticatedAppPerformanceActivitiesRouteImport } from './routes/_authenticated.app.performance.activities'
@@ -296,6 +297,12 @@ const AuthenticatedAppLeavesIndexRoute =
     path: '/leaves/',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppLeavesCalendarRoute =
+  AuthenticatedAppLeavesCalendarRouteImport.update({
+    id: '/leaves/calendar',
+    path: '/leaves/calendar',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppLeavesHolidaysRoute =
   AuthenticatedAppLeavesHolidaysRouteImport.update({
     id: '/leaves/holidays',
@@ -491,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/app/billing/checkout': typeof AuthenticatedAppBillingCheckoutRoute
   '/app/billing/return': typeof AuthenticatedAppBillingReturnRoute
   '/app/employees/$id': typeof AuthenticatedAppEmployeesIdRoute
+  '/app/leaves/calendar': typeof AuthenticatedAppLeavesCalendarRoute
   '/app/leaves/holidays': typeof AuthenticatedAppLeavesHolidaysRoute
   '/app/performance/achievements': typeof AuthenticatedAppPerformanceAchievementsRoute
   '/app/performance/activities': typeof AuthenticatedAppPerformanceActivitiesRoute
@@ -556,6 +564,7 @@ export interface FileRoutesByTo {
   '/app/billing/checkout': typeof AuthenticatedAppBillingCheckoutRoute
   '/app/billing/return': typeof AuthenticatedAppBillingReturnRoute
   '/app/employees/$id': typeof AuthenticatedAppEmployeesIdRoute
+  '/app/leaves/calendar': typeof AuthenticatedAppLeavesCalendarRoute
   '/app/leaves/holidays': typeof AuthenticatedAppLeavesHolidaysRoute
   '/app/performance/achievements': typeof AuthenticatedAppPerformanceAchievementsRoute
   '/app/performance/activities': typeof AuthenticatedAppPerformanceActivitiesRoute
@@ -626,6 +635,7 @@ export interface FileRoutesById {
   '/_authenticated/app/billing/checkout': typeof AuthenticatedAppBillingCheckoutRoute
   '/_authenticated/app/billing/return': typeof AuthenticatedAppBillingReturnRoute
   '/_authenticated/app/employees/$id': typeof AuthenticatedAppEmployeesIdRoute
+  '/_authenticated/app/leaves/calendar': typeof AuthenticatedAppLeavesCalendarRoute
   '/_authenticated/app/leaves/holidays': typeof AuthenticatedAppLeavesHolidaysRoute
   '/_authenticated/app/performance/achievements': typeof AuthenticatedAppPerformanceAchievementsRoute
   '/_authenticated/app/performance/activities': typeof AuthenticatedAppPerformanceActivitiesRoute
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/app/billing/checkout'
     | '/app/billing/return'
     | '/app/employees/$id'
+    | '/app/leaves/calendar'
     | '/app/leaves/holidays'
     | '/app/performance/achievements'
     | '/app/performance/activities'
@@ -761,6 +772,7 @@ export interface FileRouteTypes {
     | '/app/billing/checkout'
     | '/app/billing/return'
     | '/app/employees/$id'
+    | '/app/leaves/calendar'
     | '/app/leaves/holidays'
     | '/app/performance/achievements'
     | '/app/performance/activities'
@@ -830,6 +842,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/billing/checkout'
     | '/_authenticated/app/billing/return'
     | '/_authenticated/app/employees/$id'
+    | '/_authenticated/app/leaves/calendar'
     | '/_authenticated/app/leaves/holidays'
     | '/_authenticated/app/performance/achievements'
     | '/_authenticated/app/performance/activities'
@@ -1172,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLeavesIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/leaves/calendar': {
+      id: '/_authenticated/app/leaves/calendar'
+      path: '/leaves/calendar'
+      fullPath: '/app/leaves/calendar'
+      preLoaderRoute: typeof AuthenticatedAppLeavesCalendarRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/leaves/holidays': {
       id: '/_authenticated/app/leaves/holidays'
       path: '/leaves/holidays'
@@ -1382,6 +1402,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppBillingCheckoutRoute: typeof AuthenticatedAppBillingCheckoutRoute
   AuthenticatedAppBillingReturnRoute: typeof AuthenticatedAppBillingReturnRoute
+  AuthenticatedAppLeavesCalendarRoute: typeof AuthenticatedAppLeavesCalendarRoute
   AuthenticatedAppLeavesHolidaysRoute: typeof AuthenticatedAppLeavesHolidaysRoute
   AuthenticatedAppPerformanceAchievementsRoute: typeof AuthenticatedAppPerformanceAchievementsRoute
   AuthenticatedAppPerformanceActivitiesRoute: typeof AuthenticatedAppPerformanceActivitiesRoute
@@ -1422,6 +1443,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppBillingCheckoutRoute: AuthenticatedAppBillingCheckoutRoute,
   AuthenticatedAppBillingReturnRoute: AuthenticatedAppBillingReturnRoute,
+  AuthenticatedAppLeavesCalendarRoute: AuthenticatedAppLeavesCalendarRoute,
   AuthenticatedAppLeavesHolidaysRoute: AuthenticatedAppLeavesHolidaysRoute,
   AuthenticatedAppPerformanceAchievementsRoute:
     AuthenticatedAppPerformanceAchievementsRoute,

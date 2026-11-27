@@ -318,6 +318,18 @@ export default {
     myBalance: "My leave balance",
     pendingDays: "Days pending approval",
     balanceHint: "Available annual balance, after deducting approved leave.",
+    calendar: {
+      title: "Leave calendar",
+      description: "Approved and pending absences of the month, and public holidays.",
+      previous: "Previous month",
+      next: "Next month",
+      today: "Today",
+      holiday: "Public holiday",
+      halfDay: "half day",
+      more_one: "+ {{count}} more",
+      more_other: "+ {{count}} more",
+      empty: "No absence this month.",
+    },
     adjust: {
       open: "Adjust",
       title: "Adjust the leave balance",
