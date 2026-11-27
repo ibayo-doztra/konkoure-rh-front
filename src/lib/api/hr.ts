@@ -283,8 +283,9 @@ export interface NfcBadge {
 
 export interface NfcBadgeEvent {
   id: string;
-  employeeId: string;
-  badgeId: string;
+  /** `null` for a rejected scan of an unknown badge. */
+  employeeId: string | null;
+  badgeId: string | null;
   uid: string;
   event: string;
   reason: string | null;
@@ -298,6 +299,27 @@ export const employeeBadgeQuery = (organizationId: string, employeeId: string) =
   queryOptions({
     queryKey: [...hrKey(organizationId), "badge", employeeId],
     queryFn: () => api.get<NfcBadge | null>(badgePath(employeeId)),
+  });
+
+export const BADGE_JOURNAL_PAGE_SIZE = 25;
+
+/**
+ * `GET /org/timeclock/badge-events` (06 §6, owner and hr_admin): every badge event of
+ * the organization, newest first, including rejected scans of unknown badges.
+ */
+export const badgeJournalQuery = (
+  organizationId: string,
+  filters: { page: number; employeeId?: string },
+) =>
+  queryOptions({
+    queryKey: [...hrKey(organizationId), "badge-journal", filters],
+    queryFn: () =>
+      api.list<NfcBadgeEvent>("/org/timeclock/badge-events", {
+        page: filters.page,
+        perPage: BADGE_JOURNAL_PAGE_SIZE,
+        employeeId: filters.employeeId,
+      }),
+    placeholderData: keepPreviousData,
   });
 
 export const badgeEventsQuery = (organizationId: string, employeeId: string) =>

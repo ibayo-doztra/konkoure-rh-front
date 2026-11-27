@@ -96,6 +96,23 @@ export default {
         "La suppression est tracée dans le journal d'audit et la journée est recalculée.",
       deleted: "Pointage supprimé",
     },
+    badges: {
+      title: "Journal des badges",
+      description:
+        "Attributions, révocations et remplacements de badges NFC, ainsi que les scans refusés de badges inconnus.",
+      employee: "Employé",
+      allEmployees: "Tous les employés",
+      empty: "Aucun événement de badge.",
+      unknownBadge: "Badge inconnu",
+      kiosk: "Kiosque",
+      columns: {
+        date: "Date",
+        employee: "Employé",
+        uid: "Badge",
+        event: "Événement",
+        actor: "Par",
+      },
+    },
     kiosks: {
       title: "Kiosques de pointage",
       description:
